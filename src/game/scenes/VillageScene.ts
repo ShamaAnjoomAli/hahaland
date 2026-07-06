@@ -1,5 +1,7 @@
 import Phaser from "phaser";
-
+import NPC from "../entities/NPC";
+import Dialogue from "../dialogues/dialogue.json"
+import DialogueBox from "../ui/DialogueBox";
 /**
  * Main gameplay scene for the village map.
  * Loads the Tiled map, spawns the player, handles collisions, camera follow, and movement.
@@ -10,6 +12,17 @@ export default class VillageScene extends Phaser.Scene {
 
   /** WASD keyboard bindings used for player movement. */
   private keys!: any;
+
+  private npcs: NPC[] = [];
+
+  /** NPC Interaction. */
+  private interactKey!: Phaser.Input.Keyboard.Key;
+  
+  /** NPC Interaction. */
+  private dialogue!: DialogueBox;
+
+  /** NPC dialogue hide */
+  private spaceKey!: Phaser.Input.Keyboard.Key;
 
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
@@ -24,29 +37,74 @@ export default class VillageScene extends Phaser.Scene {
     // --- Tilemap setup ---
     // Load the village tilemap exported from Tiled and bind it to the loaded tileset image.
     const map = this.make.tilemap({
-      key: "village",
+      key: "egypt_city",
     });
-
-    const tileset = map.addTilesetImage("tileset", "tiles");
-
-    if (!tileset) return;
-
+  
+    const tileset = map.addTilesetImage(
+      "egypt_desert_tileset",
+      "egypt_desert_tileset"
+    );
+  
+    if (!tileset) {
+      console.error("Tileset not found");
+      console.log(map.tilesets.map(t => t.name));
+      return;
+    }
+  
+    
     // --- Tile layers ---
     // Create visible layers from the map. Each layer gets a different depth so objects draw on top of ground.
-    const groundLayer = map.createLayer("Dungeon", tileset);
-    const objectLayer = map.createLayer("Objects", tileset);
-    const cartLayer = map.createLayer("Carts", tileset);
-
+    const groundLayer = map.createLayer("Ground", tileset);
+    const pathsLayer = map.createLayer("Paths", tileset);
+    const waterLayer = map.createLayer("Water", tileset);
+    const buildingsLayer = map.createLayer("Buildings", tileset);
+    const propsLayer = map.createLayer("Props", tileset);
+     
+    
+    // --- Layer depth ordering ---
+    // Lower depth draws first (ground), higher depth draws on top (carts, then player).
+    groundLayer?.setDepth(0);
+    pathsLayer?.setDepth(1);
+    waterLayer?.setDepth(2);
+    buildingsLayer?.setDepth(10);
+    propsLayer?.setDepth(20);
+  
+    // Initialization of dialogues with NPC
+    this.dialogue = new DialogueBox(this);
+  
+    // Space hides the conversation
+    this.spaceKey = this.input.keyboard!.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SPACE
+    );
+  
     // --- Player setup ---
     // Spawn the player sprite at the starting position with physics and a slightly smaller scale.
     this.player = this.physics.add.sprite(20, 150, "player");
     this.player.setScale(0.75);
     this.player.setDepth(30);
+  
+    // --- NPC setup ---
+    const wizard = new NPC(
+      this,
+      470,
+      130,
+      "wizard",
+      Dialogue.wizard.open
+    );
+  
+    wizard.setFrame(0);
+    wizard.setScale(1.2);
+    wizard.setDepth(30);
+  
+    this.npcs.push(wizard);
+  
+    this.physics.add.collider(this.player, wizard);
+  
 
     // --- Collision objects ---
     // Read invisible collision rectangles from the Tiled object layer and turn them into static physics bodies.
-    const collisionObjects = map.getObjectLayer("Collisions");
-
+    const collisionObjects = map.getObjectLayer("CollisionObjects");
+  
     if (collisionObjects) {
       collisionObjects.objects.forEach((obj) => {
         const wall = this.add.rectangle(
@@ -57,13 +115,19 @@ export default class VillageScene extends Phaser.Scene {
           0xff0000,
           0 // Invisible
         );
+  
+        this.physics.add.existing(wall, true);  
 
-        this.physics.add.existing(wall, true);
-
+        // Adds collision for player to walls
         this.physics.add.collider(
           this.player,
           wall as Phaser.GameObjects.Rectangle
         );
+// Adds collision for player to npcs
+this.physics.add.collider(
+  this.player,
+  wizard
+);
       });
     }
     this.player.setDepth(30);
@@ -93,11 +157,11 @@ export default class VillageScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
 
-    // --- Layer depth ordering ---
-    // Lower depth draws first (ground), higher depth draws on top (carts, then player).
-    groundLayer.setDepth(0);
-    objectLayer.setDepth(10);
-    cartLayer.setDepth(20);
+    // --- Keyboard input for NPC interactions---
+    this.interactKey = this.input.keyboard!.addKey(
+        Phaser.Input.Keyboard.KeyCodes.E
+    );
+
   }
 
   /**
@@ -124,5 +188,52 @@ export default class VillageScene extends Phaser.Scene {
     } else {
       this.player.stop();
     }
+
+    // NPC interaction
+    if (
+        Phaser.Input.Keyboard.JustDown(
+            this.interactKey
+        )
+    ) {
+        this.interact();
+    }
+
+    // Hide NPC Dialogue
+    if (
+        Phaser.Input.Keyboard.JustDown(
+            this.spaceKey
+        )
+    ) {
+        this.dialogue.next();
+    }
   }
+
+  // Logic for interacting with NPCs using the E key
+  private interact() {
+
+    let nearest: NPC | null = null;
+    let nearestDistance = 99999;
+
+    this.npcs.forEach(npc => {
+
+        const distance = Phaser.Math.Distance.Between(
+            this.player.x,
+            this.player.y,
+            npc.x,
+            npc.y
+        );
+
+        if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearest = npc;
+        }
+
+    });
+
+    if (!nearest) return;
+
+    if (nearestDistance > 60) return;
+
+    console.log("Showing dialogue");
+    this.dialogue.show(nearest.dialogue);}
 }

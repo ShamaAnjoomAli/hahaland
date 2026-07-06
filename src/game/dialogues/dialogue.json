@@ -1,0 +1,10 @@
+{
+    "wizard": {
+        "open": [
+            "Welcome to Riverside.",
+            "We haven't seen you before.",
+            "The castle is north.",
+            "Good luck!"
+        ]
+    }
+}

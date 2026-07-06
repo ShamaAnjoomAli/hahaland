@@ -17,14 +17,14 @@ export default class BootScene extends Phaser.Scene {
   preload() {
     // Village map exported from Tiled (JSON format).
     this.load.tilemapTiledJSON(
-      "village",
-      "assets/maps/village.json"
+      "egypt_city",
+      "assets/maps/egypt_city_starter_map.json"
     );
 
     // Tileset image referenced by the village map.
     this.load.image(
-      "tiles",
-      "assets/tiles/tilemap.png"
+      "egypt_desert_tileset",
+      "assets/maps/egypt_desert_tileset.png"
     );
 
     // Player spritesheet; each frame is 64×64 pixels.
@@ -35,6 +35,16 @@ export default class BootScene extends Phaser.Scene {
         frameWidth: 64,
         frameHeight: 64,
       }
+    );
+
+    // NPC spritesheet; each frame is 64×64 pixels.
+    this.load.spritesheet(
+        "wizard",
+        "assets/sprites/npc/wizard.png",
+        {
+            frameWidth: 64,
+            frameHeight: 64,
+        }
     );
   }
 
