@@ -1,78 +1,110 @@
 import Phaser from "phaser";
 
 export default class DialogueBox {
+  private scene: Phaser.Scene;
+  public container: Phaser.GameObjects.Container;
 
-    private scene: Phaser.Scene;
-    private background: Phaser.GameObjects.Rectangle;
-    private text: Phaser.GameObjects.Text;
-    private messages: string[] = [];
-    private currentMessage = 0;
-    private visible = false;
+  private box!: Phaser.GameObjects.Rectangle;
+  private text!: Phaser.GameObjects.Text;
+  private hint!: Phaser.GameObjects.Text;
 
-    constructor(scene: Phaser.Scene) {
+  private lines: string[] = [];
+  private index = 0;
+  private open = false;
 
-        const cam = scene.cameras.main;
+  constructor(scene: Phaser.Scene) {
+    this.scene = scene;
 
-        this.background = scene.add.rectangle(
-            cam.width / 2,
-            cam.height - 80,
-            cam.width - 40,
-            140,
-            0x000000,
-            0.8
-        );
-        
-        this.background.setDepth(1000);
-        this.background.setScrollFactor(0);
-        this.background.setVisible(false);
-        
-        this.text = scene.add.text(
-            40,
-            cam.height - 120,
-            "",
-            {
-                fontSize: "20px",
-                color: "#ffffff",
-                wordWrap: {
-                    width: cam.width - 80
-                }
-            }
-        );
-        
-        this.text.setDepth(1001);
-        this.text.setScrollFactor(0);
-        this.text.setVisible(false);
+    const width = scene.scale.width;
+    const height = scene.scale.height;
+
+    this.container = scene.add.container(0, 0);
+    this.container.setScrollFactor(0);
+    this.container.setDepth(9999);
+    this.container.setVisible(false);
+
+    this.box = scene.add.rectangle(
+      width / 2,
+      height - 90,
+      width - 120,
+      130,
+      0x000000,
+      0.85
+    );
+
+    this.box.setStrokeStyle(3, 0xffffff);
+
+    this.text = scene.add.text(
+      90,
+      height - 135,
+      "",
+      {
+        fontSize: "22px",
+        color: "#ffffff",
+        wordWrap: {
+          width: width - 180,
+        },
+      }
+    );
+
+    this.hint = scene.add.text(
+      width - 260,
+      height - 55,
+      "SPACE ▶ Next",
+      {
+        fontSize: "16px",
+        color: "#ffd966",
+      }
+    );
+
+    this.container.add([
+      this.box,
+      this.text,
+      this.hint,
+    ]);
+  }
+
+  show(dialogue: string | string[]) {
+    this.lines = Array.isArray(dialogue)
+      ? dialogue
+      : [dialogue];
+
+    this.index = 0;
+    this.open = true;
+
+    this.container.setVisible(true);
+    this.showCurrentLine();
+  }
+
+  next() {
+    if (!this.open) return;
+
+    this.index++;
+
+    if (this.index >= this.lines.length) {
+      this.hide();
+      return;
     }
 
-    show(messages: string[]) {
-        this.messages = messages;
-        this.currentMessage = 0;
-        this.visible = true;
-    
-        this.background.setVisible(true);
-        this.text.setVisible(true);
-    
-        this.text.setText(this.messages[0]);
-    }
+    this.showCurrentLine();
+  }
 
-    next() {
-        this.currentMessage++;
-    
-        if (this.currentMessage >= this.messages.length) {
-            this.hide();
-            return;
-        }
-    
-        this.text.setText(
-            this.messages[this.currentMessage]
-        );
-    
-    }
+  hide() {
+    this.open = false;
+    this.container.setVisible(false);
+  }
 
-    hide() {
-        this.visible = false;
+  isOpen() {
+    return this.open;
+  }
 
-    this.background.setVisible(false);
-    this.text.setVisible(false);
+  private showCurrentLine() {
+    this.text.setText(this.lines[this.index]);
+
+    if (this.index >= this.lines.length - 1) {
+      this.hint.setText("SPACE ▶ Close");
+    } else {
+      this.hint.setText("SPACE ▶ Next");
     }
+  }
 }
