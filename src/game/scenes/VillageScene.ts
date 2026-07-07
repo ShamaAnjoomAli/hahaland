@@ -82,6 +82,15 @@ export default class VillageScene extends Phaser.Scene {
   private timerEvent!: Phaser.Time.TimerEvent;
   private isTimeUp = false;
 
+  // Background music and npc talk sounds
+  private bgMusic?: Phaser.Sound.BaseSound;
+  private musicStarted = false;
+
+  private npcTalkSoundKeys = [
+    "npc-talk-1",
+    "npc-talk-2",
+    "npc-talk-3",
+  ];
 
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
@@ -156,12 +165,13 @@ export default class VillageScene extends Phaser.Scene {
     // this.player = this.physics.add.sprite(20, 10, "player");
     const playerSpawn = this.getSpawnPoint(map, "PlayerSpawn");
 
-this.player = this.physics.add.sprite(
-  playerSpawn.x,
-  playerSpawn.y,
-  "player"
-);
-    this.player.setScale(0.75);
+    this.player = this.physics.add.sprite(
+      playerSpawn.x,
+      playerSpawn.y,
+      "player"
+    );
+
+    this.player.setScale(1);
     this.player.setDepth(30);
     this.worldObjects.push(this.player);
 
@@ -256,12 +266,61 @@ this.player = this.physics.add.sprite(
         Phaser.Input.Keyboard.KeyCodes.E
     );
 
+    this.setupAudio();
+    
+    this.events.once(
+      Phaser.Scenes.Events.SHUTDOWN,
+      () => {
+        this.bgMusic?.stop();
+      }
+    );
+  }
+
+  private setupAudio() {
+    const musicKey = "egypt-theme";
+
+    if (!this.cache.audio.exists(musicKey)) {
+      console.warn(
+        `Audio key "${musicKey}" not found.`
+      );
+      return;
+    }
+
+    this.bgMusic = this.sound.add(musicKey, {
+      loop: true,
+      volume: 0.45,
+    });
+
+    // Try once immediately
+    this.startBackgroundMusic();
+
+    // Also try after real Phaser user input
+    this.input.once("pointerdown", () => {
+      this.startBackgroundMusic();
+    });
+
+    this.input.keyboard?.once("keydown", () => {
+      this.startBackgroundMusic();
+    });
+  }
+  
+  private startBackgroundMusic() {
+    if (!this.bgMusic) return;
+
+    if (this.bgMusic.isPlaying) return;
+  
+    console.log("Starting background music");
+  
+    this.bgMusic.play({
+      loop: true,
+      volume: 0.45,
+    });
   }
 
   private createQuestMarker() {
     this.questMarker = this.add.text(0, 0, "!", {
       fontFamily: "Arial",
-      fontSize: "20px",
+      fontSize: "30px",
       color: "#ffd966",
       stroke: "#000000",
       strokeThickness: 6,
@@ -293,7 +352,7 @@ this.player = this.physics.add.sprite(
     this.questMarker.setVisible(true);
     this.questMarker.setPosition(
       targetNPC.x,
-      targetNPC.y - 25
+      targetNPC.y - 45
     );
   }
 
@@ -329,6 +388,14 @@ this.player = this.physics.add.sprite(
       return;
     }
   
+    if (
+      this.keys.left.isDown ||
+      this.keys.right.isDown ||
+      this.keys.up.isDown ||
+      this.keys.down.isDown
+    ) {
+      this.startBackgroundMusic();
+    }
     this.player.setVelocity(0);
   
     if (this.keys.left.isDown) {
@@ -359,10 +426,13 @@ this.player = this.physics.add.sprite(
 
   // Logic for interacting with NPCs using the E key
   private interact() {
-    const nearest = this.getNearestNPC(60);
+    const nearest = this.getNearestNPC(100);
   
     if (!nearest) return;
-
+    
+    this.startBackgroundMusic();
+    this.playNPCTalkSound();
+    
     this.addCoins(1);
   
     const npcName = nearest.getData("npcName");
@@ -383,6 +453,26 @@ this.player = this.physics.add.sprite(
       undefined,
       npcPortraitKey
     );
+  }
+
+  private playNPCTalkSound() {
+    const soundKey = Phaser.Utils.Array.GetRandom(
+      this.npcTalkSoundKeys
+    );
+  
+    if (!this.cache.audio.exists(soundKey)) {
+      console.warn("NPC talk sound missing:", soundKey);
+      return;
+    }
+  
+    this.sound.play(soundKey, {
+      volume: 1,
+      detune: Phaser.Math.Between(-120, 120),
+    });
+  }
+
+  shutdown() {
+    this.bgMusic?.stop();
   }
 
   private createInteractPrompt() {
@@ -426,7 +516,7 @@ this.player = this.physics.add.sprite(
       return;
     }
   
-    const nearest = this.getNearestNPC(60);
+    const nearest = this.getNearestNPC(100);
   
     if (!nearest) {
       this.interactPrompt.setVisible(false);
@@ -756,7 +846,7 @@ this.player = this.physics.add.sprite(
       );
       npc.setData("npcName", npcName);
       npc.setFrame(0);
-      npc.setScale(1.2);
+      npc.setScale(1);
       npc.setDepth(30);
   
       this.npcs.push(npc);

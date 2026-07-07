@@ -1,0 +1,323 @@
+* {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    background: #111217;
+  }
+  
+  .menu-page {
+    position: relative;
+    width: 100vw;
+    min-height: 100vh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 46%, rgba(245, 169, 0, 0.22), transparent 32%),
+      radial-gradient(circle at 50% 100%, rgba(122, 73, 12, 0.5), transparent 45%),
+      linear-gradient(180deg, #050208 0%, #090506 48%, #000000 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    font-family: Arial, sans-serif;
+  }
+  
+  .menu-bg-glow {
+    position: absolute;
+    width: 520px;
+    height: 520px;
+    border-radius: 999px;
+    background: rgba(242, 169, 0, 0.16);
+    filter: blur(8px);
+    animation: pulseGlow 3s ease-in-out infinite;
+  }
+  
+  @keyframes pulseGlow {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+  
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+  }
+  
+  .pyramid {
+    position: absolute;
+    bottom: -80px;
+    width: 0;
+    height: 0;
+    opacity: 0.42;
+  }
+  
+  .pyramid-one {
+    left: 18%;
+    border-left: 280px solid transparent;
+    border-right: 280px solid transparent;
+    border-bottom: 520px solid rgba(136, 82, 18, 0.55);
+  }
+  
+  .pyramid-two {
+    right: 12%;
+    border-left: 360px solid transparent;
+    border-right: 360px solid transparent;
+    border-bottom: 680px solid rgba(193, 127, 24, 0.32);
+  }
+  
+  .pyramid-three {
+    left: 45%;
+    border-left: 220px solid transparent;
+    border-right: 220px solid transparent;
+    border-bottom: 420px solid rgba(0, 0, 0, 0.44);
+  }
+  
+  .menu-nav {
+    position: absolute;
+    top: 24px;
+    left: 32px;
+    right: 32px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .brand {
+    font-family: Georgia, serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #ffd700;
+    text-shadow: 0 0 18px rgba(255, 215, 0, 0.4);
+  }
+  
+  .nav-button {
+    border: 1px solid rgba(214, 168, 79, 0.5);
+    color: white;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px 28px;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  
+  .hero-card,
+  .how-card {
+    position: relative;
+    z-index: 3;
+    width: min(920px, 92vw);
+    border: 1px solid rgba(214, 168, 79, 0.5);
+    border-radius: 28px;
+    padding: 56px;
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.52)),
+      rgba(12, 8, 5, 0.65);
+    box-shadow:
+      0 30px 90px rgba(0, 0, 0, 0.65),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    text-align: center;
+  }
+  
+  .hero-card {
+    padding-top: 64px;
+    padding-bottom: 60px;
+  }
+  
+  .eyebrow {
+    margin: 0 0 18px;
+    color: #d6a84f;
+    text-transform: uppercase;
+    letter-spacing: 7px;
+    font-weight: 800;
+    font-size: 13px;
+  }
+  
+  .hero-card h1 {
+    margin: 0;
+    font-family: Georgia, serif;
+    font-size: clamp(64px, 10vw, 132px);
+    line-height: 0.9;
+    color: #ffd700;
+    letter-spacing: 4px;
+    text-shadow:
+      0 0 22px rgba(255, 215, 0, 0.45),
+      0 4px 0 rgba(0, 0, 0, 0.35);
+  }
+  
+  .hero-card h2 {
+    margin: 38px 0 18px;
+    font-family: Georgia, serif;
+    font-size: clamp(32px, 5vw, 58px);
+    line-height: 1.08;
+    color: #ffffff;
+    text-transform: uppercase;
+  }
+  
+  .hero-copy {
+    width: min(620px, 100%);
+    margin: 0 auto;
+    color: #dedede;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+  
+  .hero-copy strong {
+    color: #ffffff;
+  }
+  
+  .menu-actions {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 42px;
+    flex-wrap: wrap;
+  }
+  
+  .primary-button,
+  .secondary-button {
+    min-width: 190px;
+    height: 58px;
+    border-radius: 999px;
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+  
+  .primary-button {
+    border: none;
+    background: linear-gradient(135deg, #ffd700, #f2a000);
+    color: #0d0801;
+    box-shadow: 0 14px 28px rgba(242, 169, 0, 0.28);
+  }
+  
+  .secondary-button {
+    border: 1px solid rgba(214, 168, 79, 0.55);
+    background: rgba(0, 0, 0, 0.28);
+    color: #ffffff;
+  }
+  
+  .primary-button:hover,
+  .secondary-button:hover,
+  .nav-button:hover {
+    transform: translateY(-2px);
+  }
+  
+  .primary-button:hover {
+    box-shadow: 0 18px 34px rgba(242, 169, 0, 0.36);
+  }
+  
+  .secondary-button:hover,
+  .nav-button:hover {
+    background: rgba(214, 168, 79, 0.14);
+  }
+  
+  .how-card {
+    width: min(980px, 94vw);
+    padding: 42px 48px;
+  }
+  
+  .how-card h1 {
+    margin: 0;
+    font-family: Georgia, serif;
+    font-size: 58px;
+    color: #ffd700;
+  }
+  
+  .how-grid {
+    margin-top: 34px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  
+  .how-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid rgba(214, 168, 79, 0.24);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+    text-align: left;
+  }
+  
+  .keycap {
+    flex: 0 0 72px;
+    min-height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ffd700, #f2a000);
+    color: #0d0801;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    font-size: 17px;
+  }
+  
+  .how-item h3 {
+    margin: 0 0 4px;
+    color: #ffffff;
+    font-size: 18px;
+  }
+  
+  .how-item p {
+    margin: 0;
+    color: #cfcfcf;
+    line-height: 1.35;
+    font-size: 15px;
+  }
+  
+  .game-page {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: #111217;
+    overflow: hidden;
+  }
+  
+  #game-container {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .exit-game-button {
+    position: absolute;
+    z-index: 10;
+    top: 16px;
+    left: 16px;
+    border: 1px solid rgba(214, 168, 79, 0.5);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  
+  @media (max-width: 760px) {
+    .hero-card,
+    .how-card {
+      padding: 34px 24px;
+    }
+  
+    .hero-card h1 {
+      font-size: 58px;
+    }
+  
+    .hero-card h2 {
+      font-size: 34px;
+    }
+  
+    .how-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .menu-actions {
+      margin-top: 28px;
+    }
+  }

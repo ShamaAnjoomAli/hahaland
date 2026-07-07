@@ -26,6 +26,38 @@ type AnimationConfig = {
   repeat: number;
 };
 
+type AudioAsset = {
+  key: string;
+  paths: string[];
+};
+
+const AUDIO: AudioAsset[] = [
+  {
+    key: "egypt-theme",
+    paths: [
+      "assets/audio/music/egypt_theme.wav",
+    ],
+  },
+  {
+    key: "npc-talk-1",
+    paths: [
+      "assets/audio/sfx/npc_talk_1.wav",
+    ],
+  },
+  {
+    key: "npc-talk-2",
+    paths: [
+      "assets/audio/sfx/npc_talk_2.wav",
+    ],
+  },
+  {
+    key: "npc-talk-3",
+    paths: [
+      "assets/audio/sfx/npc_talk_3.wav",
+    ],
+  },
+];
+
 const TILEMAPS: TilemapAsset[] = [
   {
     key: "egypt_city",
@@ -51,7 +83,7 @@ const SPRITESHEETS: SpriteSheetAsset[] = [
   // NPCs
   {
     key: "wizard",
-    path: "assets/sprites/npc/wizard.png",
+    path: "assets/sprites/npc/npc1.png",
     frameWidth: 64,
     frameHeight: 64,
   },
@@ -97,32 +129,32 @@ const ANIMATIONS: AnimationConfig[] = [
   {
     key: "walk-up",
     texture: "player",
-    start: 0,
-    end: 8,
+    start: 12,
+    end: 15,
     frameRate: 10,
     repeat: -1,
   },
   {
     key: "walk-left",
     texture: "player",
-    start: 9,
-    end: 17,
+    start: 4,
+    end: 7,
     frameRate: 10,
     repeat: -1,
   },
   {
     key: "walk-right",
     texture: "player",
-    start: 27,
-    end: 35,
+    start: 8,
+    end: 11,
     frameRate: 10,
     repeat: -1,
   },
   {
     key: "walk-down",
     texture: "player",
-    start: 18,
-    end: 26,
+    start: 0,
+    end: 3,
     frameRate: 10,
     repeat: -1,
   },
@@ -149,6 +181,7 @@ export default class BootScene extends Phaser.Scene {
     this.loadTilemaps();
     this.loadImages();
     this.loadSpritesheets();
+    this.loadAudio();
 
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
       console.error("Failed to load asset:", file.key, file.src);
@@ -189,6 +222,12 @@ export default class BootScene extends Phaser.Scene {
           frameHeight: asset.frameHeight,
         }
       );
+    });
+  }
+
+  private loadAudio() {
+    AUDIO.forEach((asset) => {
+      this.load.audio(asset.key, asset.paths);
     });
   }
 
