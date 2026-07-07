@@ -1,7 +1,23 @@
 import Phaser from "phaser";
 import NPC from "../entities/NPC";
-import Dialogue from "../dialogues/dialogue.json"
+import Dialogue from "../script/dialogue.json"
+import Objective from "../script/objectives.json";
 import DialogueBox from "../ui/DialogueBox";
+import ObjectiveBox from "../ui/ObjectiveBox";
+
+type ObjectiveStep = {
+  objectiveText: string;
+  targetNpc: string;
+  dialogue: string[];
+  nextStepId?: string;
+  completeObjectiveText?: string;
+};
+
+type ObjectivesData = {
+  initialStepId: string;
+  steps: Record<string, ObjectiveStep>;
+};
+
 /**
  * Main gameplay scene for the village map.
  * Loads the Tiled map, spawns the player, handles collisions, camera follow, and movement.
@@ -41,6 +57,11 @@ export default class VillageScene extends Phaser.Scene {
     width: 220,
     height: 140,
   };
+
+  // Objective box to show user goals of the game
+  private objectiveBox!: ObjectiveBox;
+  private objectives = Objective as ObjectivesData;
+  private currentObjectiveStepId = this.objectives.initialStepId;  
 
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
@@ -90,6 +111,12 @@ export default class VillageScene extends Phaser.Scene {
     // Initialization of dialogues with NPC
     this.dialogue = new DialogueBox(this);
   
+    // Initialization of objectives
+    this.objectiveBox = new ObjectiveBox(this);
+    this.objectiveBox.setText(
+      this.getCurrentObjectiveStep()?.objectiveText
+    );
+    
     // Space hides the conversation
     this.spaceKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
@@ -252,9 +279,15 @@ this.player = this.physics.add.sprite(
 
     if (!nearest) return;
   
-    console.log("Showing dialogue");
+    const npcName = nearest.getData("npcName");
+  
+    const questHandled =
+      this.handleQuestProgress(npcName);
   
     this.interactPrompt.setVisible(false);
+  
+    if (questHandled) return;
+  
     this.dialogue.show(nearest.dialogue);
   }
 
@@ -488,7 +521,7 @@ this.player = this.physics.add.sprite(
         spriteKey,
         dialogue
       );
-  
+      npc.setData("npcName", npcName);
       npc.setFrame(0);
       npc.setScale(1.2);
       npc.setDepth(30);
@@ -513,12 +546,60 @@ this.player = this.physics.add.sprite(
 
   private getNPCSpriteKey(name: string): string {
     const sprites: Record<string, string> = {
-      NPC_Guard: "guard",
-      NPC_Merchant: "merchant",
-      NPC_Priest: "priest",
-      NPC_Gardener: "gardener",
+      NPC_Wizard: "wizard",
+      NPC_Alien: "alien",
+      NPC_Baker: "baker",
+      NPC_Cow: "cow",
     };
   
     return sprites[name] ?? "wizard";
+  }
+
+  private handleQuestProgress(npcName: string): boolean {
+    const currentStep = this.getCurrentObjectiveStep();
+
+    if (currentStep.targetNpc !== npcName) {
+      return false;
+    }
+
+    this.dialogue.show(currentStep.dialogue, () => {
+      if (currentStep.nextStepId) {
+        this.currentObjectiveStepId = currentStep.nextStepId;
+
+        this.objectiveBox.setText(
+          this.getCurrentObjectiveStep().objectiveText
+        );
+
+        return;
+      }
+
+      this.objectiveBox.setText(
+        currentStep.completeObjectiveText ??
+          "Objective Complete"
+      );
+    });
+
+    return true;
+  }
+
+  private getCurrentObjectiveStep(): ObjectiveStep {
+    const step = this.objectives.steps[
+      this.currentObjectiveStepId
+    ];
+  
+    if (!step) {
+      console.error(
+        "Objective step not found:",
+        this.currentObjectiveStepId
+      );
+  
+      return {
+        objectiveText: "Objective error: step not found",
+        targetNpc: "",
+        dialogue: [],
+      };
+    }
+  
+    return step;
   }
 }

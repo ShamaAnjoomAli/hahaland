@@ -12,6 +12,8 @@ export default class DialogueBox {
   private index = 0;
   private open = false;
 
+  private onClose?: () => void;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
@@ -64,13 +66,17 @@ export default class DialogueBox {
     ]);
   }
 
-  show(dialogue: string | string[]) {
+  show(
+    dialogue: string | string[],
+    onClose?: () => void
+  ) {
     this.lines = Array.isArray(dialogue)
       ? dialogue
       : [dialogue];
 
     this.index = 0;
     this.open = true;
+    this.onClose = onClose;
 
     this.container.setVisible(true);
     this.showCurrentLine();
@@ -90,8 +96,23 @@ export default class DialogueBox {
   }
 
   hide() {
+    if (!this.open) return;
+
     this.open = false;
+    this.lines = [];
+    this.index = 0;
+
+    this.text.setText("");
+    this.hint.setText("");
+
     this.container.setVisible(false);
+
+    const callback = this.onClose;
+    this.onClose = undefined;
+
+    if (callback) {
+      callback();
+    }
   }
 
   isOpen() {
@@ -99,7 +120,9 @@ export default class DialogueBox {
   }
 
   private showCurrentLine() {
-    this.text.setText(this.lines[this.index]);
+    const currentLine = this.lines[this.index] ?? "";
+
+    this.text.setText(currentLine);
 
     if (this.index >= this.lines.length - 1) {
       this.hint.setText("SPACE ▶ Close");

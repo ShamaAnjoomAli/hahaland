@@ -1,0 +1,25 @@
+{
+    "initialStepId": "talk_to_merchant",
+    "steps": {
+      "talk_to_merchant": {
+        "objectiveText": "Objective: Talk to the Merchant",
+        "targetNpc": "NPC_Wizard",
+        "dialogue": [
+          "Ah, traveler!",
+          "The priest has been waiting for you near the temple.",
+          "Go speak with him."
+        ],
+        "nextStepId": "talk_to_priest"
+      },
+      "talk_to_priest": {
+        "objectiveText": "Objective: Speak to the Priest",
+        "targetNpc": "NPC_Alien",
+        "dialogue": [
+          "You have arrived.",
+          "The city has chosen you for something important.",
+          "Your journey begins now."
+        ],
+        "completeObjectiveText": "Objective Complete: Temple path unlocked"
+      }
+    }
+  }
