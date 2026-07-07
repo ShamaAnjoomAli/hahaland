@@ -1,14 +1,14 @@
 import Phaser from "phaser";
 
 export default class ObjectiveBox {
-  private container: Phaser.GameObjects.Container;
+  public container: Phaser.GameObjects.Container;
   private text: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene) {
     const bg = scene.add.rectangle(
       10,
-      15,
-      300,
+      17,
+      350,
       36,
       0x000000,
       0.7
@@ -18,8 +18,8 @@ export default class ObjectiveBox {
     bg.setStrokeStyle(2, 0xffffff, 0.8);
 
     this.text = scene.add.text(
-      16,
-      23,
+      19,
+      25,
       "Objective loading...",
       {
         fontFamily: "Arial",
