@@ -63,6 +63,11 @@ export default class VillageScene extends Phaser.Scene {
   private objectives = Objective as ObjectivesData;
   private currentObjectiveStepId = this.objectives.initialStepId;  
 
+  // Adds ! indicator on the NPC that is next in objective list
+  private questMarker!: Phaser.GameObjects.Text;
+  // Adds ! indicator on the NPC in minimap that is next in objective list
+  private minimapQuestDot!: Phaser.GameObjects.Arc;
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -150,6 +155,7 @@ this.player = this.physics.add.sprite(
     // wizard.setScale(1.2);
     // wizard.setDepth(30);
     this.createNPCsFromMap(map);
+    this.createQuestMarker();
     this.createInteractPrompt();
   
 
@@ -213,6 +219,41 @@ this.player = this.physics.add.sprite(
 
   }
 
+  private createQuestMarker() {
+    this.questMarker = this.add.text(0, 0, "!", {
+      fontFamily: "Arial",
+      fontSize: "24px",
+      color: "#ffd966",
+      stroke: "#000000",
+      strokeThickness: 5,
+    });
+  
+    this.questMarker.setOrigin(0.5);
+    this.questMarker.setDepth(2000);
+    this.updateQuestMarker();
+  }
+  
+  private updateQuestMarker() {
+    if (!this.questMarker) return;
+  
+    const currentStep = this.getCurrentObjectiveStep();
+  
+    const targetNPC = this.npcs.find((npc) => {
+      return npc.getData("npcName") === currentStep.targetNpc;
+    });
+  
+    if (!targetNPC) {
+      this.questMarker.setVisible(false);
+      return;
+    }
+  
+    this.questMarker.setVisible(true);
+    this.questMarker.setPosition(
+      targetNPC.x,
+      targetNPC.y - 25
+    );
+  }
+
   /**
    * Runs every frame. Reads keyboard input and moves the player while playing walk animations.
    */
@@ -220,7 +261,9 @@ this.player = this.physics.add.sprite(
     const speed = 100;
 
     this.updateInteractPrompt();
+    this.updateQuestMarker();
     this.updateMinimapPlayerDot();
+    this.updateMinimapQuestDot();
   
     if (this.dialogue.isOpen()) {
       this.player.setVelocity(0);
@@ -431,9 +474,21 @@ this.player = this.physics.add.sprite(
     this.minimapPlayerDot = this.add.circle(
       x,
       y,
-      4,
+      2,
       0xff0000
     );
+
+    this.minimapQuestDot = this.add.circle(
+      this.minimapConfig.x,
+      this.minimapConfig.y,
+      4,
+      0xffd966
+    );
+    
+    this.minimapQuestDot.setScrollFactor(0);
+    this.minimapQuestDot.setDepth(10001);
+    
+    this.minimap.ignore(this.minimapQuestDot);
   
     this.minimapPlayerDot.setScrollFactor(0);
     this.minimapPlayerDot.setDepth(10001);
@@ -466,6 +521,38 @@ this.player = this.physics.add.sprite(
         normalizedX * this.minimapConfig.width,
       this.minimapConfig.y +
         normalizedY * this.minimapConfig.height
+    );
+  }
+
+  private updateMinimapQuestDot() {
+    if (!this.minimapQuestDot) return;
+  
+    const currentStep = this.getCurrentObjectiveStep();
+  
+    const targetNPC = this.npcs.find((npc) => {
+      return npc.getData("npcName") === currentStep.targetNpc;
+    });
+  
+    if (!targetNPC) {
+      this.minimapQuestDot.setVisible(false);
+      return;
+    }
+  
+    this.minimapQuestDot.setVisible(true);
+  
+    const minimapX =
+      this.minimapConfig.x +
+      (targetNPC.x / this.mapPixelWidth) *
+        this.minimapConfig.width;
+  
+    const minimapY =
+      this.minimapConfig.y +
+      (targetNPC.y / this.mapPixelHeight) *
+        this.minimapConfig.height;
+  
+    this.minimapQuestDot.setPosition(
+      minimapX,
+      minimapY
     );
   }
 
@@ -569,7 +656,8 @@ this.player = this.physics.add.sprite(
         this.objectiveBox.setText(
           this.getCurrentObjectiveStep().objectiveText
         );
-
+        this.updateQuestMarker();
+        this.updateMinimapQuestDot();
         return;
       }
 
