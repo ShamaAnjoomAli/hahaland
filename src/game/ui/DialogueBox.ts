@@ -84,7 +84,7 @@ export default class DialogueBox {
       ""
     );
 
-    this.portrait.setScale(2.4);
+    this.portrait.setScale(1.2);
     this.portrait.setVisible(false);
 
     this.text = scene.add.text(
@@ -218,15 +218,15 @@ export default class DialogueBox {
     this.portrait.setFrame(0);
     this.portrait.setVisible(true);
 
-    this.portrait.setScale(2.4);
+    this.portrait.setScale(1.4);
     this.portrait.setAlpha(1);
     this.portrait.setAngle(0);
 
     this.portraitTween = this.scene.tweens.add({
       targets: this.portrait,
       y: this.portrait.y - 4,
-      scaleX: 2.5,
-      scaleY: 2.5,
+      scaleX: 1.5,
+      scaleY: 1.5,
       duration: 750,
       yoyo: true,
       repeat: -1,

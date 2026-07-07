@@ -337,23 +337,39 @@ export default class VillageScene extends Phaser.Scene {
   
   private updateQuestMarker() {
     if (!this.questMarker) return;
-  
-    const currentStep = this.getCurrentObjectiveStep();
-  
-    const targetNPC = this.npcs.find((npc) => {
-      return npc.getData("npcName") === currentStep.targetNpc;
-    });
-  
-    if (!targetNPC) {
-      this.questMarker.setVisible(false);
-      return;
-    }
-  
-    this.questMarker.setVisible(true);
-    this.questMarker.setPosition(
-      targetNPC.x,
-      targetNPC.y - 45
-    );
+
+  if (this.isObjectiveComplete) {
+    this.questMarker.setVisible(false);
+    return;
+  }
+
+  const currentStep = this.getCurrentObjectiveStep();
+
+  const targetNPC = this.npcs.find(
+    npc => npc.getData("npcName") === currentStep.targetNpc
+  );
+
+  if (!targetNPC) {
+    this.questMarker.setVisible(false);
+    return;
+  }
+
+  const nearest = this.getNearestNPC(100);
+
+  const playerIsNearQuestNPC =
+    nearest === targetNPC && this.interactPrompt?.visible;
+
+  if (playerIsNearQuestNPC) {
+    this.questMarker.setVisible(false);
+    return;
+  }
+
+  this.questMarker.setVisible(true);
+
+  this.questMarker.setPosition(
+    targetNPC.x,
+    targetNPC.y - 45
+  );
   }
 
   /**
@@ -869,10 +885,10 @@ export default class VillageScene extends Phaser.Scene {
 
   private getNPCSpriteKey(name: string): string {
     const sprites: Record<string, string> = {
-      NPC_Wizard: "wizard",
-      NPC_Alien: "alien",
-      NPC_Baker: "baker",
-      NPC_Cow: "cow",
+      NPC_1: "npc1",
+      NPC_2: "npc2",
+      NPC_3: "npc3",
+      NPC_4: "npc4",
     };
   
     return sprites[name] ?? "wizard";

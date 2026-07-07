@@ -10554,7 +10554,7 @@
         },
         {
           "id": 102,
-          "name": "NPC_Wizard",
+          "name": "NPC_1",
           "type": "npc",
           "x": 100,
           "y": 220,
@@ -10564,17 +10564,17 @@
         },
         {
           "id": 103,
-          "name": "NPC_Alien",
+          "name": "NPC_2",
           "type": "npc",
           "x": 480,
-          "y": 1070,
+          "y": 1100,
           "rotation": 0,
           "point": true,
           "visible": true
         },
         {
           "id": 104,
-          "name": "NPC_Baker",
+          "name": "NPC_3r",
           "type": "npc",
           "x": 2176,
           "y": 768,
@@ -10584,7 +10584,7 @@
         },
         {
           "id": 105,
-          "name": "NPC_Cow",
+          "name": "NPC_4",
           "type": "npc",
           "x": 1088,
           "y": 1536,

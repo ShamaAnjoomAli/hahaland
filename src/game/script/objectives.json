@@ -3,7 +3,7 @@
     "steps": {
       "talk_to_merchant": {
         "objectiveText": "Objective: Talk to the Merchant",
-        "targetNpc": "NPC_Wizard",
+        "targetNpc": "NPC_1",
         "dialogue": [
           "Ah, traveler!",
           "The priest has been waiting for you near the temple.",
@@ -13,7 +13,7 @@
       },
       "talk_to_priest": {
         "objectiveText": "Objective: Speak to the Priest",
-        "targetNpc": "NPC_Alien",
+        "targetNpc": "NPC_2",
         "dialogue": [
           "You have arrived.",
           "The city has chosen you for something important.",

@@ -1,23 +1,23 @@
 {
-    "NPC_Wizard": [
+    "NPC_1": [
       "Welcome to the Egyptian city.",
       "The temple is north of here.",
       "Be careful near the canal."
     ],
 
-    "NPC_Alien": [
+    "NPC_2": [
       "Fresh goods from the market!",
       "I sell pottery, spices, and rare desert items.",
       "Come back later and I may have a quest for you."
     ],
 
-    "NPC_Baker": [
+    "NPC_3": [
       "The temple holds old secrets.",
       "Only those who prove themselves may enter.",
       "Perhaps you are one of them."
     ],
 
-    "NPC_Cow": [
+    "NPC_4": [
       "The oasis keeps this city alive.",
       "These palms have protected us for generations."
     ]
