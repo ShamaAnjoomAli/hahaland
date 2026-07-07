@@ -97,29 +97,33 @@ export default class VillageScene extends Phaser.Scene {
   
     // --- Player setup ---
     // Spawn the player sprite at the starting position with physics and a slightly smaller scale.
-    this.player = this.physics.add.sprite(20, 10, "player");
+    // this.player = this.physics.add.sprite(20, 10, "player");
+    const playerSpawn = this.getSpawnPoint(map, "PlayerSpawn");
+
+this.player = this.physics.add.sprite(
+  playerSpawn.x,
+  playerSpawn.y,
+  "player"
+);
     this.player.setScale(0.75);
     this.player.setDepth(30);
   
     // --- NPC setup ---
-    const wizard = new NPC(
-      this,
-      340,
-      260,
-      "wizard",
-      Dialogue.wizard.open
-    );
+    // const wizard = new NPC(
+    //   this,
+    //   340,
+    //   260,
+    //   "wizard",
+    //   Dialogue.wizard.open
+    // );
   
-    wizard.setFrame(0);
-    wizard.setScale(1.2);
-    wizard.setDepth(30);
-  
-    // Push NPC into NPC Array
-    this.npcs.push(wizard);
-  
+    // // Push NPC into NPC Array
+    // this.npcs.push(wizard);
+    // wizard.setFrame(0);
+    // wizard.setScale(1.2);
+    // wizard.setDepth(30);
+    this.createNPCsFromMap(map);
     this.createInteractPrompt();
-
-    this.physics.add.collider(this.player, wizard);
   
 
     // --- Collision objects ---
@@ -143,12 +147,6 @@ export default class VillageScene extends Phaser.Scene {
         this.physics.add.collider(
           this.player,
           wall as Phaser.GameObjects.Rectangle
-        );
-
-        // Adds collision for player to npcs
-        this.physics.add.collider(
-          this.player,
-          wizard
         );
       });
     }
@@ -436,5 +434,91 @@ export default class VillageScene extends Phaser.Scene {
       this.minimapConfig.y +
         normalizedY * this.minimapConfig.height
     );
+  }
+
+  private getSpawnPoint(
+    map: Phaser.Tilemaps.Tilemap,
+    name: string
+  ) {
+    const spawnLayer = map.getObjectLayer("Spawns");
+  
+    if (!spawnLayer) {
+      console.warn("No Spawns layer found");
+      return { x: 100, y: 100 };
+    }
+  
+    const spawn = spawnLayer.objects.find(
+      (obj) => obj.name === name
+    );
+  
+    if (!spawn) {
+      console.warn(`Spawn point not found: ${name}`);
+      return { x: 100, y: 100 };
+    }
+  
+    return {
+      x: spawn.x ?? 100,
+      y: spawn.y ?? 100,
+    };
+  }
+  
+  private createNPCsFromMap(
+    map: Phaser.Tilemaps.Tilemap
+  ) {
+    const spawnLayer = map.getObjectLayer("Spawns");
+  
+    if (!spawnLayer) {
+      console.warn("No Spawns layer found");
+      return;
+    }
+  
+    const npcObjects = spawnLayer.objects.filter(
+      (obj) => obj.type === "npc"
+    );
+  
+    npcObjects.forEach((obj) => {
+      const npcName = obj.name ?? "NPC";
+      const dialogue = this.getNPCDialogue(npcName);
+      const spriteKey = this.getNPCSpriteKey(npcName);
+  
+      const npc = new NPC(
+        this,
+        obj.x ?? 100,
+        obj.y ?? 100,
+        spriteKey,
+        dialogue
+      );
+  
+      npc.setFrame(0);
+      npc.setScale(1.2);
+      npc.setDepth(30);
+  
+      this.npcs.push(npc);
+  
+      this.physics.add.collider(
+        this.player,
+        npc
+      );
+    });
+  }
+  
+  private getNPCDialogue(name: string): string[] {
+    const dialogues: Record<string, string[]> = Dialogue;
+  
+    return dialogues[name] ?? [
+      "Hello traveler.",
+      "This city has many stories."
+    ];
+  }
+
+  private getNPCSpriteKey(name: string): string {
+    const sprites: Record<string, string> = {
+      NPC_Guard: "guard",
+      NPC_Merchant: "merchant",
+      NPC_Priest: "priest",
+      NPC_Gardener: "gardener",
+    };
+  
+    return sprites[name] ?? "wizard";
   }
 }

@@ -1,10 +1,24 @@
 {
-    "wizard": {
-        "open": [
-            "Welcome to Riverside.",
-            "We haven't seen you before.",
-            "The castle is north.",
-            "Good luck!"
-        ]
-    }
-}
+    "NPC_Wizard": [
+      "Welcome to the Egyptian city.",
+      "The temple is north of here.",
+      "Be careful near the canal."
+    ],
+
+    "NPC_Alien": [
+      "Fresh goods from the market!",
+      "I sell pottery, spices, and rare desert items.",
+      "Come back later and I may have a quest for you."
+    ],
+
+    "NPC_Baker": [
+      "The temple holds old secrets.",
+      "Only those who prove themselves may enter.",
+      "Perhaps you are one of them."
+    ],
+
+    "NPC_Cow": [
+      "The oasis keeps this city alive.",
+      "These palms have protected us for generations."
+    ]
+  }
