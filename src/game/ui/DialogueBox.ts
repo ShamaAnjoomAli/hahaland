@@ -18,6 +18,12 @@ export default class DialogueBox {
   private onClose?: () => void;
   private portraitTween?: Phaser.Tweens.Tween;
 
+  // Adding case for dialogues that dont require the potrait with frame
+  private textWithPortraitX = 0;
+  private textWithoutPortraitX = 0;
+  private textWithPortraitWidth = 0;
+  private textWithoutPortraitWidth = 0;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
@@ -37,6 +43,15 @@ export default class DialogueBox {
 
     const dialogueTextX =
       portraitPanelX + portraitPanelWidth + 30;
+
+    this.textWithPortraitX = dialogueTextX;
+    this.textWithoutPortraitX = 90;
+
+    this.textWithPortraitWidth =
+      width - dialogueTextX - 100;
+
+    this.textWithoutPortraitWidth =
+      width - 180;
       
     this.container = scene.add.container(0, 0);
     this.container.setScrollFactor(0);
@@ -177,10 +192,27 @@ export default class DialogueBox {
   private setPortrait(portraitKey?: string) {
     this.stopPortraitAnimation();
 
-    if (!portraitKey || !this.scene.textures.exists(portraitKey)) {
+    if (
+      !portraitKey ||
+      !this.scene.textures.exists(portraitKey)
+    ) {
       this.portrait.setVisible(false);
+      this.portraitPanel.setVisible(false);
+
+      this.text.setX(this.textWithoutPortraitX);
+      this.text.setWordWrapWidth(
+        this.textWithoutPortraitWidth
+      );
+
       return;
     }
+
+    this.portraitPanel.setVisible(true);
+
+    this.text.setX(this.textWithPortraitX);
+    this.text.setWordWrapWidth(
+      this.textWithPortraitWidth
+    );
 
     this.portrait.setTexture(portraitKey);
     this.portrait.setFrame(0);

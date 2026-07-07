@@ -4,6 +4,7 @@ import Dialogue from "../script/dialogue.json"
 import Objective from "../script/objectives.json";
 import DialogueBox from "../ui/DialogueBox";
 import ObjectiveBox from "../ui/ObjectiveBox";
+import GameHUD from "../ui/GameHUD";
 
 type ObjectiveStep = {
   objectiveText: string;
@@ -73,6 +74,15 @@ export default class VillageScene extends Phaser.Scene {
   private worldObjects: Phaser.GameObjects.GameObject[] = [];
   private minimapNpcDots: Phaser.GameObjects.Arc[] = [];
   private isObjectiveComplete = false;
+
+  // Timer and gold HUD 
+  private hud!: GameHUD;
+  private coins = 0;
+  private remainingTime = 120; // in seconds
+  private timerEvent!: Phaser.Time.TimerEvent;
+  private isTimeUp = false;
+
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -135,7 +145,7 @@ export default class VillageScene extends Phaser.Scene {
     this.objectiveBox.setText(
       this.getCurrentObjectiveStep()?.objectiveText
     );
-    
+
     // Space hides the conversation
     this.spaceKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
@@ -217,6 +227,19 @@ this.player = this.physics.add.sprite(
     );
 
     this.createMinimap(map);
+
+    this.hud = new GameHUD(
+      this,
+      this.minimapConfig.x,
+      this.minimapConfig.y +
+        this.minimapConfig.height +
+        8,
+      this.minimapConfig.width
+    );
+    
+    this.hud.setCoins(this.coins);
+    this.startGameTimer(120);
+
     this.createUICamera();
     
     // --- Keyboard input ---
@@ -299,6 +322,12 @@ this.player = this.physics.add.sprite(
   
       return;
     }
+
+    if (this.isTimeUp) {
+      this.player.setVelocity(0);
+      this.player.stop();
+      return;
+    }
   
     this.player.setVelocity(0);
   
@@ -326,15 +355,6 @@ this.player = this.physics.add.sprite(
     ) {
       this.interact();
     }
-
-    // Hide NPC Dialogue
-    if (
-      Phaser.Input.Keyboard.JustDown(
-          this.spaceKey
-      )
-  ) {
-      this.dialogue.next();
-  }
   }
 
   // Logic for interacting with NPCs using the E key
@@ -342,6 +362,8 @@ this.player = this.physics.add.sprite(
     const nearest = this.getNearestNPC(60);
   
     if (!nearest) return;
+
+    this.addCoins(1);
   
     const npcName = nearest.getData("npcName");
     const npcPortraitKey = nearest.texture.key;
@@ -615,7 +637,8 @@ this.player = this.physics.add.sprite(
   private createUICamera() {
     const uiObjects: Phaser.GameObjects.GameObject[] = [
       this.dialogue.container,
-      this.objectiveBox?.container,
+      this.objectiveBox.container,
+      this.hud.container,
       this.minimapBorder,
       this.minimapPlayerDot,
       this.minimapQuestDot,
@@ -824,5 +847,53 @@ this.player = this.physics.add.sprite(
     }
   
     return step;
+  }
+  private addCoins(amount: number) {
+    this.coins += amount;
+    this.hud.setCoins(this.coins);
+  }
+  
+  private startGameTimer(seconds: number) {
+    this.remainingTime = seconds;
+    this.hud.setTime(this.remainingTime);
+  
+    this.timerEvent = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        if (this.isTimeUp) return;
+  
+        this.remainingTime--;
+  
+        this.hud.setTime(this.remainingTime);
+  
+        if (this.remainingTime <= 0) {
+          this.endGameDueToTime();
+        }
+      },
+    });
+  }
+  
+  private endGameDueToTime() {
+    this.isTimeUp = true;
+  
+    if (this.timerEvent) {
+      this.timerEvent.remove(false);
+    }
+  
+    this.player.setVelocity(0);
+    this.player.stop();
+  
+    this.interactPrompt.setVisible(false);
+  
+    this.objectiveBox.setText(
+      "Time's up! Your run has ended."
+    );
+  
+    this.dialogue.show([
+      "Time's up!",
+      "Your play session has ended.",
+      "We can add restart or score screen next."
+    ]);
   }
 }
