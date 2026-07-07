@@ -340,19 +340,27 @@ this.player = this.physics.add.sprite(
   // Logic for interacting with NPCs using the E key
   private interact() {
     const nearest = this.getNearestNPC(60);
-
+  
     if (!nearest) return;
   
     const npcName = nearest.getData("npcName");
+    const npcPortraitKey = nearest.texture.key;
   
     const questHandled =
-      this.handleQuestProgress(npcName);
+      this.handleQuestProgress(
+        npcName,
+        npcPortraitKey
+      );
   
     this.interactPrompt.setVisible(false);
   
     if (questHandled) return;
   
-    this.dialogue.show(nearest.dialogue);
+    this.dialogue.show(
+      nearest.dialogue,
+      undefined,
+      npcPortraitKey
+    );
   }
 
   private createInteractPrompt() {
@@ -757,15 +765,20 @@ this.player = this.physics.add.sprite(
     return sprites[name] ?? "wizard";
   }
 
-  private handleQuestProgress(npcName: string): boolean {
+  private handleQuestProgress(
+    npcName: string,
+    npcPortraitKey?: string
+  ): boolean {
     const currentStep = this.getCurrentObjectiveStep();
 
     if (currentStep.targetNpc !== npcName) {
       return false;
     }
 
-    this.dialogue.show(currentStep.dialogue, () => {
-      if (currentStep.nextStepId) {
+    this.dialogue.show(
+      currentStep.dialogue,
+      () => {
+        if (currentStep.nextStepId) {
         this.currentObjectiveStepId = currentStep.nextStepId;
 
         this.objectiveBox.setText(
@@ -785,7 +798,9 @@ this.player = this.physics.add.sprite(
 
       this.questMarker.setVisible(false);
       this.minimapQuestDot.setVisible(false);
-    });
+    },   
+    npcPortraitKey
+  );
 
     return true;
   }
