@@ -85,8 +85,8 @@ private portraitTweenScale = 1.52;
       width - 180;
       
     this.container = scene.add.container(0, 0);
+    this.container.setDepth(30000);
     this.container.setScrollFactor(0);
-    this.container.setDepth(9999);
     this.container.setVisible(false);
 
     this.box = scene.add.rectangle(

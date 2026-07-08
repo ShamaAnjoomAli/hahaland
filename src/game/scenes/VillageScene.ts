@@ -104,8 +104,15 @@ export default class VillageScene extends Phaser.Scene {
     "npc-talk-3",
   ];
 
-
+  // Speed during movement lock of player and npc
   private cutsceneWalkSpeed = 85;
+  
+  // Black bg on cutscene
+  private nightOverlay?: Phaser.GameObjects.Rectangle;
+  private nightText?: Phaser.GameObjects.Text;
+
+  private isStoryUIVisible = true;
+  private houseNoiseTimer?: Phaser.Time.TimerEvent;
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -392,11 +399,22 @@ export default class VillageScene extends Phaser.Scene {
   update() {
     const speed = 100;
 
-    this.updateInteractPrompt();
-    this.updateQuestMarker();
-    this.updateMinimapPlayerDot();
-    this.updateMinimapNpcDots();
-    this.updateMinimapQuestDot();
+    if (this.isStoryUIVisible) {
+      this.updateInteractPrompt();
+      this.updateQuestMarker();
+      this.updateMinimapPlayerDot();
+      this.updateMinimapNpcDots();
+      this.updateMinimapQuestDot();
+    } else {
+      this.interactPrompt?.setVisible(false);
+      this.questMarker?.setVisible(false);
+      this.minimapPlayerDot?.setVisible(false);
+      this.minimapQuestDot?.setVisible(false);
+    
+      this.minimapNpcDots.forEach((dot) => {
+        dot.setVisible(false);
+      });
+    }
   
     if (this.dialogue.isOpen()) {
       this.player.setVelocity(0);
@@ -544,6 +562,36 @@ export default class VillageScene extends Phaser.Scene {
     );
   }
 
+  private setStoryUIVisible(visible: boolean) {
+    // Hide/show minimap camera
+    this.isStoryUIVisible = visible;
+
+    this.interactPrompt?.setVisible(false);
+    this.questMarker?.setVisible(false);
+
+    if (this.minimap) {
+      this.minimap.setVisible(visible);
+    }
+
+    this.minimapBorder?.setVisible(visible);
+    this.minimapPlayerDot?.setVisible(visible);
+    this.minimapQuestDot?.setVisible(visible);
+
+    this.minimapNpcDots.forEach((dot) => {
+      dot.setVisible(visible);
+    });
+
+    if (this.hud?.container) {
+      this.hud.container.setVisible(visible);
+    }
+
+    const objectiveAny = this.objectiveBox as any;
+
+    if (objectiveAny?.container) {
+      objectiveAny.container.setVisible(visible);
+    }
+  }
+
   private walkToFakeHotel(npc: NPC) {
     const npcPath = this.scamHousePath;
   
@@ -654,41 +702,199 @@ export default class VillageScene extends Phaser.Scene {
   private revealFakeHotel(npc: NPC) {
     this.cameras.main.shake(250, 0.006);
 
-  this.showEmotion(this.player, "!!");
+    this.showEmotion(this.player, "!!");
 
-  const playerPortraitKey = this.player.texture.key;
+    const playerPortraitKey = this.player.texture.key;
 
-  this.dialogue.show(
-    [
-      {
-        text: "Here we are!",
-        portraitKey: npc.texture.key,
-      },
-      {
-        text: "Wait...",
-        portraitKey: playerPortraitKey,
-      },
-      {
-        text: "This is your house?",
-        portraitKey: playerPortraitKey,
-      },
-      {
-        text: "Yes, yes. Very local hotel.",
-        portraitKey: npc.texture.key,
-      },
-      {
-        text: "This is NOT a hotel!",
-        portraitKey: playerPortraitKey,
-      },
-    ],
-    () => {
-      this.isCutscenePlaying = false;
+    this.dialogue.show(
+      [
+        {
+          text: "Here we are!",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Wait...",
+          portraitKey: playerPortraitKey,
+        },
+        {
+          text: "This is your house?",
+          portraitKey: playerPortraitKey,
+        },
+        {
+          text: "Yes, yes. Very local hotel.",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "This is NOT a hotel!",
+          portraitKey: playerPortraitKey,
+        },
+      ],
+      () => {
+        this.objectiveBox.setText(
+          "Objective: Try to sleep in the fake hotel."
+        );
+      
+        this.time.delayedCall(700, () => {
+          this.startNoisyNightSequence();
+        });
+      }
+    );
+  }
+
+  private startNoisyNightSequence() {
+    this.setStoryUIVisible(false);
+
+    this.player.setVelocity(0);
+    this.player.stop();
+  
+    this.cameras.main.fadeOut(900, 0, 0, 0);
+  
+    this.time.delayedCall(950, () => {
+      this.showNightOverlay();
   
       this.objectiveBox.setText(
-        "Objective: Try to sleep in the fake hotel."
+        "Objective: Try to sleep..."
       );
+  
+      this.startHouseNoiseLoop();
+  
+      this.time.delayedCall(1000, () => {
+        this.dialogue.show(
+          [
+            "That night...",
+            "The house is too loud.",
+            "Someone is arguing.",
+            "A baby is crying.",
+            "Pots are clanging in the kitchen.",
+            {
+              text: "I can't sleep here...",
+              portraitKey: "player",
+            },
+            {
+              text: "I need to leave and find a real hotel.",
+              portraitKey: "player",
+            },
+          ],
+          () => {
+            this.endNoisyNightSequence();
+          }
+        );
+      });
+    });
+  }
+
+  private showNightOverlay() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+  
+    this.nightOverlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x000000,
+      0.95
+    );
+  
+    this.nightOverlay.setScrollFactor(0);
+    this.nightOverlay.setDepth(19000);
+  
+    this.nightText = this.add.text(
+      width / 2,
+      height / 2 - 40,
+      "That night...",
+      {
+        fontFamily: "Georgia",
+        fontSize: "42px",
+        color: "#ffd966",
+        fontStyle: "bold",
+      }
+    );
+  
+    this.nightText.setOrigin(0.5);
+    this.nightText.setScrollFactor(0);
+    this.nightText.setDepth(19001);
+  
+    // Important: do not let the UI camera render the black overlay
+    if (this.uiCamera) {
+      this.uiCamera.ignore([
+        this.nightOverlay,
+        this.nightText,
+      ]);
     }
-  );
+  
+    this.tweens.add({
+      targets: this.nightText,
+      alpha: 0.45,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+  
+  private hideNightOverlay() {
+    this.nightOverlay?.destroy();
+    this.nightText?.destroy();
+  
+    this.nightOverlay = undefined;
+    this.nightText = undefined;
+  }
+
+  private startHouseNoiseLoop() {
+    this.stopHouseNoiseLoop();
+  
+    const noiseKeys = [
+      "npc-talk-1",
+      "npc-talk-2",
+      "npc-talk-3",
+    ];
+  
+    const playRandomNoise = () => {
+      const soundKey = Phaser.Utils.Array.GetRandom(noiseKeys);
+  
+      if (!this.cache.audio.exists(soundKey)) return;
+  
+      this.sound.play(soundKey, {
+        volume: 0.3,
+        detune: Phaser.Math.Between(-250, 250),
+      });
+  
+      this.cameras.main.shake(120, 0.0015);
+    };
+  
+    playRandomNoise();
+  
+    this.houseNoiseTimer = this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callback: playRandomNoise,
+    });
+  }
+  
+  private stopHouseNoiseLoop() {
+    if (!this.houseNoiseTimer) return;
+  
+    this.houseNoiseTimer.remove(false);
+    this.houseNoiseTimer = undefined;
+  }
+
+  private endNoisyNightSequence() {
+    this.stopHouseNoiseLoop();
+  
+    this.hideNightOverlay();
+  
+    this.cameras.main.fadeIn(700, 0, 0, 0);
+  
+    this.isCutscenePlaying = false;
+  
+    this.setStoryUIVisible(true);
+  
+    this.objectiveBox.setText(
+      "Objective: Leave and find a real hotel."
+    );
+  
+    this.showEmotion(this.player, "...");
   }
 
   private showEmotion(
