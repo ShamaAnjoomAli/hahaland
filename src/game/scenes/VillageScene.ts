@@ -104,6 +104,8 @@ export default class VillageScene extends Phaser.Scene {
     "npc-talk-3",
   ];
 
+
+  private cutsceneWalkSpeed = 85;
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -550,12 +552,12 @@ export default class VillageScene extends Phaser.Scene {
       y: point.y + this.playerFollowOffset.y,
     }));
   
-    this.walkActorPath(npc, npcPath, 55);
+    this.walkActorPath(npc, npcPath, this.cutsceneWalkSpeed);
   
     this.walkActorPath(
       this.player,
       playerPath,
-      55,
+      this.cutsceneWalkSpeed,
       () => {
         this.revealFakeHotel(npc);
       }
@@ -565,7 +567,7 @@ export default class VillageScene extends Phaser.Scene {
   private walkActorPath(
     actor: Phaser.Physics.Arcade.Sprite,
     path: { x: number; y: number }[],
-    speed = 55,
+    speed = this.cutsceneWalkSpeed,
     onComplete?: () => void
   ) {
     if (path.length === 0) {
@@ -595,7 +597,7 @@ export default class VillageScene extends Phaser.Scene {
     actor: Phaser.Physics.Arcade.Sprite,
     x: number,
     y: number,
-    speed = 55,
+    speed = this.cutsceneWalkSpeed,
     onComplete?: () => void
   ) {
     actor.setVelocity(0);
