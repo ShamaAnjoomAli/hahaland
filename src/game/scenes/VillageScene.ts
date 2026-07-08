@@ -167,38 +167,38 @@ export default class VillageScene extends Phaser.Scene {
   private merchantOffers: MerchantOffer[] = [
     {
       npcName: "NPC_1",
-      label: "80 gold - Friendly guide",
-      price: 80,
-      pitch: "Only 80 gold. Very close hotel. Very legal.",
-      reaction: "Excellent choice! You have the eyes of a rich person.",
+      label: "Hotel guide",
+      price: 0,
+      pitch: "Hotel? Yes, yes. I know a place.",
+      reaction: "Excellent. Cheap choice. Financially responsible.",
     },
     {
       npcName: "NPC_12",
-      label: "50 gold - Budget hotel",
-      price: 50,
-      pitch: "50 gold only! Budget hotel. Walls included sometimes.",
-      reaction: "Smart traveler! Saving money for future scams.",
+      label: "Hotel guide",
+      price: 0,
+      pitch: "Hotel? Yes, I know a better one.",
+      reaction: "Wonderful. You chose premium confusion.",
     },
     {
       npcName: "NPC_9",
-      label: "120 gold - Luxury hotel",
-      price: 120,
-      pitch: "Luxury hotel! Very premium. The moon can see it.",
-      reaction: "Ah, VIP tourist! I will walk with extra confidence.",
+      label: "Hotel guide",
+      price: 0,
+      pitch: "Hotel? Of course. Mine has extra mystery.",
+      reaction: "Excellent. Mystery package begins.",
     },
     {
       npcName: "NPC_6",
-      label: "25 gold - Mysterious deal",
-      price: 25,
-      pitch: "Special price, my friend. Do not ask why it is special.",
-      reaction: "Brave choice. Financially careful, emotionally risky.",
+      label: "Hotel guide",
+      price: 0,
+      pitch: "Hotel? I know the most hotel-looking hotel.",
+      reaction: "Good choice. Very hotel. Much building.",
     },
     {
       npcName: "NPC_5",
-      label: "10 gold - Suspiciously cheap",
-      price: 10,
-      pitch: "10 gold only! Cheapest hotel in the city. Maybe also the floor.",
-      reaction: "A brave choice. Your wallet survives, your comfort does not.",
+      label: "Hotel guide",
+      price: 0,
+      pitch: "Hotel? Yes. Very close. Emotionally close.",
+      reaction: "Perfect. Your wallet is brave.",
     },
   ];
 
@@ -221,6 +221,14 @@ export default class VillageScene extends Phaser.Scene {
 
   private openingOverlayObjects: Phaser.GameObjects.GameObject[] = [];
   private openingDotsTimer?: Phaser.Time.TimerEvent;
+
+  private firstInteractedMerchantName?: string;
+  private firstInteractedMerchantPrice = 10;
+  
+  private nextMerchantPrice = 25;
+  private merchantPriceIncrease = 15;
+  
+  private merchantQuotedPrices = new Map<string, number>();
 
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
@@ -336,7 +344,6 @@ export default class VillageScene extends Phaser.Scene {
     // wizard.setScale(1.2);
     // wizard.setDepth(30);
     this.createNPCsFromMap(map);
-    this.createMerchantPriceShouts();
     this.createQuestMarker();
     this.createInteractPrompt();
   
@@ -809,7 +816,7 @@ export default class VillageScene extends Phaser.Scene {
     );
 
     if (isMerchant && this.storyStage === "intro") {
-      this.showMerchantOfferSelection(nearest);
+      this.showDirectMerchantOffer(nearest);
       this.interactPrompt.setVisible(false);
       return;
     }
@@ -831,6 +838,211 @@ export default class VillageScene extends Phaser.Scene {
     );
   }
 
+  private showDirectMerchantOffer(npc: NPC) {
+    const npcName = npc.getData("npcName") as string;
+  
+    const offer = this.merchantOffers.find(
+      (item) => item.npcName === npcName
+    );
+  
+    if (!offer) return;
+  
+    const portraitKey = npc.texture.key;
+    const price = this.getMerchantPrice(offer);
+  
+    const isCheapOriginalMerchant =
+      offer.npcName === this.firstInteractedMerchantName;
+  
+    const lines = isCheapOriginalMerchant
+      ? this.getFirstInteractedMerchantDialogue(price, portraitKey)
+      : this.getIncreasingMerchantDialogue(offer, price, portraitKey);
+  
+    this.dialogue.showChoice({
+      lines,
+      portraitKey,
+      choices: [
+        {
+          label: `Accept ${price} coins`,
+          value: "accept",
+        },
+        {
+          label: "Keep looking",
+          value: "decline",
+        },
+      ],
+      onChoice: (value) => {
+        if (value === "accept") {
+          this.acceptMerchantOffer(npc, offer, price);
+        } else {
+          this.declineMerchantOffer(npc, offer, price);
+        }
+      },
+    });
+  }
+
+  private getFirstInteractedMerchantDialogue(
+    price: number,
+    portraitKey: string
+  ) {
+    const playerHasCheckedOthers =
+      this.merchantQuotedPrices.size > 1;
+  
+    if (!playerHasCheckedOthers) {
+      return [
+        {
+          text: "Welcome, traveler.",
+          portraitKey,
+        },
+        {
+          text: `I can take you to a hotel for ${price} coins.`,
+          portraitKey,
+        },
+        {
+          text: "Simple price. No tourist calculator.",
+          portraitKey,
+        },
+      ];
+    }
+  
+    return [
+      {
+        text: "Ah, you came back.",
+        portraitKey,
+      },
+      {
+        text: `My price is still ${price} coins.`,
+        portraitKey,
+      },
+      {
+        text: "Others increase prices. I increase trust.",
+        portraitKey,
+      },
+      {
+        text: "Also maybe scam later. But politely.",
+        portraitKey,
+      },
+    ];
+  }
+
+  private getIncreasingMerchantDialogue(
+    offer: MerchantOffer,
+    price: number,
+    portraitKey: string
+  ) {
+    return [
+      {
+        text: offer.pitch,
+        portraitKey,
+      },
+      {
+        text: `For you, only ${price} coins.`,
+        portraitKey,
+      },
+      {
+        text: "Price is higher because I smiled professionally.",
+        portraitKey,
+      },
+      {
+        text: "The smile has service charge.",
+        portraitKey,
+      },
+    ];
+  }
+
+  private acceptMerchantOffer(
+    npc: NPC,
+    offer: MerchantOffer,
+    price: number
+  ) {
+    const portraitKey = npc.texture.key;
+  
+    if (this.coins < price) {
+      this.dialogue.show(
+        [
+          {
+            text: `You need ${price} coins.`,
+            portraitKey,
+          },
+          {
+            text: "Your wallet has entered silent mode.",
+            portraitKey,
+          },
+        ],
+        undefined,
+        portraitKey
+      );
+  
+      return;
+    }
+  
+    this.changeCoins(-price);
+  
+    this.dialogue.show(
+      [
+        {
+          text: `${price} coins received.`,
+          portraitKey,
+        },
+        {
+          text: offer.reaction,
+          portraitKey,
+        },
+        {
+          text: "Follow me. Your hotel is definitely a place.",
+          portraitKey,
+        },
+      ],
+      () => {
+        this.storyStage = "travellingToFakeHotel";
+        this.startHotelScamCutscene(npc);
+      },
+      portraitKey
+    );
+  }
+
+  private declineMerchantOffer(
+    npc: NPC,
+    offer: MerchantOffer,
+    price: number
+  ) {
+    const portraitKey = npc.texture.key;
+  
+    const isFirstInteractedMerchant =
+      offer.npcName === this.firstInteractedMerchantName;
+  
+    const lines = isFirstInteractedMerchant
+      ? [
+          {
+            text: "No problem.",
+            portraitKey,
+          },
+          {
+            text: "I will keep 10 coins.",
+            portraitKey,
+          },
+          {
+            text: "Stable price. Unstable hotel.",
+            portraitKey,
+          },
+        ]
+      : [
+          {
+            text: "You want to ask another guide?",
+            portraitKey,
+          },
+          {
+            text: "Very brave.",
+            portraitKey,
+          },
+          {
+            text: "The next smile may cost more.",
+            portraitKey,
+          },
+        ];
+  
+    this.dialogue.show(lines, undefined, portraitKey);
+  }
+
   private startHotelScamCutscene(npc: NPC) {
     this.isCutscenePlaying = true;
   
@@ -847,100 +1059,6 @@ export default class VillageScene extends Phaser.Scene {
         this.walkToFakeHotel(npc);
       },
       npc.texture.key
-    );
-  }
-
-  private showMerchantOfferSelection(currentNpc: NPC) {
-    const currentNpcPortraitKey = currentNpc.texture.key;
-  
-    this.dialogue.showChoice({
-      lines: [
-        {
-          text: "The merchants surround you immediately.",
-          portraitKey: currentNpcPortraitKey,
-        },
-        {
-          text: "Everyone promises the best hotel in the city.",
-          portraitKey: currentNpcPortraitKey,
-        },
-        {
-          text: "Choose your transport guide.",
-          portraitKey: currentNpcPortraitKey,
-        },
-      ],
-      portraitKey: currentNpcPortraitKey,
-      choices: this.merchantOffers.map((offer) => ({
-        label: offer.label,
-        value: offer.npcName,
-      })),
-      onChoice: (selectedNpcName) => {
-        this.chooseMerchantOffer(selectedNpcName, currentNpc);
-      },
-    });
-  }
-
-  private chooseMerchantOffer(
-    selectedNpcName: string,
-    fallbackNpc: NPC
-  ) {
-    const offer = this.merchantOffers.find(
-      (item) => item.npcName === selectedNpcName
-    );
-  
-    if (!offer) return;
-  
-    const selectedNpc =
-      this.npcs.find(
-        (npc) => npc.getData("npcName") === selectedNpcName
-      ) ?? fallbackNpc;
-  
-    const selectedNpcPortraitKey = selectedNpc.texture.key;
-  
-    if (this.coins < offer.price) {
-      this.dialogue.show(
-        [
-          {
-            text: `You need ${offer.price} gold for this guide.`,
-            portraitKey: selectedNpcPortraitKey,
-          },
-          {
-            text: "Even the scam has standards.",
-            portraitKey: selectedNpcPortraitKey,
-          },
-        ],
-        undefined,
-        selectedNpcPortraitKey
-      );
-  
-      return;
-    }
-  
-    this.changeCoins(-offer.price);
-  
-    this.dialogue.show(
-      [
-        {
-          text: offer.pitch,
-          portraitKey: selectedNpcPortraitKey,
-        },
-        {
-          text: `${offer.price} gold received.`,
-          portraitKey: selectedNpcPortraitKey,
-        },
-        {
-          text: offer.reaction,
-          portraitKey: selectedNpcPortraitKey,
-        },
-        {
-          text: "Follow me, my friend. Your hotel is very close.",
-          portraitKey: selectedNpcPortraitKey,
-        },
-      ],
-      () => {
-        this.storyStage = "travellingToFakeHotel";
-        this.startHotelScamCutscene(selectedNpc);
-      },
-      selectedNpcPortraitKey
     );
   }
 
@@ -1442,7 +1560,7 @@ export default class VillageScene extends Phaser.Scene {
           "Objective: Try to sleep in the fake hotel."
         );
       
-        this.time.delayedCall(1200, () => {
+        this.time.delayedCall(1500, () => {
           this.startNoisyNightSequence();
         });
       }
@@ -2229,5 +2347,83 @@ export default class VillageScene extends Phaser.Scene {
       "Your play session has ended.",
       "We can add restart or score screen next."
     ]);
+  }
+
+  private getMerchantPrice(offer: MerchantOffer) {
+    // First merchant the player talks to becomes the cheap merchant
+    if (!this.firstInteractedMerchantName) {
+      this.firstInteractedMerchantName = offer.npcName;
+  
+      this.merchantQuotedPrices.set(
+        offer.npcName,
+        this.firstInteractedMerchantPrice
+      );
+  
+      return this.firstInteractedMerchantPrice;
+    }
+  
+    // First merchant always stays at 10
+    if (offer.npcName === this.firstInteractedMerchantName) {
+      return this.firstInteractedMerchantPrice;
+    }
+  
+    // If this merchant already quoted a price, keep the same quote
+    const existingPrice = this.merchantQuotedPrices.get(
+      offer.npcName
+    );
+  
+    if (existingPrice !== undefined) {
+      return existingPrice;
+    }
+  
+    // Every new merchant after the first becomes more expensive
+    const price = this.nextMerchantPrice;
+  
+    this.merchantQuotedPrices.set(offer.npcName, price);
+  
+    this.nextMerchantPrice += this.merchantPriceIncrease;
+  
+    return price;
+  }
+
+  private getStableMerchantDialogue(
+    price: number,
+    portraitKey: string
+  ) {
+    if (this.merchantInflationBonus <= 0) {
+      return [
+        {
+          text: "Welcome, traveler.",
+          portraitKey,
+        },
+        {
+          text: `I can take you to a hotel for ${price} gold.`,
+          portraitKey,
+        },
+        {
+          text: "Simple price. No mathematics.",
+          portraitKey,
+        },
+      ];
+    }
+  
+    return [
+      {
+        text: "Ah, you came back.",
+        portraitKey,
+      },
+      {
+        text: `My price is still ${price} gold.`,
+        portraitKey,
+      },
+      {
+        text: "Others may panic. I remain consistent.",
+        portraitKey,
+      },
+      {
+        text: "Stable scam. Very professional.",
+        portraitKey,
+      },
+    ];
   }
 }
