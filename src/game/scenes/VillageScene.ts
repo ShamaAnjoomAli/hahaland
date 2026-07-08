@@ -230,6 +230,12 @@ export default class VillageScene extends Phaser.Scene {
   
   private merchantQuotedPrices = new Map<string, number>();
 
+  // small animation on the hotel merchants to show them waiting for tourist
+  private merchantWaitingTweens = new Map<NPC, Phaser.Tweens.Tween>();
+  private merchantHomePositions = new Map<NPC, { x: number; y: number }>();
+
+  private merchantWaitingStep = 14;
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -499,7 +505,9 @@ export default class VillageScene extends Phaser.Scene {
   private updateQuestMarker() {
     if (!this.questMarker) return;
 
-    if (this.storyStage === "intro") {
+    if ( this.storyStage === "intro" ||
+      this.storyStage === "travellingToFakeHotel" ||
+      this.storyStage === "fakeHotelNight") {
       this.questMarker.setVisible(false);
       return;
     }
@@ -651,7 +659,7 @@ export default class VillageScene extends Phaser.Scene {
       this.hideOpeningLoadingScreen(() => {
         this.player.setVisible(true);
   
-        this.time.delayedCall(250, () => {
+        this.time.delayedCall(1050, () => {
           this.playDoorWalkIntro();
         });
       });
@@ -666,12 +674,14 @@ export default class VillageScene extends Phaser.Scene {
       this.openingIntroSpeed,
       () => {
         this.isOpeningSequencePlaying = false;
-  
+
         this.setStoryUIVisible(true);
-  
+
         this.objectiveBox.setText(
           "Objective: Choose a hotel guide."
         );
+
+        this.startMerchantWaitingAnimations();
   
         this.showEmotion(this.player, "!");
       }
@@ -839,6 +849,7 @@ export default class VillageScene extends Phaser.Scene {
   }
 
   private showDirectMerchantOffer(npc: NPC) {
+    this.stopMerchantWaitingAnimation(npc);
     const npcName = npc.getData("npcName") as string;
   
     const offer = this.merchantOffers.find(
@@ -974,7 +985,7 @@ export default class VillageScene extends Phaser.Scene {
   
       return;
     }
-  
+    this.stopAllMerchantWaitingAnimations();
     this.changeCoins(-price);
   
     this.dialogue.show(
@@ -1040,7 +1051,15 @@ export default class VillageScene extends Phaser.Scene {
           },
         ];
   
-    this.dialogue.show(lines, undefined, portraitKey);
+        this.dialogue.show(
+          lines,
+          () => {
+            if (this.storyStage === "intro") {
+              this.startMerchantWaitingAnimation(npc);
+            }
+          },
+          portraitKey
+        );
   }
 
   private startHotelScamCutscene(npc: NPC) {
@@ -2425,5 +2444,108 @@ export default class VillageScene extends Phaser.Scene {
         portraitKey,
       },
     ];
+  }
+
+  private isMerchantNPC(npc: NPC) {
+    const npcName = npc.getData("npcName") as string;
+  
+    return this.merchantOffers.some(
+      (offer) => offer.npcName === npcName
+    );
+  }
+
+  private startMerchantWaitingAnimations() {
+    this.npcs.forEach((npc) => {
+      if (!this.isMerchantNPC(npc)) return;
+  
+      this.startMerchantWaitingAnimation(npc);
+    });
+  }
+
+  private startMerchantWaitingAnimation(npc: NPC) {
+    if (this.storyStage !== "intro") return;
+    if (this.merchantWaitingTweens.has(npc)) return;
+  
+    const homePosition =
+      this.merchantHomePositions.get(npc) ?? {
+        x: npc.x,
+        y: npc.y,
+      };
+  
+    this.merchantHomePositions.set(npc, homePosition);
+  
+    const tween = this.tweens.add({
+      targets: npc,
+      y: homePosition.y - this.merchantWaitingStep,
+      duration: Phaser.Math.Between(1300, 1700),
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: -1,
+      delay: Phaser.Math.Between(0, 600),
+  
+      onStart: () => {
+        this.playMerchantWalkAnimation(npc, "up");
+      },
+  
+      onYoyo: () => {
+        this.playMerchantWalkAnimation(npc, "down");
+      },
+  
+      onRepeat: () => {
+        this.playMerchantWalkAnimation(npc, "up");
+      },
+    });
+  
+    this.merchantWaitingTweens.set(npc, tween);
+  }
+
+  private playMerchantWalkAnimation(
+    npc: NPC,
+    direction: "up" | "down"
+  ) {
+    const animationTextureKey =
+      npc.getData("animKey") ?? npc.texture.key;
+  
+    const animationKey =
+      `${animationTextureKey}-walk-${direction}`;
+  
+    if (this.anims.exists(animationKey)) {
+      npc.play(animationKey, true);
+    } else {
+      console.warn("Missing merchant waiting animation:", animationKey);
+    }
+  }
+  
+  private stopMerchantWaitingAnimation(
+    npc: NPC,
+    snapHome = true
+  ) {
+    const tween = this.merchantWaitingTweens.get(npc);
+  
+    if (tween) {
+      tween.stop();
+      this.merchantWaitingTweens.delete(npc);
+    }
+  
+    if (snapHome) {
+      const homePosition = this.merchantHomePositions.get(npc);
+  
+      if (homePosition) {
+        npc.setPosition(homePosition.x, homePosition.y);
+      }
+    }
+  
+    npc.stop();
+    npc.setFrame(0);
+  }
+
+  private stopAllMerchantWaitingAnimations() {
+    const merchants = Array.from(
+      this.merchantWaitingTweens.keys()
+    );
+  
+    merchants.forEach((npc) => {
+      this.stopMerchantWaitingAnimation(npc);
+    });
   }
 }

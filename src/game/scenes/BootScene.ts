@@ -357,5 +357,26 @@ export default class BootScene extends Phaser.Scene {
   private createAnimations() {
     this.createWalkAnimations("player");
     this.createWalkAnimations("npc1");
+    this.createWalkAnimations("npc2");
+    this.createWalkAnimations("npc3");
+    this.createWalkAnimations("npc4");
+    this.createWalkAnimations("npc5");
+    this.createWalkAnimations("npc6");
+    this.createWalkAnimations("npc7");
+    this.createWalkAnimations("npc8");
+    this.createWalkAnimations("npc9");
+    this.createWalkAnimations("npc10");
+    this.createWalkAnimations("npc11");
+    this.createWalkAnimations("npc12");
+    this.createWalkAnimations("npc13");
+    this.createWalkAnimations("npc14");
+    this.createWalkAnimations("npc15");
+    this.createWalkAnimations("npc16");
+    this.createWalkAnimations("npc17");
+    this.createWalkAnimations("npc18");
+    this.createWalkAnimations("npc19");
+    this.createWalkAnimations("npc20");
+    this.createWalkAnimations("npc21");
+
   }
 }

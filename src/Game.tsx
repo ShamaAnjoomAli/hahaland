@@ -12,6 +12,63 @@ export default function Game() {
   const [screen, setScreen] = useState<Screen>("menu");
   const gameRef = useRef<Phaser.Game | null>(null);
 
+  const menuMusicRef = useRef<HTMLAudioElement | null>(null);
+  const menuMusicStartedRef = useRef(false);
+
+  useEffect(() => {
+    const audio = new Audio("/assets/audio/music/main_menu.mpeg");
+    audio.loop = true;
+    audio.volume = 0.45;
+    audio.preload = "auto";
+    menuMusicRef.current = audio;
+
+    // Try immediately (works if the browser's engagement heuristics already trust this site)
+    audio.play().then(() => {
+      menuMusicStartedRef.current = true;
+    }).catch(() => {
+      // Blocked — fall back to starting on the very first interaction, anywhere on the page
+      const tryStart = () => {
+        if (menuMusicStartedRef.current) return;
+        audio.play().then(() => {
+          menuMusicStartedRef.current = true;
+        }).catch(() => {});
+      };
+      window.addEventListener("pointerdown", tryStart, { once: true });
+      window.addEventListener("keydown", tryStart, { once: true });
+    });
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+      menuMusicRef.current = null;
+      menuMusicStartedRef.current = false;
+    };
+  }, []);
+
+  const startMenuMusic = async () => {
+    const audio = menuMusicRef.current;
+  
+    if (!audio) return;
+    if (menuMusicStartedRef.current) return;
+  
+    try {
+      await audio.play();
+      menuMusicStartedRef.current = true;
+    } catch (error) {
+      console.warn("Menu music blocked until user interacts:", error);
+    }
+  };
+  
+  const stopMenuMusic = () => {
+    const audio = menuMusicRef.current;
+  
+    if (!audio) return;
+  
+    audio.pause();
+    audio.currentTime = 0;
+    menuMusicStartedRef.current = false;
+  };
+
   useEffect(() => {
     if (screen !== "game") return;
 
@@ -54,7 +111,10 @@ export default function Game() {
       <div className="game-page">
         <button
           className="exit-game-button"
-          onClick={() => setScreen("menu")}
+          onClick={() => {
+            startMenuMusic();
+            setScreen("menu");
+          }}
         >
           Exit
         </button>
@@ -91,14 +151,20 @@ export default function Game() {
           <div className="menu-actions">
             <button
               className="secondary-button"
-              onClick={() => setScreen("menu")}
+               onClick={() => {
+                  startMenuMusic();
+                  setScreen("menu");
+                }}
             >
               Back
             </button>
 
             <button
               className="primary-button"
-              onClick={() => setScreen("game")}
+              onClick={() => {
+                stopMenuMusic();
+                setScreen("game");
+              }}
             >
               Play
             </button>
@@ -120,7 +186,10 @@ export default function Game() {
 
         <button
           className="nav-button"
-          onClick={() => setScreen("game")}
+          onClick={() => {
+            stopMenuMusic();
+            setScreen("game");
+          }}
         >
           Join
         </button>
@@ -128,7 +197,6 @@ export default function Game() {
 
       <section className="hero-card">
         <p className="eyebrow">Ancient Egypt Edition</p>
-
         <h1>HAHALAND</h1>
 
         <h2>
@@ -145,15 +213,20 @@ export default function Game() {
         <div className="menu-actions">
           <button
             className="primary-button"
-            onClick={() => setScreen("game")}
+            onClick={() => {
+              stopMenuMusic();
+              setScreen("game")
+            }}
           >
             Play
           </button>
 
           <button
             className="secondary-button"
-            onClick={() => setScreen("howToPlay")}
-          >
+            onClick={() => {
+              startMenuMusic();
+              setScreen("howToPlay");
+            }}          >
             How to Play
           </button>
         </div>
