@@ -50,6 +50,11 @@ export default class DialogueBox {
   private onChoice?: (value: string) => void;
   private showingChoices = false;
 
+  private portraitBaseX = 0;
+  private portraitBaseY = 0;
+  private portraitScale = 1.45;
+private portraitTweenScale = 1.52;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
@@ -110,6 +115,14 @@ export default class DialogueBox {
       ""
     );
 
+    this.portraitBaseX = portraitCenterX;
+    this.portraitBaseY = portraitCenterY + 6;
+
+    this.portrait.setPosition(
+      this.portraitBaseX,
+      this.portraitBaseY
+    );
+
     this.portrait.setScale(1.2);
     this.portrait.setVisible(false);
 
@@ -151,23 +164,25 @@ export default class DialogueBox {
     portraitKey?: string
   ) {
     this.clearChoices();
-  
+
     this.lines = Array.isArray(dialogue)
       ? dialogue
       : [dialogue];
-  
+
     this.index = 0;
     this.open = true;
     this.onClose = onClose;
     this.defaultPortraitKey = portraitKey;
-  
+    this.showingChoices = false;
+
     this.container.setVisible(true);
+    this.hint.setText("SPACE  ▶  Next");
     this.setCurrentLine();
   }
 
   private setCurrentLine() {
     const currentLine = this.lines[this.index];
-  
+
     if (typeof currentLine === "string") {
       this.text.setText(currentLine);
       this.setPortrait(this.defaultPortraitKey);
@@ -183,7 +198,7 @@ export default class DialogueBox {
 
   showChoice(config: ChoiceDialogueConfig) {
     this.clearChoices();
-  
+
     this.lines = config.lines;
     this.index = 0;
     this.open = true;
@@ -191,17 +206,17 @@ export default class DialogueBox {
   
     this.activeChoices = config.choices;
     this.onChoice = config.onChoice;
+    this.defaultPortraitKey = config.portraitKey;
     this.showingChoices = false;
   
     this.container.setVisible(true);
-    this.setPortrait(config.portraitKey);
-    this.text.setText(this.lines[this.index]);
     this.hint.setText("SPACE  ▶  Next");
+    this.setCurrentLine();
   }
 
   next() {
     if (!this.open) return;
-  
+
     if (this.showingChoices) {
       return;
     }
@@ -263,52 +278,67 @@ export default class DialogueBox {
   private setPortrait(portraitKey?: string) {
     this.stopPortraitAnimation();
 
-    if (
-      !portraitKey ||
-      !this.scene.textures.exists(portraitKey)
-    ) {
-      this.portrait.setVisible(false);
-      this.portraitPanel.setVisible(false);
+  this.portrait.setPosition(
+    this.portraitBaseX,
+    this.portraitBaseY
+  );
 
-      this.text.setX(this.textWithoutPortraitX);
-      this.text.setWordWrapWidth(
-        this.textWithoutPortraitWidth
-      );
+  if (
+    !portraitKey ||
+    !this.scene.textures.exists(portraitKey)
+  ) {
+    this.portrait.setVisible(false);
+    this.portraitPanel.setVisible(false);
 
-      return;
-    }
-
-    this.portraitPanel.setVisible(true);
-
-    this.text.setX(this.textWithPortraitX);
+    this.text.setX(this.textWithoutPortraitX);
     this.text.setWordWrapWidth(
-      this.textWithPortraitWidth
+      this.textWithoutPortraitWidth
     );
 
-    this.portrait.setTexture(portraitKey);
-    this.portrait.setFrame(0);
-    this.portrait.setVisible(true);
+    return;
+  }
 
-    this.portrait.setScale(1.4);
-    this.portrait.setAlpha(1);
-    this.portrait.setAngle(0);
+  this.portraitPanel.setVisible(true);
 
-    this.portraitTween = this.scene.tweens.add({
-      targets: this.portrait,
-      y: this.portrait.y - 4,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      duration: 750,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
+  this.text.setX(this.textWithPortraitX);
+  this.text.setWordWrapWidth(
+    this.textWithPortraitWidth
+  );
+
+  this.portrait.setTexture(portraitKey);
+  this.portrait.setFrame(0);
+  this.portrait.setVisible(true);
+
+  this.portrait.setScale(this.portraitScale);
+  this.portrait.setAlpha(1);
+  this.portrait.setAngle(0);
+
+  this.portraitTween = this.scene.tweens.add({
+    targets: this.portrait,
+    y: this.portraitBaseY - 3,
+    scaleX: this.portraitTweenScale,
+    scaleY: this.portraitTweenScale,
+    duration: 750,
+    yoyo: true,
+    repeat: -1,
+    ease: "Sine.easeInOut",
+  });
   }
 
   private stopPortraitAnimation() {
     if (this.portraitTween) {
       this.portraitTween.stop();
+      this.portraitTween.remove();
       this.portraitTween = undefined;
+    }
+  
+    if (this.portrait) {
+      this.portrait.setPosition(
+        this.portraitBaseX,
+        this.portraitBaseY
+      );
+  
+      this.portrait.setScale(this.portraitScale);
     }
   }
 

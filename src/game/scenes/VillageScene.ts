@@ -496,7 +496,8 @@ export default class VillageScene extends Phaser.Scene {
             this.dialogue.show([
               "No problem, traveler.",
               "Maybe another guide will help you."
-            ]);
+            ], undefined,
+            npcPortraitKey);
           }
         },
       });
@@ -653,14 +654,13 @@ export default class VillageScene extends Phaser.Scene {
 
   this.showEmotion(this.player, "!!");
 
-  const merchantPortraitKey = npc.texture.key;
   const playerPortraitKey = this.player.texture.key;
 
   this.dialogue.show(
     [
       {
         text: "Here we are!",
-        portraitKey: merchantPortraitKey,
+        portraitKey: npc.texture.key,
       },
       {
         text: "Wait...",
@@ -672,7 +672,7 @@ export default class VillageScene extends Phaser.Scene {
       },
       {
         text: "Yes, yes. Very local hotel.",
-        portraitKey: merchantPortraitKey,
+        portraitKey: npc.texture.key,
       },
       {
         text: "This is NOT a hotel!",
@@ -681,7 +681,7 @@ export default class VillageScene extends Phaser.Scene {
     ],
     () => {
       this.isCutscenePlaying = false;
-
+  
       this.objectiveBox.setText(
         "Objective: Try to sleep in the fake hotel."
       );
