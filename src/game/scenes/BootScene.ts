@@ -56,6 +56,10 @@ const AUDIO: AudioAsset[] = [
       "assets/audio/sfx/npc_talk_3.wav",
     ],
   },
+  {
+    key: "cutscene-theme",
+    paths: ["assets/audio/sfx/cutscene-theme.mp3"],
+  },
 ];
 
 const TILEMAPS: TilemapAsset[] = [

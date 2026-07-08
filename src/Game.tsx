@@ -15,6 +15,13 @@ export default function Game() {
   const menuMusicRef = useRef<HTMLAudioElement | null>(null);
   const menuMusicStartedRef = useRef(false);
 
+  // keep a ref of the current screen so the one-time "unlock" listener
+  // (added once, on mount) always checks the LATEST screen, not a stale closure
+  const screenRef = useRef<Screen>(screen);
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
+
   useEffect(() => {
     const audio = new Audio("/assets/audio/music/main_menu.mpeg");
     audio.loop = true;
@@ -22,22 +29,24 @@ export default function Game() {
     audio.preload = "auto";
     menuMusicRef.current = audio;
 
-    // Try immediately (works if the browser's engagement heuristics already trust this site)
-    audio.play().then(() => {
-      menuMusicStartedRef.current = true;
-    }).catch(() => {
-      // Blocked — fall back to starting on the very first interaction, anywhere on the page
-      const tryStart = () => {
-        if (menuMusicStartedRef.current) return;
-        audio.play().then(() => {
-          menuMusicStartedRef.current = true;
-        }).catch(() => {});
-      };
-      window.addEventListener("pointerdown", tryStart, { once: true });
-      window.addEventListener("keydown", tryStart, { once: true });
-    });
+    const tryStart = () => {
+      if (menuMusicStartedRef.current) return;
+      if (screenRef.current !== "menu") return; // don't start if we've already left the menu
+      audio.play().then(() => {
+        menuMusicStartedRef.current = true;
+      }).catch(() => {});
+    };
+
+    // try right away — works if the browser already trusts this page
+    tryStart();
+
+    // fallback: arm it to fire on the very first interaction anywhere on the page
+    window.addEventListener("pointerdown", tryStart, { once: true });
+    window.addEventListener("keydown", tryStart, { once: true });
 
     return () => {
+      window.removeEventListener("pointerdown", tryStart);
+      window.removeEventListener("keydown", tryStart);
       audio.pause();
       audio.currentTime = 0;
       menuMusicRef.current = null;
@@ -45,25 +54,19 @@ export default function Game() {
     };
   }, []);
 
-  const startMenuMusic = async () => {
+  const startMenuMusic = () => {
     const audio = menuMusicRef.current;
-  
-    if (!audio) return;
-    if (menuMusicStartedRef.current) return;
-  
-    try {
-      await audio.play();
+    if (!audio || menuMusicStartedRef.current) return;
+    audio.play().then(() => {
       menuMusicStartedRef.current = true;
-    } catch (error) {
-      console.warn("Menu music blocked until user interacts:", error);
-    }
+    }).catch((error) => {
+      console.warn("Menu music blocked:", error);
+    });
   };
-  
+
   const stopMenuMusic = () => {
     const audio = menuMusicRef.current;
-  
     if (!audio) return;
-  
     audio.pause();
     audio.currentTime = 0;
     menuMusicStartedRef.current = false;

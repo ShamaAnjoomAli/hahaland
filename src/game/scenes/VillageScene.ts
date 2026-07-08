@@ -236,6 +236,10 @@ export default class VillageScene extends Phaser.Scene {
 
   private merchantWaitingStep = 14;
 
+  // Baby sound for hotel cut scene
+  private cutsceneMusic?: Phaser.Sound.BaseSound;
+  private allowNpcTalkSfx = true;
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -458,6 +462,17 @@ export default class VillageScene extends Phaser.Scene {
       volume: 0.45,
     });
 
+    if (this.cache.audio.exists("cutscene-theme")) {
+      this.cutsceneMusic = this.sound.add("cutscene-theme", {
+        loop: true,
+        volume: 0.55,
+      });
+    
+      console.log("Cutscene music loaded successfully");
+    } else {
+      console.warn("cutscene-theme audio was NOT found");
+    }
+
     // Try once immediately
     this.startBackgroundMusic();
 
@@ -471,12 +486,47 @@ export default class VillageScene extends Phaser.Scene {
     });
   }
   
-  private startBackgroundMusic() {
-    if (!this.bgMusic) return;
-
-    if (this.bgMusic.isPlaying) return;
+  private startCutsceneMusic() {
+    console.log("Trying to start cutscene music");
   
-    console.log("Starting background music");
+    this.allowNpcTalkSfx = false;
+  
+    if (this.bgMusic?.isPlaying) {
+      this.bgMusic.pause();
+    }
+  
+    if (!this.cutsceneMusic) {
+      console.warn("No cutsceneMusic object exists");
+      return;
+    }
+  
+    if (!this.cutsceneMusic.isPlaying) {
+      this.cutsceneMusic.play({
+        loop: true,
+        volume: 0.55,
+      });
+  
+      console.log("Cutscene music started");
+    }
+  }
+
+  private stopCutsceneMusic() {
+    this.allowNpcTalkSfx = true;
+  
+    if (this.cutsceneMusic?.isPlaying) {
+      this.cutsceneMusic.stop();
+    }
+  
+    if (this.bgMusic && !this.bgMusic.isPlaying) {
+      this.bgMusic.resume();
+    }
+  }
+
+  private startBackgroundMusic() {
+    if (this.isCutscenePlaying) return;
+
+    if (!this.bgMusic) return;
+    if (this.bgMusic.isPlaying) return;
   
     this.bgMusic.play({
       loop: true,
@@ -1596,13 +1646,12 @@ export default class VillageScene extends Phaser.Scene {
   
     this.time.delayedCall(950, () => {
       this.showNightOverlay();
-  
+      this.startCutsceneMusic();
+
       this.objectiveBox.setText(
         "Objective: Try to sleep..."
       );
-  
-      this.startHouseNoiseLoop();
-  
+    
       this.time.delayedCall(1000, () => {
         this.dialogue.show(
           [
@@ -1686,47 +1735,9 @@ export default class VillageScene extends Phaser.Scene {
     this.nightText = undefined;
   }
 
-  private startHouseNoiseLoop() {
-    this.stopHouseNoiseLoop();
-  
-    const noiseKeys = [
-      "npc-talk-1",
-      "npc-talk-2",
-      "npc-talk-3",
-    ];
-  
-    const playRandomNoise = () => {
-      const soundKey = Phaser.Utils.Array.GetRandom(noiseKeys);
-  
-      if (!this.cache.audio.exists(soundKey)) return;
-  
-      this.sound.play(soundKey, {
-        volume: 0.3,
-        detune: Phaser.Math.Between(-250, 250),
-      });
-  
-      this.cameras.main.shake(120, 0.0015);
-    };
-  
-    playRandomNoise();
-  
-    this.houseNoiseTimer = this.time.addEvent({
-      delay: 500,
-      loop: true,
-      callback: playRandomNoise,
-    });
-  }
-  
-  private stopHouseNoiseLoop() {
-    if (!this.houseNoiseTimer) return;
-  
-    this.houseNoiseTimer.remove(false);
-    this.houseNoiseTimer = undefined;
-  }
-
-  private endNoisyNightSequence() {
-    this.stopHouseNoiseLoop();
-  
+  private endNoisyNightSequence() { 
+    this.stopCutsceneMusic();
+     
     this.hideNightOverlay();
   
     this.cameras.main.fadeIn(700, 0, 0, 0);
