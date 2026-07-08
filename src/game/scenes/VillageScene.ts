@@ -87,15 +87,10 @@ export default class VillageScene extends Phaser.Scene {
 
   // Act 1 - Get to hotel
   private isCutscenePlaying = false;
-  private scamHousePath = [
-    { x: 620, y: 420 },
-    { x: 780, y: 420 },
-    { x: 900, y: 450 },
-  ];
   
   private playerFollowOffset = {
-    x: -45,
-    y: 20,
+    x: -50,
+    y: 0,
   };
 
   private npcTalkSoundKeys = [
@@ -104,15 +99,62 @@ export default class VillageScene extends Phaser.Scene {
     "npc-talk-3",
   ];
 
-  // Speed during movement lock of player and npc
-  private cutsceneWalkSpeed = 85;
-  
   // Black bg on cutscene
   private nightOverlay?: Phaser.GameObjects.Rectangle;
   private nightText?: Phaser.GameObjects.Text;
 
   private isStoryUIVisible = true;
   private houseNoiseTimer?: Phaser.Time.TimerEvent;
+
+  // Speed during movement lock of player and npc
+  private cutsceneWalkSpeed = 200;
+  private fastTravelSpeed = 300;
+
+  private complimentTipCost = 1;
+
+  private scamHousePathToSmallTalk = [
+    { x: 620, y: 420 },
+    { x: 780, y: 420 },
+    { x: 920, y: 420 },
+  ];
+
+  private scamHousePathAfterSmallTalk = [
+    { x: 920, y: 420 },
+    { x: 1100, y: 1000 },
+    { x: 1250, y: 1350 },
+    { x: 1400, y: 1700 },
+    { x: 1445, y: 1945 },
+  ];
+
+  private countryCompliments: Record<string, string[]> = {
+    uae: [
+      "UAE! Beautiful place.",
+      "Even your buildings look richer than my entire village.",
+    ],
+    egypt: [
+      "Egypt! Ah, then you already understand tourist prices.",
+      "You are basically local. I will only scam you politely.",
+    ],
+    italy: [
+      "Italy! Pasta, fashion, romance.",
+      "Very classy country. Your wallet must also be classy.",
+    ],
+    japan: [
+      "Japan! So polite, so clean, so organized.",
+      "Even your luggage probably says thank you.",
+    ],
+    usa: [
+      "America! Big country, big dreams.",
+      "And hopefully, big tips.",
+    ],
+    india: [
+      "India! Amazing food, strong tea, great bargaining.",
+      "I must be careful with you.",
+    ],
+  };
+
+  // Debug key to get coordinates of points in the game via player movements
+  private debugCoordKey!: Phaser.Input.Keyboard.Key;
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -269,7 +311,7 @@ export default class VillageScene extends Phaser.Scene {
     );
     
     this.hud.setCoins(this.coins);
-    this.startGameTimer(120);
+    this.startGameTimer(600);
 
     this.createUICamera();
     
@@ -294,6 +336,12 @@ export default class VillageScene extends Phaser.Scene {
       () => {
         this.bgMusic?.stop();
       }
+    );
+
+    // Debug key to get coordinates of points in the game via player movements
+    // Move the player to the required coordinate and press p
+    this.debugCoordKey = this.input.keyboard!.addKey(
+      Phaser.Input.Keyboard.KeyCodes.P
     );
   }
 
@@ -397,6 +445,14 @@ export default class VillageScene extends Phaser.Scene {
    * Runs every frame. Reads keyboard input and moves the player while playing walk animations.
    */
   update() {
+    // Debug key to get coordinates of points in the game via player movements
+    if (Phaser.Input.Keyboard.JustDown(this.debugCoordKey)) {
+      console.log("Player position:", {
+        x: Math.round(this.player.x),
+        y: Math.round(this.player.y),
+      });
+    }
+
     const speed = 100;
 
     if (this.isStoryUIVisible) {
@@ -593,7 +649,49 @@ export default class VillageScene extends Phaser.Scene {
   }
 
   private walkToFakeHotel(npc: NPC) {
-    const npcPath = this.scamHousePath;
+    this.dialogue.showChoice({
+      lines: [
+        "The hotel is a little walk from here.",
+        "You can skip the travel, but some story moments may be missed.",
+      ],
+      portraitKey: npc.texture.key,
+      choices: [
+        { label: "Enjoy walk", value: "walk" },
+        { label: "Skip travel", value: "skip" },
+      ],
+      onChoice: (value) => {
+        if (value === "skip") {
+          this.skipTravelToFakeHotel(npc);
+          return;
+        }
+  
+        this.startLongTravelToFakeHotel(npc);
+      },
+    });
+  }
+
+  private startLongTravelToFakeHotel(npc: NPC) {
+    const npcPath = this.scamHousePathToSmallTalk;
+  
+    const playerPath = npcPath.map((point) => ({
+      x: point.x + this.playerFollowOffset.x,
+      y: point.y + this.playerFollowOffset.y,
+    }));
+  
+    this.walkActorPath(npc, npcPath, this.cutsceneWalkSpeed);
+  
+    this.walkActorPath(
+      this.player,
+      playerPath,
+      this.cutsceneWalkSpeed,
+      () => {
+        this.startCountrySmallTalk(npc);
+      }
+    );
+  }
+
+  private continueTravelToFakeHotel(npc: NPC) {
+    const npcPath = this.scamHousePathAfterSmallTalk;
   
     const playerPath = npcPath.map((point) => ({
       x: point.x + this.playerFollowOffset.x,
@@ -612,6 +710,241 @@ export default class VillageScene extends Phaser.Scene {
     );
   }
 
+  private skipTravelToFakeHotel(npc: NPC) {
+    this.dialogue.show(
+      [
+        {
+          text: "Skipping travel...",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Some story jokes may be missed.",
+          portraitKey: npc.texture.key,
+        },
+      ],
+      () => {
+        const finalPoint =
+          this.scamHousePathAfterSmallTalk[
+            this.scamHousePathAfterSmallTalk.length - 1
+          ];
+  
+        this.moveActorTo(
+          npc,
+          finalPoint.x,
+          finalPoint.y,
+          this.fastTravelSpeed
+        );
+  
+        this.moveActorTo(
+          this.player,
+          finalPoint.x + this.playerFollowOffset.x,
+          finalPoint.y + this.playerFollowOffset.y,
+          this.fastTravelSpeed,
+          () => {
+            this.revealFakeHotel(npc);
+          }
+        );
+      }
+    );
+  }
+
+  private startCountrySmallTalk(npc: NPC) {
+    this.player.setVelocity(0);
+    npc.setVelocity(0);
+  
+    this.dialogue.showChoiceList({
+      lines: [
+        {
+          text: "So, traveler...",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Where are you from?",
+          portraitKey: npc.texture.key,
+        },
+      ],
+      portraitKey: npc.texture.key,
+      choices: [
+        { label: "UAE", value: "uae" },
+        { label: "Egypt", value: "egypt" },
+        { label: "Italy", value: "italy" },
+        { label: "Japan", value: "japan" },
+        { label: "USA", value: "usa" },
+        { label: "India", value: "india" },
+      ],
+      onChoice: (country) => {
+        this.respondToCountry(npc, country);
+      },
+    });
+  }
+
+  private respondToCountry(npc: NPC, country: string) {
+    const compliment =
+      this.countryCompliments[country] ?? [
+        "Ah, beautiful place!",
+        "Very famous. Very nice. Very tip-worthy.",
+      ];
+  
+    this.dialogue.show(
+      [
+        {
+          text: compliment[0],
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: compliment[1],
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "That was a premium compliment.",
+          portraitKey: npc.texture.key,
+        },
+      ],
+      () => {
+        this.askForComplimentTip(npc);
+      }
+    );
+  }
+
+  private askForComplimentTip(npc: NPC) {
+    this.dialogue.showChoice({
+      lines: [
+        {
+          text: "By the way...",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "That compliment was not free.",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Only 1 gold for premium emotional support.",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Would you like to tip your cultural guide?",
+          portraitKey: npc.texture.key,
+        },
+      ],
+      portraitKey: npc.texture.key,
+      choices: [
+        {
+          label: "Tip 1 gold",
+          value: "tip",
+        },
+        {
+          label: "No tip",
+          value: "no-tip",
+        },
+      ],
+      onChoice: (value) => {
+        if (value === "tip") {
+          this.handleTipYes(npc);
+        } else {
+          this.handleTipNo(npc);
+        }
+      },
+    });
+  }
+
+  private handleTipYes(npc: NPC) {
+    if (this.coins <= 0) {
+      this.dialogue.show(
+        [
+          {
+            text: "I would tip, but I have no gold.",
+            portraitKey: "player",
+          },
+          {
+            text: "No gold?",
+            portraitKey: npc.texture.key,
+          },
+          {
+            text: "This is a very sad day for tourism.",
+            portraitKey: npc.texture.key,
+          },
+        ],
+        () => {
+          this.showEmotion(npc, "...");
+          this.continueTravelToFakeHotel(npc);
+        }
+      );
+  
+      return;
+    }
+  
+    this.changeCoins(-this.complimentTipCost);
+  
+    this.dialogue.show(
+      [
+        {
+          text: "Fine. Here is 1 gold.",
+          portraitKey: "player",
+        },
+        {
+          text: "Ah! A generous traveler!",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Your country is now officially my favorite.",
+          portraitKey: npc.texture.key,
+        },
+      ],
+      () => {
+        this.showEmotion(npc, "$");
+        this.continueTravelToFakeHotel(npc);
+      }
+    );
+  }
+  
+  private handleTipNo(npc: NPC) {
+    this.dialogue.show(
+      [
+        {
+          text: "No tip.",
+          portraitKey: "player",
+        },
+        {
+          text: "No tip?",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "After such a beautiful compliment?",
+          portraitKey: npc.texture.key,
+        },
+        {
+          text: "Fine. I will walk sadly.",
+          portraitKey: npc.texture.key,
+        },
+      ],
+      () => {
+        this.showEmotion(npc, "!!");
+        this.cameras.main.shake(180, 0.004);
+        this.continueTravelToFakeHotel(npc);
+      }
+    );
+  }
+
+  private changeCoins(amount: number) {
+    this.coins = Math.max(0, this.coins + amount);
+  
+    const hudAny = this.hud as any;
+  
+    if (hudAny?.setCoins) {
+      hudAny.setCoins(this.coins);
+      return;
+    }
+  
+    if (hudAny?.updateCoins) {
+      hudAny.updateCoins(this.coins);
+      return;
+    }
+  
+    console.warn(
+      "HUD coin update method not found. Add setCoins() to GameHUD."
+    );
+  }
+  
   private walkActorPath(
     actor: Phaser.Physics.Arcade.Sprite,
     path: { x: number; y: number }[],
@@ -734,7 +1067,7 @@ export default class VillageScene extends Phaser.Scene {
           "Objective: Try to sleep in the fake hotel."
         );
       
-        this.time.delayedCall(700, () => {
+        this.time.delayedCall(1200, () => {
           this.startNoisyNightSequence();
         });
       }

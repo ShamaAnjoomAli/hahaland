@@ -50,10 +50,18 @@ export default class DialogueBox {
   private onChoice?: (value: string) => void;
   private showingChoices = false;
 
+  private choiceListStartIndex = 0;
+  private choiceWheelHandler?: (...args: any[]) => void;
+
+
   private portraitBaseX = 0;
   private portraitBaseY = 0;
   private portraitScale = 1.45;
-private portraitTweenScale = 1.52;
+  private portraitTweenScale = 1.52;
+
+  private choicePanel?: Phaser.GameObjects.Container;
+
+  private selectedChoiceIndex = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -131,7 +139,7 @@ private portraitTweenScale = 1.52;
       height - 135,
       "",
       {
-        fontSize: "22px",
+        fontSize: "20px",
         color: "#ffffff",
         wordWrap: {
           width: width - dialogueTextX - 100,
@@ -197,8 +205,12 @@ private portraitTweenScale = 1.52;
   }
 
   showChoice(config: ChoiceDialogueConfig) {
-    this.clearChoices();
+    this.openChoiceDialogue(config);
+  }
 
+  showChoiceList(config: ChoiceDialogueConfig) {
+    this.clearChoices();
+  
     this.lines = config.lines;
     this.index = 0;
     this.open = true;
@@ -208,6 +220,26 @@ private portraitTweenScale = 1.52;
     this.onChoice = config.onChoice;
     this.defaultPortraitKey = config.portraitKey;
     this.showingChoices = false;
+    this.choiceListStartIndex = 0;
+  
+    this.container.setVisible(true);
+    this.hint.setText("SPACE  ▶  Next");
+    this.setCurrentLine();
+  }
+
+  private openChoiceDialogue(config: ChoiceDialogueConfig) {
+    this.clearChoices();
+  
+    this.lines = config.lines;
+    this.index = 0;
+    this.open = true;
+    this.onClose = undefined;
+  
+    this.activeChoices = config.choices;
+    this.onChoice = config.onChoice;
+    this.defaultPortraitKey = config.portraitKey;
+    this.showingChoices = false;
+    this.choiceListStartIndex = 0;
   
     this.container.setVisible(true);
     this.hint.setText("SPACE  ▶  Next");
@@ -220,20 +252,284 @@ private portraitTweenScale = 1.52;
     if (this.showingChoices) {
       return;
     }
-  
+
     this.index++;
-  
+
     if (this.index >= this.lines.length) {
       if (this.activeChoices.length > 0) {
-        this.showChoices();
+        this.showChoiceButtons();
         return;
       }
-  
+
       this.hide();
       return;
     }
-  
+
     this.setCurrentLine();
+  }
+
+  private showChoiceListButtons() {
+    this.showingChoices = true;
+    this.hint.setText("Choose an option");
+  
+    this.choiceWheelHandler = (
+      _pointer: any,
+      _objects: any,
+      _dx: any,
+      dy: number
+    ) => {
+      if (!this.showingChoices) return;
+  
+      if (dy > 0) {
+        this.scrollChoiceList(1);
+      } else if (dy < 0) {
+        this.scrollChoiceList(-1);
+      }
+    };
+  
+    this.scene.input.on("wheel", this.choiceWheelHandler);
+  
+    this.renderChoiceList();
+  }
+
+  private scrollChoiceList(direction: number) {
+    const maxVisible = 4;
+  
+    const maxStart = Math.max(
+      0,
+      this.activeChoices.length - maxVisible
+    );
+  
+    this.choiceListStartIndex = Phaser.Math.Clamp(
+      this.choiceListStartIndex + direction,
+      0,
+      maxStart
+    );
+  
+    this.selectedChoiceIndex = Phaser.Math.Clamp(
+      this.choiceListStartIndex,
+      0,
+      this.activeChoices.length - 1
+    );
+  
+    this.renderChoiceList();
+  }
+
+  private renderChoiceList() {
+    this.choiceButtons.forEach((button) => button.destroy());
+    this.choiceButtons = [];
+  
+    this.choicePanel?.destroy();
+    this.choicePanel = undefined;
+  
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+  
+    const maxVisible = 4;
+  
+    const optionWidth = 230;
+    const optionHeight = 32;
+    const optionGap = 5;
+  
+    const visibleCount = Math.min(
+      this.activeChoices.length,
+      maxVisible
+    );
+  
+    const panelWidth = 300;
+    const panelHeight =
+      58 + visibleCount * (optionHeight + optionGap);
+  
+    const panelX = width / 2;
+    const panelY = height / 2 - 45;
+  
+    this.choicePanel = this.scene.add.container(panelX, panelY);
+    this.choicePanel.setDepth(52000);
+    this.container.add(this.choicePanel);
+  
+    // soft shadow
+    const shadow = this.scene.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(
+      -panelWidth / 2 + 8,
+      -panelHeight / 2 + 10,
+      panelWidth,
+      panelHeight,
+      18
+    );
+  
+    // compact glass panel
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x050505, 0.82);
+    bg.fillRoundedRect(
+      -panelWidth / 2,
+      -panelHeight / 2,
+      panelWidth,
+      panelHeight,
+      18
+    );
+  
+    this.choicePanel.add([shadow, bg]);
+  
+    const title = this.scene.add.text(
+      0,
+      -panelHeight / 2 + 24,
+      "Choose",
+      {
+        fontFamily: "Georgia",
+        fontSize: "17px",
+        color: "#d9b24c",
+        stroke: "#000000",
+        strokeThickness: 4,
+        fontStyle: "bold",
+      }
+    );
+  
+    title.setOrigin(0.5);
+    this.choicePanel.add(title);
+  
+    const maxStart = Math.max(
+      0,
+      this.activeChoices.length - maxVisible
+    );
+  
+    const visibleChoices = this.activeChoices.slice(
+      this.choiceListStartIndex,
+      this.choiceListStartIndex + maxVisible
+    );
+  
+    const firstY = -panelHeight / 2 + 58;
+  
+    visibleChoices.forEach((choice, index) => {
+      const realIndex = this.choiceListStartIndex + index;
+      const isSelected = realIndex === this.selectedChoiceIndex;
+  
+      const y = firstY + index * (optionHeight + optionGap);
+  
+      const option = this.scene.add.container(0, y);
+  
+      const optionBg = this.scene.add.graphics();
+  
+      if (isSelected) {
+        optionBg.fillStyle(0x6b4a00, 0.85);
+      } else {
+        optionBg.fillStyle(0x000000, 0.25);
+      }
+  
+      optionBg.fillRoundedRect(
+        -optionWidth / 2,
+        -optionHeight / 2,
+        optionWidth,
+        optionHeight,
+        12
+      );
+  
+      const label = this.scene.add.text(
+        -optionWidth / 2 + 22,
+        0,
+        `${isSelected ? "›" : "•"} ${choice.label}`,
+        {
+          fontFamily: "Georgia",
+          fontSize: isSelected ? "19px" : "18px",
+          color: isSelected ? "#ffffff" : "#ffd966",
+          stroke: "#000000",
+          strokeThickness: 4,
+          fontStyle: "bold",
+        }
+      );
+  
+      label.setOrigin(0, 0.5);
+  
+      option.add([optionBg, label]);
+  
+      option.setSize(optionWidth, optionHeight);
+  
+      option.setInteractive(
+        new Phaser.Geom.Rectangle(
+          -optionWidth / 2,
+          -optionHeight / 2,
+          optionWidth,
+          optionHeight
+        ),
+        Phaser.Geom.Rectangle.Contains
+      );
+  
+      option.on("pointerover", () => {
+        this.selectedChoiceIndex = realIndex;
+        this.renderChoiceList();
+      });
+  
+      option.on("pointerdown", () => {
+        this.choose(choice.value);
+      });
+  
+      this.choicePanel?.add(option);
+      this.choiceButtons.push(option);
+    });
+  
+    if (this.choiceListStartIndex > 0) {
+      this.createScrollText(
+        panelWidth / 2 - 35,
+        -panelHeight / 2 + 26,
+        "▲",
+        -1
+      );
+    }
+  
+    if (this.choiceListStartIndex < maxStart) {
+      this.createScrollText(
+        panelWidth / 2 - 35,
+        panelHeight / 2 - 24,
+        "▼",
+        1
+      );
+    }
+  }
+
+  private createScrollText(
+    x: number,
+    y: number,
+    labelText: string,
+    direction: number
+  ) {
+    const button = this.scene.add.container(x, y);
+  
+    const label = this.scene.add.text(0, 0, labelText, {
+      fontFamily: "Arial",
+      fontSize: "16px",
+      color: "#ffd966",
+      stroke: "#000000",
+      strokeThickness: 4,
+      fontStyle: "bold",
+    });
+  
+    label.setOrigin(0.5);
+  
+    button.add(label);
+  
+    button.setSize(32, 26);
+  
+    button.setInteractive(
+      new Phaser.Geom.Rectangle(-16, -13, 32, 26),
+      Phaser.Geom.Rectangle.Contains
+    );
+  
+    button.on("pointerover", () => {
+      label.setColor("#ffffff");
+      button.setScale(1.12);
+    });
+  
+    button.on("pointerout", () => {
+      label.setColor("#ffd966");
+      button.setScale(1);
+    });
+  
+    button.on("pointerdown", () => {
+      this.scrollChoiceList(direction);
+    });
+  
+    this.choicePanel?.add(button);
+    this.choiceButtons.push(button);
   }
 
   hide() {
@@ -446,90 +742,39 @@ private portraitTweenScale = 1.52;
     this.portraitPanel.strokePath();
   }
 
-  private showChoices() { this.showingChoices = true;
+  private showChoiceButtons() {
+  this.showingChoices = true;
+  this.selectedChoiceIndex = 0;
 
-    // Hide the old SPACE hint while choices are active
-    this.hint.setText("");
+  this.hint.setText("");
+
+  this.choiceWheelHandler = (
+    _pointer: any,
+    _objects: any,
+    _dx: any,
+    dy: number
+  ) => {
+    if (!this.showingChoices) return;
+
+    if (dy > 0) {
+      this.scrollChoiceList(1);
+    } else if (dy < 0) {
+      this.scrollChoiceList(-1);
+    }
+  };
+
+  this.scene.input.on("wheel", this.choiceWheelHandler);
+
+  this.renderChoiceList();
+}
   
-    const width = this.scene.scale.width;
-    const height = this.scene.scale.height;
-  
-    const buttonWidth = 90;
-    const buttonHeight = 28;
-    const buttonGap = 12;
-  
-    const totalWidth =
-      this.activeChoices.length * buttonWidth +
-      (this.activeChoices.length - 1) * buttonGap;
-  
-    // Position choices inside the dialogue box, bottom-right
-    const startX =
-      width - totalWidth - 105 + buttonWidth / 2;
-  
-    const buttonY = height - 48;
-  
-    this.activeChoices.forEach((choice, index) => {
-      const x =
-        startX + index * (buttonWidth + buttonGap);
-  
-      const button = this.scene.add.container(x, buttonY);
-  
-      const bg = this.scene.add.rectangle(
-        0,
-        0,
-        buttonWidth,
-        buttonHeight,
-        0xf2a900,
-        1
-      );
-  
-      bg.setStrokeStyle(2, 0xffd966);
-  
-      const label = this.scene.add.text(0, 0, choice.label, {
-        fontFamily: "Arial",
-        fontSize: "15px",
-        color: "#111111",
-        fontStyle: "bold",
-      });
-  
-      label.setOrigin(0.5);
-  
-      button.add([bg, label]);
-  
-      button.setSize(buttonWidth, buttonHeight);
-  
-      button.setInteractive(
-        new Phaser.Geom.Rectangle(
-          -buttonWidth / 2,
-          -buttonHeight / 2,
-          buttonWidth,
-          buttonHeight
-        ),
-        Phaser.Geom.Rectangle.Contains
-      );
-  
-      button.on("pointerover", () => {
-        button.setScale(1.05);
-        bg.setFillStyle(0xffc21a);
-      });
-  
-      button.on("pointerout", () => {
-        button.setScale(1);
-        bg.setFillStyle(0xf2a900);
-      });
-  
-      button.on("pointerdown", () => {
-        this.choose(choice.value);
-      });
-  
-      this.container.add(button);
-      this.choiceButtons.push(button);
-    });
+  private showChoices() {
+    this.showChoiceButtons();
   }
   
   private choose(value: string) {
     const callback = this.onChoice;
-  
+
     this.clearChoices();
     this.hide();
   
@@ -537,13 +782,20 @@ private portraitTweenScale = 1.52;
   }
   
   private clearChoices() {
-    this.choiceButtons.forEach((button) => {
-      button.destroy();
-    });
-  
+    this.choiceButtons.forEach((button) => button.destroy());
     this.choiceButtons = [];
+  
+    this.choicePanel?.destroy();
+    this.choicePanel = undefined;
+  
+    if (this.choiceWheelHandler) {
+      this.scene.input.off("wheel", this.choiceWheelHandler);
+      this.choiceWheelHandler = undefined;
+    }
+  
     this.activeChoices = [];
     this.onChoice = undefined;
     this.showingChoices = false;
+    this.choiceListStartIndex = 0;
   }
 }
