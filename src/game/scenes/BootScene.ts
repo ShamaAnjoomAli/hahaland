@@ -231,22 +231,47 @@ export default class BootScene extends Phaser.Scene {
     });
   }
 
-  private createAnimations() {
-    ANIMATIONS.forEach((animation) => {
+  private createWalkAnimations(textureKey: string) {
+    const animations = [
+      {
+        key: `${textureKey}-walk-down`,
+        start: textureKey === 'player' ?0 : 0,
+        end: textureKey === 'player' ?3 : 3,
+      },
+      {
+        key: `${textureKey}-walk-up`,
+        start: textureKey === 'player' ?12 : 4,
+        end: textureKey === 'player' ?15 : 7,
+      },
+      {
+        key: `${textureKey}-walk-left`,
+        start:textureKey === 'player' ?4 : 8,
+        end: textureKey === 'player' ?7 : 11,
+      },
+      {
+        key: `${textureKey}-walk-right`,
+        start: textureKey === 'player' ?8 : 12,
+        end: textureKey === 'player' ?11 : 15,
+      },
+    ];
+  
+    animations.forEach((animation) => {
       if (this.anims.exists(animation.key)) return;
-
+  
       this.anims.create({
         key: animation.key,
-        frames: this.anims.generateFrameNumbers(
-          animation.texture,
-          {
-            start: animation.start,
-            end: animation.end,
-          }
-        ),
-        frameRate: animation.frameRate,
-        repeat: animation.repeat,
+        frames: this.anims.generateFrameNumbers(textureKey, {
+          start: animation.start,
+          end: animation.end,
+        }),
+        frameRate: 8,
+        repeat: -1,
       });
     });
+  }
+
+  private createAnimations() {
+    this.createWalkAnimations("player");
+    this.createWalkAnimations("npc1");
   }
 }

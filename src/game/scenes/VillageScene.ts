@@ -84,7 +84,19 @@ export default class VillageScene extends Phaser.Scene {
 
   // Background music and npc talk sounds
   private bgMusic?: Phaser.Sound.BaseSound;
-  private musicStarted = false;
+
+  // Act 1 - Get to hotel
+  private isCutscenePlaying = false;
+  private scamHousePath = [
+    { x: 620, y: 420 },
+    { x: 780, y: 420 },
+    { x: 900, y: 450 },
+  ];
+  
+  private playerFollowOffset = {
+    x: -45,
+    y: 20,
+  };
 
   private npcTalkSoundKeys = [
     "npc-talk-1",
@@ -398,6 +410,11 @@ export default class VillageScene extends Phaser.Scene {
       return;
     }
 
+    if (this.isCutscenePlaying) {
+      this.player.setVelocity(0);
+      return;
+    }
+
     if (this.isTimeUp) {
       this.player.setVelocity(0);
       this.player.stop();
@@ -416,16 +433,16 @@ export default class VillageScene extends Phaser.Scene {
   
     if (this.keys.left.isDown) {
       this.player.setVelocityX(-speed);
-      this.player.play("walk-left", true);
+      this.player.play("player-walk-left", true);
     } else if (this.keys.right.isDown) {
       this.player.setVelocityX(speed);
-      this.player.play("walk-right", true);
+      this.player.play("player-walk-right", true);
     } else if (this.keys.up.isDown) {
       this.player.setVelocityY(-speed);
-      this.player.play("walk-up", true);
+      this.player.play("player-walk-up", true);
     } else if (this.keys.down.isDown) {
       this.player.setVelocityY(speed);
-      this.player.play("walk-down", true);
+      this.player.play("player-walk-down", true);
     } else {
       this.player.stop();
     }
@@ -454,6 +471,40 @@ export default class VillageScene extends Phaser.Scene {
     const npcName = nearest.getData("npcName");
     const npcPortraitKey = nearest.texture.key;
   
+    if (npcName === "NPC_1") {
+      this.dialogue.showChoice({
+        lines: [
+          "Welcome, traveler!",
+          "I know a perfect hotel nearby.",
+          "Only 80 gold. Do you want to come?"
+        ],
+        portraitKey: npcPortraitKey,
+        choices: [
+          {
+            label: "Yes",
+            value: "yes",
+          },
+          {
+            label: "No",
+            value: "no",
+          },
+        ],
+        onChoice: (value) => {
+          if (value === "yes") {
+            this.startHotelScamCutscene(nearest);
+          } else {
+            this.dialogue.show([
+              "No problem, traveler.",
+              "Maybe another guide will help you."
+            ]);
+          }
+        },
+      });
+    
+      this.interactPrompt.setVisible(false);
+      return;
+    }
+
     const questHandled =
       this.handleQuestProgress(
         npcName,
@@ -469,6 +520,201 @@ export default class VillageScene extends Phaser.Scene {
       undefined,
       npcPortraitKey
     );
+  }
+
+  private startHotelScamCutscene(npc: NPC) {
+    this.isCutscenePlaying = true;
+  
+    this.interactPrompt.setVisible(false);
+    this.questMarker.setVisible(false);
+  
+    this.dialogue.show(
+      [
+        "Excellent choice!",
+        "Follow me, my friend.",
+        "Your hotel is very close."
+      ],
+      () => {
+        this.walkToFakeHotel(npc);
+      },
+      npc.texture.key
+    );
+  }
+
+  private walkToFakeHotel(npc: NPC) {
+    const npcPath = this.scamHousePath;
+  
+    const playerPath = npcPath.map((point) => ({
+      x: point.x + this.playerFollowOffset.x,
+      y: point.y + this.playerFollowOffset.y,
+    }));
+  
+    this.walkActorPath(npc, npcPath, 55);
+  
+    this.walkActorPath(
+      this.player,
+      playerPath,
+      55,
+      () => {
+        this.revealFakeHotel(npc);
+      }
+    );
+  }
+
+  private walkActorPath(
+    actor: Phaser.Physics.Arcade.Sprite,
+    path: { x: number; y: number }[],
+    speed = 55,
+    onComplete?: () => void
+  ) {
+    if (path.length === 0) {
+      onComplete?.();
+      return;
+    }
+  
+    const [nextPoint, ...remainingPath] = path;
+  
+    this.moveActorTo(
+      actor,
+      nextPoint.x,
+      nextPoint.y,
+      speed,
+      () => {
+        this.walkActorPath(
+          actor,
+          remainingPath,
+          speed,
+          onComplete
+        );
+      }
+    );
+  }
+  
+  private moveActorTo(
+    actor: Phaser.Physics.Arcade.Sprite,
+    x: number,
+    y: number,
+    speed = 55,
+    onComplete?: () => void
+  ) {
+    actor.setVelocity(0);
+  
+    const dx = x - actor.x;
+    const dy = y - actor.y;
+  
+    const distance = Phaser.Math.Distance.Between(
+      actor.x,
+      actor.y,
+      x,
+      y
+    );
+  
+    const duration = Math.max(
+      600,
+      (distance / speed) * 1000
+    );
+  
+    let direction: "left" | "right" | "up" | "down";
+  
+    if (Math.abs(dx) > Math.abs(dy)) {
+      direction = dx > 0 ? "right" : "left";
+    } else {
+      direction = dy > 0 ? "down" : "up";
+    }
+  
+    const animationTextureKey =
+      actor.getData("animKey") ?? actor.texture.key;
+  
+    const animationKey =
+      `${animationTextureKey}-walk-${direction}`;
+  
+    if (this.anims.exists(animationKey)) {
+      actor.play(animationKey, true);
+    } else {
+      console.warn("Missing animation:", animationKey);
+    }
+  
+    this.tweens.add({
+      targets: actor,
+      x,
+      y,
+      duration,
+      ease: "Linear",
+      onComplete: () => {
+        actor.stop();
+        actor.setFrame(0);
+        onComplete?.();
+      },
+    });
+  }
+
+  private revealFakeHotel(npc: NPC) {
+    this.cameras.main.shake(250, 0.006);
+
+  this.showEmotion(this.player, "!!");
+
+  const merchantPortraitKey = npc.texture.key;
+  const playerPortraitKey = this.player.texture.key;
+
+  this.dialogue.show(
+    [
+      {
+        text: "Here we are!",
+        portraitKey: merchantPortraitKey,
+      },
+      {
+        text: "Wait...",
+        portraitKey: playerPortraitKey,
+      },
+      {
+        text: "This is your house?",
+        portraitKey: playerPortraitKey,
+      },
+      {
+        text: "Yes, yes. Very local hotel.",
+        portraitKey: merchantPortraitKey,
+      },
+      {
+        text: "This is NOT a hotel!",
+        portraitKey: playerPortraitKey,
+      },
+    ],
+    () => {
+      this.isCutscenePlaying = false;
+
+      this.objectiveBox.setText(
+        "Objective: Try to sleep in the fake hotel."
+      );
+    }
+  );
+  }
+
+  private showEmotion(
+    actor: Phaser.Physics.Arcade.Sprite,
+    text: string
+  ) {
+    const emotion = this.add.text(actor.x, actor.y - 70, text, {
+      fontFamily: "Arial",
+      fontSize: "32px",
+      color: "#ff4444",
+      stroke: "#000000",
+      strokeThickness: 6,
+      fontStyle: "bold",
+    });
+  
+    emotion.setOrigin(0.5);
+    emotion.setDepth(3000);
+  
+    this.tweens.add({
+      targets: emotion,
+      y: emotion.y - 18,
+      alpha: 0,
+      duration: 1200,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        emotion.destroy();
+      },
+    });
   }
 
   private playNPCTalkSound() {
@@ -860,7 +1106,9 @@ export default class VillageScene extends Phaser.Scene {
         spriteKey,
         dialogue
       );
+
       npc.setData("npcName", npcName);
+      npc.setData("animKey", spriteKey);
       npc.setFrame(0);
       npc.setScale(1);
       npc.setDepth(30);

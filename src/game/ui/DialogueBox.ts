@@ -1,5 +1,24 @@
 import Phaser from "phaser";
 
+type DialogueChoice = {
+  label: string;
+  value: string;
+};
+
+type ChoiceDialogueConfig = {
+  lines: string[];
+  choices: DialogueChoice[];
+  portraitKey?: string;
+  onChoice: (value: string) => void;
+};
+
+type DialogueLine =
+  | string
+  | {
+      text: string;
+      portraitKey?: string;
+    };
+
 export default class DialogueBox {
   private scene: Phaser.Scene;
   public container: Phaser.GameObjects.Container;
@@ -11,7 +30,9 @@ export default class DialogueBox {
   private portraitPanel!: Phaser.GameObjects.Graphics;
   private portrait!: Phaser.GameObjects.Sprite;
 
-  private lines: string[] = [];
+  private lines: DialogueLine[] = [];
+  private defaultPortraitKey?: string;
+  
   private index = 0;
   private open = false;
 
@@ -23,6 +44,11 @@ export default class DialogueBox {
   private textWithoutPortraitX = 0;
   private textWithPortraitWidth = 0;
   private textWithoutPortraitWidth = 0;
+
+  private choiceButtons: Phaser.GameObjects.Container[] = [];
+  private activeChoices: DialogueChoice[] = [];
+  private onChoice?: (value: string) => void;
+  private showingChoices = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -120,38 +146,83 @@ export default class DialogueBox {
   }
 
   show(
-    dialogue: string | string[],
+    dialogue: DialogueLine | DialogueLine[],
     onClose?: () => void,
     portraitKey?: string
   ) {
+    this.clearChoices();
+  
     this.lines = Array.isArray(dialogue)
       ? dialogue
       : [dialogue];
-
+  
     this.index = 0;
     this.open = true;
     this.onClose = onClose;
-
-    this.setPortrait(portraitKey);
-
+    this.defaultPortraitKey = portraitKey;
+  
     this.container.setVisible(true);
-    this.showCurrentLine();
+    this.setCurrentLine();
+  }
+
+  private setCurrentLine() {
+    const currentLine = this.lines[this.index];
+  
+    if (typeof currentLine === "string") {
+      this.text.setText(currentLine);
+      this.setPortrait(this.defaultPortraitKey);
+      return;
+    }
+  
+    this.text.setText(currentLine.text);
+  
+    this.setPortrait(
+      currentLine.portraitKey ?? this.defaultPortraitKey
+    );
+  }
+
+  showChoice(config: ChoiceDialogueConfig) {
+    this.clearChoices();
+  
+    this.lines = config.lines;
+    this.index = 0;
+    this.open = true;
+    this.onClose = undefined;
+  
+    this.activeChoices = config.choices;
+    this.onChoice = config.onChoice;
+    this.showingChoices = false;
+  
+    this.container.setVisible(true);
+    this.setPortrait(config.portraitKey);
+    this.text.setText(this.lines[this.index]);
+    this.hint.setText("SPACE  ▶  Next");
   }
 
   next() {
     if (!this.open) return;
-
+  
+    if (this.showingChoices) {
+      return;
+    }
+  
     this.index++;
-
+  
     if (this.index >= this.lines.length) {
+      if (this.activeChoices.length > 0) {
+        this.showChoices();
+        return;
+      }
+  
       this.hide();
       return;
     }
-
-    this.showCurrentLine();
+  
+    this.setCurrentLine();
   }
 
   hide() {
+    this.clearChoices();
     if (!this.open) return;
 
     this.open = false;
@@ -343,5 +414,106 @@ export default class DialogueBox {
     this.portraitPanel.lineTo(x + width - 10, y + height - 10);
     this.portraitPanel.lineTo(x + width - 10, y + height - corner);
     this.portraitPanel.strokePath();
+  }
+
+  private showChoices() { this.showingChoices = true;
+
+    // Hide the old SPACE hint while choices are active
+    this.hint.setText("");
+  
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+  
+    const buttonWidth = 90;
+    const buttonHeight = 28;
+    const buttonGap = 12;
+  
+    const totalWidth =
+      this.activeChoices.length * buttonWidth +
+      (this.activeChoices.length - 1) * buttonGap;
+  
+    // Position choices inside the dialogue box, bottom-right
+    const startX =
+      width - totalWidth - 105 + buttonWidth / 2;
+  
+    const buttonY = height - 48;
+  
+    this.activeChoices.forEach((choice, index) => {
+      const x =
+        startX + index * (buttonWidth + buttonGap);
+  
+      const button = this.scene.add.container(x, buttonY);
+  
+      const bg = this.scene.add.rectangle(
+        0,
+        0,
+        buttonWidth,
+        buttonHeight,
+        0xf2a900,
+        1
+      );
+  
+      bg.setStrokeStyle(2, 0xffd966);
+  
+      const label = this.scene.add.text(0, 0, choice.label, {
+        fontFamily: "Arial",
+        fontSize: "15px",
+        color: "#111111",
+        fontStyle: "bold",
+      });
+  
+      label.setOrigin(0.5);
+  
+      button.add([bg, label]);
+  
+      button.setSize(buttonWidth, buttonHeight);
+  
+      button.setInteractive(
+        new Phaser.Geom.Rectangle(
+          -buttonWidth / 2,
+          -buttonHeight / 2,
+          buttonWidth,
+          buttonHeight
+        ),
+        Phaser.Geom.Rectangle.Contains
+      );
+  
+      button.on("pointerover", () => {
+        button.setScale(1.05);
+        bg.setFillStyle(0xffc21a);
+      });
+  
+      button.on("pointerout", () => {
+        button.setScale(1);
+        bg.setFillStyle(0xf2a900);
+      });
+  
+      button.on("pointerdown", () => {
+        this.choose(choice.value);
+      });
+  
+      this.container.add(button);
+      this.choiceButtons.push(button);
+    });
+  }
+  
+  private choose(value: string) {
+    const callback = this.onChoice;
+  
+    this.clearChoices();
+    this.hide();
+  
+    callback?.(value);
+  }
+  
+  private clearChoices() {
+    this.choiceButtons.forEach((button) => {
+      button.destroy();
+    });
+  
+    this.choiceButtons = [];
+    this.activeChoices = [];
+    this.onChoice = undefined;
+    this.showingChoices = false;
   }
 }
