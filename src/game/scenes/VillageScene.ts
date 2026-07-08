@@ -209,6 +209,19 @@ export default class VillageScene extends Phaser.Scene {
   | "leaveFakeHotel"
   | "findRealHotel" = "intro";
 
+  // Opening sequence with loading and fading into game and player walking out the door
+  private isOpeningSequencePlaying = false;
+
+  private openingIntroEndPoint = {
+    x: 0,
+    y: 0,
+  };
+
+  private openingIntroSpeed = 75;
+
+  private openingOverlayObjects: Phaser.GameObjects.GameObject[] = [];
+  private openingDotsTimer?: Phaser.Time.TimerEvent;
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -280,13 +293,29 @@ export default class VillageScene extends Phaser.Scene {
     // --- Player setup ---
     // Spawn the player sprite at the starting position with physics and a slightly smaller scale.
     // this.player = this.physics.add.sprite(20, 10, "player");
-    const playerSpawn = this.getSpawnPoint(map, "PlayerSpawn");
-
+    const gameplaySpawn = this.getSpawnPoint(
+      map,
+      "PlayerSpawn"
+    );
+    
+    const introSpawn =
+      this.getOptionalSpawnPoint(
+        map,
+        "PlayerIntroStart"
+      ) ?? {
+        x: gameplaySpawn.x,
+        y: gameplaySpawn.y - 90,
+      };
+    
+    this.openingIntroEndPoint = gameplaySpawn;
+    
     this.player = this.physics.add.sprite(
-      playerSpawn.x,
-      playerSpawn.y,
+      introSpawn.x,
+      introSpawn.y,
       "player"
     );
+    
+    this.player.setData("animKey", "player");
 
     this.player.setScale(1);
     this.player.setDepth(30);
@@ -369,7 +398,8 @@ export default class VillageScene extends Phaser.Scene {
     this.startGameTimer(600);
 
     this.createUICamera();
-    
+    this.startOpeningSequence();
+
     // --- Keyboard input ---
     // Bind WASD keys for four-directional movement.
     this.keys = this.input.keyboard!.addKeys({
@@ -513,6 +543,12 @@ export default class VillageScene extends Phaser.Scene {
       });
     }
 
+    // block movement when opening sequence is playing
+    if (this.isOpeningSequencePlaying) {
+      this.player.setVelocity(0);
+      return;
+    }
+
     const speed = 100;
 
     if (this.isStoryUIVisible) {
@@ -591,6 +627,169 @@ export default class VillageScene extends Phaser.Scene {
     ) {
       this.interact();
     }
+  }
+
+  private startOpeningSequence() {
+    this.isOpeningSequencePlaying = true;
+  
+    this.setStoryUIVisible(false);
+    this.interactPrompt?.setVisible(false);
+  
+    this.player.setVelocity(0);
+    this.player.setVisible(false);
+  
+    this.showOpeningLoadingScreen();
+  
+    this.time.delayedCall(1200, () => {
+      this.hideOpeningLoadingScreen(() => {
+        this.player.setVisible(true);
+  
+        this.time.delayedCall(250, () => {
+          this.playDoorWalkIntro();
+        });
+      });
+    });
+  }
+
+  private playDoorWalkIntro() {
+    this.moveActorTo(
+      this.player,
+      this.openingIntroEndPoint.x,
+      this.openingIntroEndPoint.y,
+      this.openingIntroSpeed,
+      () => {
+        this.isOpeningSequencePlaying = false;
+  
+        this.setStoryUIVisible(true);
+  
+        this.objectiveBox.setText(
+          "Objective: Choose a hotel guide."
+        );
+  
+        this.showEmotion(this.player, "!");
+      }
+    );
+  }
+
+  private showOpeningLoadingScreen() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+  
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x050505,
+      1
+    );
+  
+    overlay.setScrollFactor(0);
+    overlay.setDepth(70000);
+  
+    const title = this.add.text(
+      width / 2,
+      height / 2 - 45,
+      "HAHALAND",
+      {
+        fontFamily: "Georgia",
+        fontSize: "52px",
+        color: "#ffd966",
+        stroke: "#000000",
+        strokeThickness: 6,
+        fontStyle: "bold",
+      }
+    );
+  
+    title.setOrigin(0.5);
+    title.setScrollFactor(0);
+    title.setDepth(70001);
+  
+    const subtitle = this.add.text(
+      width / 2,
+      height / 2 + 18,
+      "Entering the old city",
+      {
+        fontFamily: "Georgia",
+        fontSize: "22px",
+        color: "#ffffff",
+        stroke: "#000000",
+        strokeThickness: 4,
+      }
+    );
+  
+    subtitle.setOrigin(0.5);
+    subtitle.setScrollFactor(0);
+    subtitle.setDepth(70001);
+  
+    const loading = this.add.text(
+      width / 2,
+      height / 2 + 62,
+      "Loading",
+      {
+        fontFamily: "Arial",
+        fontSize: "16px",
+        color: "#d9b24c",
+        stroke: "#000000",
+        strokeThickness: 3,
+        fontStyle: "bold",
+      }
+    );
+  
+    loading.setOrigin(0.5);
+    loading.setScrollFactor(0);
+    loading.setDepth(70001);
+  
+    let dots = 0;
+  
+    this.openingDotsTimer = this.time.addEvent({
+      delay: 300,
+      loop: true,
+      callback: () => {
+        dots = (dots + 1) % 4;
+        loading.setText(`Loading${".".repeat(dots)}`);
+      },
+    });
+  
+    this.tweens.add({
+      targets: title,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      duration: 850,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  
+    this.openingOverlayObjects = [
+      overlay,
+      title,
+      subtitle,
+      loading,
+    ];
+  }
+
+  private hideOpeningLoadingScreen(
+    onComplete?: () => void
+  ) {
+    this.openingDotsTimer?.remove(false);
+    this.openingDotsTimer = undefined;
+  
+    this.tweens.add({
+      targets: this.openingOverlayObjects,
+      alpha: 0,
+      duration: 650,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        this.openingOverlayObjects.forEach((obj) => {
+          obj.destroy();
+        });
+  
+        this.openingOverlayObjects = [];
+  
+        onComplete?.();
+      },
+    });
   }
 
   // Logic for interacting with NPCs using the E key
@@ -1790,6 +1989,26 @@ export default class VillageScene extends Phaser.Scene {
       console.warn(`Spawn point not found: ${name}`);
       return { x: 100, y: 100 };
     }
+  
+    return {
+      x: spawn.x ?? 100,
+      y: spawn.y ?? 100,
+    };
+  }
+
+  private getOptionalSpawnPoint(
+    map: Phaser.Tilemaps.Tilemap,
+    name: string
+  ): { x: number; y: number } | null {
+    const spawnLayer = map.getObjectLayer("Spawns");
+  
+    if (!spawnLayer) return null;
+  
+    const spawn = spawnLayer.objects.find(
+      (obj) => obj.name === name
+    );
+  
+    if (!spawn) return null;
   
     return {
       x: spawn.x ?? 100,

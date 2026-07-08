@@ -733,7 +733,7 @@
                  "visible":true,
                  "width":0,
                  "x":96,
-                 "y":93
+                 "y":228
                 }, 
                 {
                  "height":0,
@@ -838,6 +838,19 @@
                  "width":0,
                  "x":66,
                  "y":446
+                }, 
+                {
+                 "height":0,
+                 "id":129,
+                 "name":"PlayerIntroStart",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"spawn",
+                 "visible":true,
+                 "width":0,
+                 "x":95,
+                 "y":97
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -846,7 +859,7 @@
          "y":0
         }],
  "nextlayerid":8,
- "nextobjectid":129,
+ "nextobjectid":130,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",
