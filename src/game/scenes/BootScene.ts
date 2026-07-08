@@ -123,6 +123,90 @@ const SPRITESHEETS: SpriteSheetAsset[] = [
     frameWidth: 64,
     frameHeight: 64,
   },
+  {
+    key: "npc8",
+    path: "assets/sprites/npc/npc8.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc9",
+    path: "assets/sprites/npc/npc9.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc10",
+    path: "assets/sprites/npc/npc10.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc11",
+    path: "assets/sprites/npc/npc11.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc12",
+    path: "assets/sprites/npc/npc12.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc13",
+    path: "assets/sprites/npc/npc13.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc14",
+    path: "assets/sprites/npc/npc14.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc15",
+    path: "assets/sprites/npc/npc15.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc16",
+    path: "assets/sprites/npc/npc16.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc17",
+    path: "assets/sprites/npc/npc17.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc18",
+    path: "assets/sprites/npc/npc18.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc19",
+    path: "assets/sprites/npc/npc19.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc20",
+    path: "assets/sprites/npc/npc20.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
+  {
+    key: "npc21",
+    path: "assets/sprites/npc/npc21.png",
+    frameWidth: 64,
+    frameHeight: 64,
+  },
 ];
 
 const ANIMATIONS: AnimationConfig[] = [

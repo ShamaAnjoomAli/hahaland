@@ -19,6 +19,14 @@ type ObjectivesData = {
   steps: Record<string, ObjectiveStep>;
 };
 
+type MerchantOffer = {
+  npcName: string;
+  label: string;
+  price: number;
+  pitch: string;
+  reaction: string;
+};
+
 /**
  * Main gameplay scene for the village map.
  * Loads the Tiled map, spawns the player, handles collisions, camera follow, and movement.
@@ -77,7 +85,7 @@ export default class VillageScene extends Phaser.Scene {
 
   // Timer and gold HUD 
   private hud!: GameHUD;
-  private coins = 0;
+  private coins = 1000;
   private remainingTime = 120; // in seconds
   private timerEvent!: Phaser.Time.TimerEvent;
   private isTimeUp = false;
@@ -155,6 +163,52 @@ export default class VillageScene extends Phaser.Scene {
 
   // Debug key to get coordinates of points in the game via player movements
   private debugCoordKey!: Phaser.Input.Keyboard.Key;
+
+  private merchantOffers: MerchantOffer[] = [
+    {
+      npcName: "NPC_1",
+      label: "80 gold - Friendly guide",
+      price: 80,
+      pitch: "Only 80 gold. Very close hotel. Very legal.",
+      reaction: "Excellent choice! You have the eyes of a rich person.",
+    },
+    {
+      npcName: "NPC_12",
+      label: "50 gold - Budget hotel",
+      price: 50,
+      pitch: "50 gold only! Budget hotel. Walls included sometimes.",
+      reaction: "Smart traveler! Saving money for future scams.",
+    },
+    {
+      npcName: "NPC_9",
+      label: "120 gold - Luxury hotel",
+      price: 120,
+      pitch: "Luxury hotel! Very premium. The moon can see it.",
+      reaction: "Ah, VIP tourist! I will walk with extra confidence.",
+    },
+    {
+      npcName: "NPC_6",
+      label: "25 gold - Mysterious deal",
+      price: 25,
+      pitch: "Special price, my friend. Do not ask why it is special.",
+      reaction: "Brave choice. Financially careful, emotionally risky.",
+    },
+    {
+      npcName: "NPC_5",
+      label: "10 gold - Suspiciously cheap",
+      price: 10,
+      pitch: "10 gold only! Cheapest hotel in the city. Maybe also the floor.",
+      reaction: "A brave choice. Your wallet survives, your comfort does not.",
+    },
+  ];
+
+  private storyStage:
+  | "intro"
+  | "travellingToFakeHotel"
+  | "fakeHotelNight"
+  | "leaveFakeHotel"
+  | "findRealHotel" = "intro";
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super("VillageScene");
@@ -253,6 +307,7 @@ export default class VillageScene extends Phaser.Scene {
     // wizard.setScale(1.2);
     // wizard.setDepth(30);
     this.createNPCsFromMap(map);
+    this.createMerchantPriceShouts();
     this.createQuestMarker();
     this.createInteractPrompt();
   
@@ -407,10 +462,15 @@ export default class VillageScene extends Phaser.Scene {
   private updateQuestMarker() {
     if (!this.questMarker) return;
 
-  if (this.isObjectiveComplete) {
-    this.questMarker.setVisible(false);
-    return;
-  }
+    if (this.storyStage === "intro") {
+      this.questMarker.setVisible(false);
+      return;
+    }
+    
+    if (this.isObjectiveComplete) {
+      this.questMarker.setVisible(false);
+      return;
+    }
 
   const currentStep = this.getCurrentObjectiveStep();
 
@@ -541,43 +601,16 @@ export default class VillageScene extends Phaser.Scene {
     
     this.startBackgroundMusic();
     this.playNPCTalkSound();
-    
-    this.addCoins(1);
-  
+      
     const npcName = nearest.getData("npcName");
     const npcPortraitKey = nearest.texture.key;
   
-    if (npcName === "NPC_1") {
-      this.dialogue.showChoice({
-        lines: [
-          "Welcome, traveler!",
-          "I know a perfect hotel nearby.",
-          "Only 80 gold. Do you want to come?"
-        ],
-        portraitKey: npcPortraitKey,
-        choices: [
-          {
-            label: "Yes",
-            value: "yes",
-          },
-          {
-            label: "No",
-            value: "no",
-          },
-        ],
-        onChoice: (value) => {
-          if (value === "yes") {
-            this.startHotelScamCutscene(nearest);
-          } else {
-            this.dialogue.show([
-              "No problem, traveler.",
-              "Maybe another guide will help you."
-            ], undefined,
-            npcPortraitKey);
-          }
-        },
-      });
-    
+    const isMerchant = this.merchantOffers.some(
+      (offer) => offer.npcName === npcName
+    );
+
+    if (isMerchant && this.storyStage === "intro") {
+      this.showMerchantOfferSelection(nearest);
       this.interactPrompt.setVisible(false);
       return;
     }
@@ -615,6 +648,100 @@ export default class VillageScene extends Phaser.Scene {
         this.walkToFakeHotel(npc);
       },
       npc.texture.key
+    );
+  }
+
+  private showMerchantOfferSelection(currentNpc: NPC) {
+    const currentNpcPortraitKey = currentNpc.texture.key;
+  
+    this.dialogue.showChoice({
+      lines: [
+        {
+          text: "The merchants surround you immediately.",
+          portraitKey: currentNpcPortraitKey,
+        },
+        {
+          text: "Everyone promises the best hotel in the city.",
+          portraitKey: currentNpcPortraitKey,
+        },
+        {
+          text: "Choose your transport guide.",
+          portraitKey: currentNpcPortraitKey,
+        },
+      ],
+      portraitKey: currentNpcPortraitKey,
+      choices: this.merchantOffers.map((offer) => ({
+        label: offer.label,
+        value: offer.npcName,
+      })),
+      onChoice: (selectedNpcName) => {
+        this.chooseMerchantOffer(selectedNpcName, currentNpc);
+      },
+    });
+  }
+
+  private chooseMerchantOffer(
+    selectedNpcName: string,
+    fallbackNpc: NPC
+  ) {
+    const offer = this.merchantOffers.find(
+      (item) => item.npcName === selectedNpcName
+    );
+  
+    if (!offer) return;
+  
+    const selectedNpc =
+      this.npcs.find(
+        (npc) => npc.getData("npcName") === selectedNpcName
+      ) ?? fallbackNpc;
+  
+    const selectedNpcPortraitKey = selectedNpc.texture.key;
+  
+    if (this.coins < offer.price) {
+      this.dialogue.show(
+        [
+          {
+            text: `You need ${offer.price} gold for this guide.`,
+            portraitKey: selectedNpcPortraitKey,
+          },
+          {
+            text: "Even the scam has standards.",
+            portraitKey: selectedNpcPortraitKey,
+          },
+        ],
+        undefined,
+        selectedNpcPortraitKey
+      );
+  
+      return;
+    }
+  
+    this.changeCoins(-offer.price);
+  
+    this.dialogue.show(
+      [
+        {
+          text: offer.pitch,
+          portraitKey: selectedNpcPortraitKey,
+        },
+        {
+          text: `${offer.price} gold received.`,
+          portraitKey: selectedNpcPortraitKey,
+        },
+        {
+          text: offer.reaction,
+          portraitKey: selectedNpcPortraitKey,
+        },
+        {
+          text: "Follow me, my friend. Your hotel is very close.",
+          portraitKey: selectedNpcPortraitKey,
+        },
+      ],
+      () => {
+        this.storyStage = "travellingToFakeHotel";
+        this.startHotelScamCutscene(selectedNpc);
+      },
+      selectedNpcPortraitKey
     );
   }
 
@@ -924,26 +1051,75 @@ export default class VillageScene extends Phaser.Scene {
       }
     );
   }
-
-  private changeCoins(amount: number) {
-    this.coins = Math.max(0, this.coins + amount);
   
-    const hudAny = this.hud as any;
-  
-    if (hudAny?.setCoins) {
-      hudAny.setCoins(this.coins);
-      return;
-    }
-  
-    if (hudAny?.updateCoins) {
-      hudAny.updateCoins(this.coins);
-      return;
-    }
-  
-    console.warn(
-      "HUD coin update method not found. Add setCoins() to GameHUD."
+  private createMerchantPriceShouts() {
+    console.log(
+      "NPCs loaded:",
+      this.npcs.map((npc) => npc.getData("npcName"))
     );
+  
+    console.log(
+      "Merchant offers:",
+      this.merchantOffers.map((offer) => offer.npcName)
+    );
+  
+    this.merchantOffers.forEach((offer) => {
+      const npc = this.npcs.find(
+        (item) => item.getData("npcName") === offer.npcName
+      );
+  
+      if (!npc) {
+        console.warn("No NPC found for merchant offer:", offer.npcName);
+        return;
+      }
+  
+      const shout = this.add.text(
+        npc.x,
+        npc.y - 52,
+        `${offer.price} gold!`,
+        {
+          fontFamily: "Georgia",
+          fontSize: "15px",
+          color: "#ffd966",
+          stroke: "#000000",
+          strokeThickness: 4,
+          fontStyle: "bold",
+        }
+      );
+  
+      shout.setOrigin(0.5);
+      shout.setDepth(2600);
+  
+      this.tweens.add({
+        targets: shout,
+        y: shout.y - 4,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+  
+      this.worldObjects.push(shout);
+    });
   }
+
+ private changeCoins(amount: number) {
+  this.coins = Math.max(0, this.coins + amount);
+
+  const hudAny = this.hud as any;
+
+  if (hudAny?.setCoins) {
+    hudAny.setCoins(this.coins);
+    return;
+  }
+
+  if (hudAny?.updateCoins) {
+    hudAny.updateCoins(this.coins);
+    return;
+  }
+
+  console.warn("HUD coin update method not found.");
+}
   
   private walkActorPath(
     actor: Phaser.Physics.Arcade.Sprite,
@@ -1625,15 +1801,35 @@ export default class VillageScene extends Phaser.Scene {
     map: Phaser.Tilemaps.Tilemap
   ) {
     const spawnLayer = map.getObjectLayer("Spawns");
-  
+    console.log(
+      "Spawns objects:",
+      spawnLayer?.objects.map((obj) => ({
+        name: obj.name,
+        type: obj.type,
+        class: (obj as any).class,
+        x: obj.x,
+        y: obj.y,
+        width: obj.width,
+        height: obj.height,
+        gid: (obj as any).gid,
+      }))
+    );
     if (!spawnLayer) {
       console.warn("No Spawns layer found");
       return;
     }
   
-    const npcObjects = spawnLayer.objects.filter(
-      (obj) => obj.type === "npc"
-    );
+    const npcObjects = spawnLayer.objects.filter((obj) => {
+      const name = obj.name ?? "";
+      const type = obj.type ?? "";
+      const objectClass = (obj as any).class ?? "";
+    
+      return (
+        type === "npc" ||
+        objectClass === "npc" ||
+        name.startsWith("NPC_")
+      );
+    });
   
     npcObjects.forEach((obj) => {
       const npcName = obj.name ?? "NPC";
@@ -1678,6 +1874,24 @@ export default class VillageScene extends Phaser.Scene {
       NPC_2: "npc2",
       NPC_3: "npc3",
       NPC_4: "npc4",
+      NPC_5: "npc5",
+      NPC_6: "npc6",
+      NPC_7: "npc7",
+      NPC_8: "npc8",
+      NPC_9: "npc9",
+      NPC_10: "npc10",
+      NPC_11: "npc11",
+      NPC_12: "npc12",
+      NPC_13: "npc13",
+      NPC_14: "npc14",
+      NPC_15: "npc15",
+      NPC_16: "npc16",
+      NPC_17: "npc17",
+      NPC_18: "npc18",
+      NPC_19: "npc19",
+      NPC_20: "npc20",
+      NPC_21: "npc21",
+
     };
   
     return sprites[name] ?? "wizard";
@@ -1743,8 +1957,14 @@ export default class VillageScene extends Phaser.Scene {
   
     return step;
   }
+
   private addCoins(amount: number) {
     this.coins += amount;
+    this.hud.setCoins(this.coins);
+  }
+
+  private removeCoins(amount: number) {
+    this.coins -= amount;
     this.hud.setCoins(this.coins);
   }
   
