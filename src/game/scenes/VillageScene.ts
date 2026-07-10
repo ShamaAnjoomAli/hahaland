@@ -564,14 +564,16 @@ export default class VillageScene extends Phaser.Scene {
       return
     }
 
-    const currentStep = this.getCurrentObjectiveStep()
+    const targetNpcName = this.getActiveQuestTargetNpcName();
 
-    const targetNPC = this.npcs.find((npc) => npc.getData('npcName') === currentStep.targetNpc)
-
-    if (!targetNPC) {
+    if (!targetNpcName) {
       this.questMarker.setVisible(false)
       return
     }
+    
+    const targetNPC = this.npcs.find((npc) => {
+      return npc.getData('npcName') === targetNpcName
+    });
 
     const nearest = this.getNearestNPC(100)
 
@@ -1799,7 +1801,9 @@ export default class VillageScene extends Phaser.Scene {
     this.isCutscenePlaying = false
     this.setStoryUIVisible(true)
     this.storyStage = 'findRealHotel'
-    this.objectiveBox.setText('Objective: Go to the bazaar.')
+    this.objectiveBox.setText('Objective: Talk to Bazaar Auntie.')
+    this.updateQuestMarker()
+    this.updateMinimapQuestDot()  
   }
 
   private showEmotion(actor: Phaser.Physics.Arcade.Sprite, text: string) {
@@ -2049,14 +2053,24 @@ export default class VillageScene extends Phaser.Scene {
       return
     }
 
-    const currentStep = this.getCurrentObjectiveStep()
+    const targetNpcName = this.getActiveQuestTargetNpcName()
+
+    if (!targetNpcName) {
+    this.minimapQuestDot.setVisible(false)
+    return
+    }
 
     const targetNPC = this.npcs.find((npc) => {
-      return npc.getData('npcName') === currentStep.targetNpc
+    return npc.getData('npcName') === targetNpcName
     })
 
     if (!targetNPC) {
       this.minimapQuestDot.setVisible(false)
+      return
+    }
+
+    if (!targetNPC.visible || targetNPC.getData('insideFakeHotel')) {
+      this.questMarker.setVisible(false)
       return
     }
 
@@ -2485,4 +2499,16 @@ export default class VillageScene extends Phaser.Scene {
     })
   }
 
+  private getActiveQuestTargetNpcName(): string {
+    if (this.storyStage === 'findRealHotel') {
+      return 'NPC_14'
+    }
+  
+    // During bazaar entrance stage, we do not want an NPC marker.
+    if (this.storyStage === 'bazaarTraining') {
+      return ''
+    }
+  
+    return this.getCurrentObjectiveStep()?.targetNpc ?? ''
+  }
 }
