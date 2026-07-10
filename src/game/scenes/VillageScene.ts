@@ -5,6 +5,7 @@ import Objective from '../script/objectives.json'
 import DialogueBox from '../ui/DialogueBox'
 import ObjectiveBox from '../ui/ObjectiveBox'
 import GameHUD from '../ui/GameHUD'
+import MinigamePopup, { type MinigameChoice } from '../ui/MinigamePopup'
 
 type ObjectiveStep = {
   objectiveText: string
@@ -225,6 +226,21 @@ export default class VillageScene extends Phaser.Scene {
   private cutsceneMusic?: Phaser.Sound.BaseSound
   private allowNpcTalkSfx = true
 
+  // Minigame UI Config
+  private minigame!: MinigamePopup
+
+  private reputation = 0
+
+  private storyQuestFlags = {
+    metBazaarAuntie: false,
+    completedMapBargain: false,
+    completedScalePuzzle: false,
+    completedDateTrade: false,
+    completedNileRace: false,
+    completedPyramidRiddles: false,
+    completedTempleTrials: false,
+  }
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super('VillageScene')
@@ -272,6 +288,9 @@ export default class VillageScene extends Phaser.Scene {
 
     // Initialization of dialogues with NPC
     this.dialogue = new DialogueBox(this)
+
+    // Minigame dialogue initialisation
+    this.minigame = new MinigamePopup(this)
 
     // Initialization of objectives
     this.objectiveBox = new ObjectiveBox(this)
@@ -567,6 +586,13 @@ export default class VillageScene extends Phaser.Scene {
       })
     }
 
+    // Block player movement when minigame is open
+    if (this.minigame?.open()) {
+      this.player.setVelocity(0)
+      this.player.stop()
+      return
+    }
+
     if (this.dialogue.isOpen()) {
       this.player.setVelocity(0)
 
@@ -766,6 +792,12 @@ export default class VillageScene extends Phaser.Scene {
     const npcName = nearest.getData('npcName')
     const npcPortraitKey = nearest.texture.key
 
+    if (npcName === 'NPC_14' && this.storyStage === 'findRealHotel') {
+      this.startBazaarAuntieScene()
+      this.interactPrompt.setVisible(false)
+      return
+    }
+
     const isMerchant = this.merchantOffers.some((offer) => offer.npcName === npcName)
 
     if (isMerchant && this.storyStage === 'intro') {
@@ -781,6 +813,92 @@ export default class VillageScene extends Phaser.Scene {
     if (questHandled) return
 
     this.dialogue.show(nearest.dialogue, undefined, npcPortraitKey)
+  }
+
+  private startBazaarAuntieScene() {
+    if (this.storyQuestFlags.metBazaarAuntie) {
+      this.dialogue.show(
+        [
+          {
+            text: 'Remember, tourist.',
+            portraitKey: 'npc2',
+          },
+          {
+            text: 'In the bazaar, the first price is not a price.',
+            portraitKey: 'npc2',
+          },
+          {
+            text: 'It is a joke wearing a number.',
+            portraitKey: 'npc2',
+          },
+        ],
+        undefined,
+        'npc2',
+      )
+
+      return
+    }
+
+    this.storyQuestFlags.metBazaarAuntie = true
+
+    this.dialogue.show(
+      [
+        {
+          text: 'You look terrible.',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'I slept in a fake hotel.',
+          portraitKey: 'player',
+        },
+        {
+          text: 'Ah. First night in Hahaland?',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'This happens often?',
+          portraitKey: 'player',
+        },
+        {
+          text: 'It is basically immigration.',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'I need a real hotel.',
+          portraitKey: 'player',
+        },
+        {
+          text: 'Then first, you need power.',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'Money?',
+          portraitKey: 'player',
+        },
+        {
+          text: 'No. Bargaining.',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'Rule one: never say wow.',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'Rule two: if they say special price, protect your wallet.',
+          portraitKey: 'npc2',
+        },
+        {
+          text: 'Rule three: walk away slowly. The slower you walk, the cheaper it gets.',
+          portraitKey: 'npc2',
+        },
+      ],
+      () => {
+        this.objectiveBox.setText('Objective: Bargain for a suspicious map.')
+
+        this.startMapBargainMinigame()
+      },
+      'npc2',
+    )
   }
 
   private showDirectMerchantOffer(npc: NPC) {
@@ -2183,5 +2301,21 @@ export default class VillageScene extends Phaser.Scene {
     merchants.forEach((npc) => {
       this.stopMerchantWaitingAnimation(npc)
     })
+  }
+
+  private changeReputation(amount: number) {
+    this.reputation = Phaser.Math.Clamp(this.reputation + amount, 0, 100)
+
+    console.log('Reputation:', this.reputation)
+  }
+
+  private applyMinigameReward(choice: MinigameChoice) {
+    if (choice.goldDelta) {
+      this.changeCoins(choice.goldDelta)
+    }
+
+    if (choice.reputationDelta) {
+      this.changeReputation(choice.reputationDelta)
+    }
   }
 }

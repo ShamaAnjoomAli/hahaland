@@ -750,6 +750,19 @@
                  "width":0,
                  "x":1644,
                  "y":1703.6
+                }, 
+                {
+                 "height":0,
+                 "id":60,
+                 "name":"NPC_14",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"npc",
+                 "visible":true,
+                 "width":0,
+                 "x":1308.33333333333,
+                 "y":1264.45454545455
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -758,7 +771,7 @@
          "y":0
         }],
  "nextlayerid":8,
- "nextobjectid":60,
+ "nextobjectid":61,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",
