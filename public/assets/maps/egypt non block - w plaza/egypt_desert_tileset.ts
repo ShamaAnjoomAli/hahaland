@@ -1,0 +1,26 @@
+export const EGYPT_TILESET = {
+  mapKey: "egypt_city",
+  mapPath: "assets/maps/egypt_city_starter_map.json",
+  tilesetName: "egypt_desert_tileset",
+  tilesetImageKey: "egypt_desert_tileset",
+  tilesetImagePath: "assets/maps/egypt_desert_tileset.png",
+  tileWidth: 64,
+  tileHeight: 64,
+  mapWidthTiles: 45,
+  mapHeightTiles: 38,
+  layers: {
+    ground: "Ground",
+    paths: "Paths",
+    water: "Water",
+    buildings: "Buildings",
+    props: "Props",
+    collisionObjects: "CollisionObjects",
+    spawns: "Spawns",
+  },
+  spawns: {
+    playerIntroStart: "PlayerIntroStart",
+    playerSpawn: "PlayerSpawn",
+    fakeHotelDoor: "FakeHotelDoor",
+    merchants: ["NPC_1", "NPC_5", "NPC_6", "NPC_9", "NPC_12"],
+  },
+} as const;

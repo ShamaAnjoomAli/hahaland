@@ -1,122 +1,126 @@
-import { useEffect, useRef, useState } from "react";
-import Phaser from "phaser";
+import { useEffect, useRef, useState } from 'react'
+import Phaser from 'phaser'
 
-import BootScene from "./game/scenes/BootScene";
-import VillageScene from "./game/scenes/VillageScene";
+import BootScene from './game/scenes/BootScene'
+import VillageScene from './game/scenes/VillageScene'
 
-import "./Game.css";
+import './Game.css'
 
-type Screen = "menu" | "howToPlay" | "game";
+type Screen = 'menu' | 'howToPlay' | 'game'
 
 export default function Game() {
-  const [screen, setScreen] = useState<Screen>("menu");
-  const gameRef = useRef<Phaser.Game | null>(null);
+  const [screen, setScreen] = useState<Screen>('menu')
+  const gameRef = useRef<Phaser.Game | null>(null)
 
-  const menuMusicRef = useRef<HTMLAudioElement | null>(null);
-  const menuMusicStartedRef = useRef(false);
+  const menuMusicRef = useRef<HTMLAudioElement | null>(null)
+  const menuMusicStartedRef = useRef(false)
 
   // keep a ref of the current screen so the one-time "unlock" listener
   // (added once, on mount) always checks the LATEST screen, not a stale closure
-  const screenRef = useRef<Screen>(screen);
+  const screenRef = useRef<Screen>(screen)
   useEffect(() => {
-    screenRef.current = screen;
-  }, [screen]);
+    screenRef.current = screen
+  }, [screen])
 
   useEffect(() => {
-    const audio = new Audio("/assets/audio/music/main_menu.mpeg");
-    audio.loop = true;
-    audio.volume = 0.45;
-    audio.preload = "auto";
-    menuMusicRef.current = audio;
+    const audio = new Audio('/assets/audio/music/main_menu.mpeg')
+    audio.loop = true
+    audio.volume = 0.45
+    audio.preload = 'auto'
+    menuMusicRef.current = audio
 
     const tryStart = () => {
-      if (menuMusicStartedRef.current) return;
-      if (screenRef.current !== "menu") return; // don't start if we've already left the menu
-      audio.play().then(() => {
-        menuMusicStartedRef.current = true;
-      }).catch(() => {});
-    };
+      if (menuMusicStartedRef.current) return
+      if (screenRef.current !== 'menu') return // don't start if we've already left the menu
+      audio
+        .play()
+        .then(() => {
+          menuMusicStartedRef.current = true
+        })
+        .catch(() => {})
+    }
 
     // try right away — works if the browser already trusts this page
-    tryStart();
+    tryStart()
 
     // fallback: arm it to fire on the very first interaction anywhere on the page
-    window.addEventListener("pointerdown", tryStart, { once: true });
-    window.addEventListener("keydown", tryStart, { once: true });
+    window.addEventListener('pointerdown', tryStart, { once: true })
+    window.addEventListener('keydown', tryStart, { once: true })
 
     return () => {
-      window.removeEventListener("pointerdown", tryStart);
-      window.removeEventListener("keydown", tryStart);
-      audio.pause();
-      audio.currentTime = 0;
-      menuMusicRef.current = null;
-      menuMusicStartedRef.current = false;
-    };
-  }, []);
+      window.removeEventListener('pointerdown', tryStart)
+      window.removeEventListener('keydown', tryStart)
+      audio.pause()
+      audio.currentTime = 0
+      menuMusicRef.current = null
+      menuMusicStartedRef.current = false
+    }
+  }, [])
 
   const startMenuMusic = () => {
-    const audio = menuMusicRef.current;
-    if (!audio || menuMusicStartedRef.current) return;
-    audio.play().then(() => {
-      menuMusicStartedRef.current = true;
-    }).catch((error) => {
-      console.warn("Menu music blocked:", error);
-    });
-  };
+    const audio = menuMusicRef.current
+    if (!audio || menuMusicStartedRef.current) return
+    audio
+      .play()
+      .then(() => {
+        menuMusicStartedRef.current = true
+      })
+      .catch((error) => {
+        console.warn('Menu music blocked:', error)
+      })
+  }
 
   const stopMenuMusic = () => {
-    const audio = menuMusicRef.current;
-    if (!audio) return;
-    audio.pause();
-    audio.currentTime = 0;
-    menuMusicStartedRef.current = false;
-  };
+    const audio = menuMusicRef.current
+    if (!audio) return
+    audio.pause()
+    audio.currentTime = 0
+    menuMusicStartedRef.current = false
+  }
 
   useEffect(() => {
-    if (screen !== "game") return;
+    if (screen !== 'game') return
 
-    if (gameRef.current) return;
+    if (gameRef.current) return
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      parent: "game-container",
+      parent: 'game-container',
       width: 550,
       height: 500,
-      backgroundColor: "#000000",
-      pixelArt: true,
-      roundPixels: true,
+      backgroundColor: '#000000',
+      pixelArt: false,
+      antialias: true,
+      roundPixels: false,
       physics: {
-        default: "arcade",
+        default: 'arcade',
         arcade: {
           debug: false,
         },
       },
-      scene: [
-        BootScene,
-        VillageScene,
-      ],
+      scene: [BootScene, VillageScene],
       scale: {
         mode: Phaser.Scale.FIT,
         // autoCenter: Phaser.Scale.CENTER_BOTH,
       },
-    };
+    }
 
-    gameRef.current = new Phaser.Game(config);
+    gameRef.current = new Phaser.Game(config)
 
     return () => {
-      gameRef.current?.destroy(true);
-      gameRef.current = null;
-    };
-  }, [screen]);
+      gameRef.current?.destroy(true)
+      gameRef.current = null
+    }
+  }, [screen])
 
-  if (screen === "game") {
+  if (screen === 'game') {
     return (
       <div className="game-page">
         <button
           className="exit-game-button"
           onClick={() => {
-            startMenuMusic();
-            setScreen("menu");
+            startMenuMusic()
+            setScreen('menu')
           }}
         >
           Exit
@@ -124,10 +128,10 @@ export default function Game() {
 
         <div id="game-container" />
       </div>
-    );
+    )
   }
 
-  if (screen === "howToPlay") {
+  if (screen === 'howToPlay') {
     return (
       <main className="menu-page">
         <div className="menu-bg-glow" />
@@ -154,10 +158,10 @@ export default function Game() {
           <div className="menu-actions">
             <button
               className="secondary-button"
-               onClick={() => {
-                  startMenuMusic();
-                  setScreen("menu");
-                }}
+              onClick={() => {
+                startMenuMusic()
+                setScreen('menu')
+              }}
             >
               Back
             </button>
@@ -165,8 +169,8 @@ export default function Game() {
             <button
               className="primary-button"
               onClick={() => {
-                stopMenuMusic();
-                setScreen("game");
+                stopMenuMusic()
+                setScreen('game')
               }}
             >
               Play
@@ -174,7 +178,7 @@ export default function Game() {
           </div>
         </section>
       </main>
-    );
+    )
   }
 
   return (
@@ -190,8 +194,8 @@ export default function Game() {
         <button
           className="nav-button"
           onClick={() => {
-            stopMenuMusic();
-            setScreen("game");
+            stopMenuMusic()
+            setScreen('game')
           }}
         >
           Join
@@ -209,16 +213,15 @@ export default function Game() {
         </h2>
 
         <p className="hero-copy">
-          You arrive with <strong>1,000,000 gold</strong>.
-          How you spend it decides who you become.
+          You arrive with <strong>1,000,000 gold</strong>. How you spend it decides who you become.
         </p>
 
         <div className="menu-actions">
           <button
             className="primary-button"
             onClick={() => {
-              stopMenuMusic();
-              setScreen("game")
+              stopMenuMusic()
+              setScreen('game')
             }}
           >
             Play
@@ -227,26 +230,19 @@ export default function Game() {
           <button
             className="secondary-button"
             onClick={() => {
-              startMenuMusic();
-              setScreen("howToPlay");
-            }}          >
+              startMenuMusic()
+              setScreen('howToPlay')
+            }}
+          >
             How to Play
           </button>
         </div>
       </section>
     </main>
-  );
+  )
 }
 
-function HowItem({
-  keyName,
-  title,
-  text,
-}: {
-  keyName: string;
-  title: string;
-  text: string;
-}) {
+function HowItem({ keyName, title, text }: { keyName: string; title: string; text: string }) {
   return (
     <div className="how-item">
       <div className="keycap">{keyName}</div>
@@ -256,5 +252,5 @@ function HowItem({
         <p>{text}</p>
       </div>
     </div>
-  );
+  )
 }

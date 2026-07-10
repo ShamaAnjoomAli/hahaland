@@ -1,0 +1,15 @@
+{
+  "columns": 44,
+  "image": "egypt_desert_tileset.png",
+  "imageheight": 2112,
+  "imagewidth": 2816,
+  "margin": 0,
+  "name": "egypt_desert_tileset",
+  "spacing": 0,
+  "tilecount": 1452,
+  "tiledversion": "1.10.2",
+  "tileheight": 64,
+  "tilewidth": 64,
+  "type": "tileset",
+  "version": "1.10"
+}
