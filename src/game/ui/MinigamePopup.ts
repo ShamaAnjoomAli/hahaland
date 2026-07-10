@@ -7,6 +7,8 @@ export type MinigameChoice = {
   success?: boolean
   goldDelta?: number
   reputationDelta?: number
+  setFlags?: string[]
+  setItems?: string[]
 }
 
 export type MinigameConfig = {
@@ -18,7 +20,7 @@ export type MinigameConfig = {
 
 export default class MinigamePopup {
   private scene: Phaser.Scene
-  private container: Phaser.GameObjects.Container
+  public container: Phaser.GameObjects.Container
   private title!: Phaser.GameObjects.Text
   private body!: Phaser.GameObjects.Text
   private buttons: Phaser.GameObjects.Container[] = []

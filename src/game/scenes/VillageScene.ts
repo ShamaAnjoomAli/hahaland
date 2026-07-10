@@ -28,6 +28,18 @@ type MerchantOffer = {
   reaction: string
 }
 
+type StoryStage =
+  | 'intro'
+  | 'travellingToFakeHotel'
+  | 'fakeHotelNight'
+  | 'leaveFakeHotel'
+  | 'findRealHotel'
+  | 'bazaarTraining'
+  | 'bazaarQuests'
+  | 'pyramidQuest'
+  | 'templeQuest'
+  | 'emperorEnding'
+
 /**
  * Main gameplay scene for the village map.
  * Loads the Tiled map, spawns the player, handles collisions, camera follow, and movement.
@@ -191,9 +203,9 @@ export default class VillageScene extends Phaser.Scene {
     },
   ]
 
-  private storyStage:
-    'intro' | 'travellingToFakeHotel' | 'fakeHotelNight' | 'leaveFakeHotel' | 'findRealHotel' =
-    'intro'
+  private storyStage: StoryStage = 'intro'
+
+  private tilemap!: Phaser.Tilemaps.Tilemap
 
   // Opening sequence with loading and fading into game and player walking out the door
   private isOpeningSequencePlaying = false
@@ -234,11 +246,8 @@ export default class VillageScene extends Phaser.Scene {
   private storyQuestFlags = {
     metBazaarAuntie: false,
     completedMapBargain: false,
-    completedScalePuzzle: false,
     completedDateTrade: false,
-    completedNileRace: false,
     completedPyramidRiddles: false,
-    completedTempleTrials: false,
   }
 
   /** Registers this scene with Phaser under the key "VillageScene". */
@@ -256,6 +265,8 @@ export default class VillageScene extends Phaser.Scene {
     const map = this.make.tilemap({
       key: 'egypt_city',
     })
+
+    this.tilemap = map
 
     const tileset = map.addTilesetImage('egypt_desert_tileset', 'egypt_desert_tileset')
 
@@ -515,7 +526,8 @@ export default class VillageScene extends Phaser.Scene {
     if (
       this.storyStage === 'intro' ||
       this.storyStage === 'travellingToFakeHotel' ||
-      this.storyStage === 'fakeHotelNight'
+      this.storyStage === 'fakeHotelNight' ||
+      this.storyStage === 'leaveFakeHotel'
     ) {
       this.questMarker.setVisible(false)
       return
@@ -816,36 +828,43 @@ export default class VillageScene extends Phaser.Scene {
   }
 
   private startBazaarAuntieScene() {
+    const auntieNpc = this.npcs.find((npc) => npc.getData('npcName') === 'NPC_14')
+
+    if (!auntieNpc) {
+      console.warn('NPC_14 (Bazaar Auntie) not found on map.')
+      return
+    }
+
+    const portraitKey = 'npc14'
+
     if (this.storyQuestFlags.metBazaarAuntie) {
       this.dialogue.show(
         [
           {
             text: 'Remember, tourist.',
-            portraitKey: 'npc2',
+            portraitKey,
           },
           {
             text: 'In the bazaar, the first price is not a price.',
-            portraitKey: 'npc2',
+            portraitKey,
           },
           {
             text: 'It is a joke wearing a number.',
-            portraitKey: 'npc2',
+            portraitKey,
           },
         ],
         undefined,
-        'npc2',
+        portraitKey,
       )
 
       return
     }
 
-    this.storyQuestFlags.metBazaarAuntie = true
-
     this.dialogue.show(
       [
         {
           text: 'You look terrible.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'I slept in a fake hotel.',
@@ -853,7 +872,7 @@ export default class VillageScene extends Phaser.Scene {
         },
         {
           text: 'Ah. First night in Hahaland?',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'This happens often?',
@@ -861,7 +880,7 @@ export default class VillageScene extends Phaser.Scene {
         },
         {
           text: 'It is basically immigration.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'I need a real hotel.',
@@ -869,7 +888,7 @@ export default class VillageScene extends Phaser.Scene {
         },
         {
           text: 'Then first, you need power.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'Money?',
@@ -877,27 +896,27 @@ export default class VillageScene extends Phaser.Scene {
         },
         {
           text: 'No. Bargaining.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'Rule one: never say wow.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'Rule two: if they say special price, protect your wallet.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
         {
           text: 'Rule three: walk away slowly. The slower you walk, the cheaper it gets.',
-          portraitKey: 'npc2',
+          portraitKey,
         },
       ],
       () => {
+        this.storyQuestFlags.metBazaarAuntie = true
+        this.storyStage = 'bazaarTraining'
         this.objectiveBox.setText('Objective: Bargain for a suspicious map.')
-
-        this.startMapBargainMinigame()
       },
-      'npc2',
+      portraitKey,
     )
   }
 
@@ -1561,13 +1580,14 @@ export default class VillageScene extends Phaser.Scene {
         this.objectiveBox.setText('Objective: Try to sleep in the fake hotel.')
 
         this.time.delayedCall(1500, () => {
-          this.startNoisyNightSequence()
+          this.startNoisyNightSequence(npc)
         })
       },
     )
   }
 
-  private startNoisyNightSequence() {
+  private startNoisyNightSequence(npc: NPC) {
+    this.storyStage = 'fakeHotelNight'
     this.setStoryUIVisible(false)
 
     this.player.setVelocity(0)
@@ -1599,7 +1619,7 @@ export default class VillageScene extends Phaser.Scene {
             },
           ],
           () => {
-            this.endNoisyNightSequence()
+            this.startLeaveFakeHotelSequence(npc)
           },
         )
       })
@@ -1649,20 +1669,106 @@ export default class VillageScene extends Phaser.Scene {
     this.nightText = undefined
   }
 
-  private endNoisyNightSequence() {
+  private getFakeHotelDoorPoint() {
+    return this.getSpawnPoint(this.tilemap, 'FakeHotelDoor')
+  }
+
+  private getFakeHotelInsidePoint() {
+    const inside = this.getOptionalSpawnPoint(this.tilemap, 'FakeHotelInside')
+
+    if (inside) return inside
+
+    const door = this.getFakeHotelDoorPoint()
+
+    return {
+      x: door.x,
+      y: door.y - 80,
+    }
+  }
+
+  private getFakeHotelExitPoint() {
+    const exit = this.getOptionalSpawnPoint(this.tilemap, 'FakeHotelExit')
+
+    if (exit) return exit
+
+    const door = this.getFakeHotelDoorPoint()
+
+    return {
+      x: door.x,
+      y: door.y + 70,
+    }
+  }
+
+  private hideMerchantInsideFakeHotel(npc: NPC) {
+    const inside = this.getFakeHotelInsidePoint()
+
+    npc.setPosition(inside.x, inside.y)
+    npc.setVisible(false)
+    npc.setData('insideFakeHotel', true)
+    npc.setVelocity(0)
+    npc.stop()
+
+    const body = npc.body as Phaser.Physics.Arcade.Body | null
+
+    if (body) {
+      body.enable = false
+    }
+  }
+
+  private startLeaveFakeHotelSequence(npc: NPC) {
+    this.storyStage = 'leaveFakeHotel'
     this.stopCutsceneMusic()
+    this.isCutscenePlaying = true
+    this.setStoryUIVisible(false)
+
+    this.hideMerchantInsideFakeHotel(npc)
+
+    const inside = this.getFakeHotelInsidePoint()
+
+    this.player.setPosition(inside.x, inside.y)
+    this.player.setVelocity(0)
+    this.player.stop()
 
     this.hideNightOverlay()
+    this.cameras.main.fade(1, 0, 0, 0, false)
 
-    this.cameras.main.fadeIn(700, 0, 0, 0)
+    this.time.delayedCall(150, () => {
+      this.cameras.main.fadeIn(900, 0, 0, 0)
 
+      this.time.delayedCall(950, () => {
+        const exit = this.getFakeHotelExitPoint()
+
+        this.walkActorPath(this.player, [exit], this.cutsceneWalkSpeed, () => {
+          this.dialogue.show(
+            [
+              {
+                text: 'Finally... fresh air.',
+                portraitKey: 'player',
+              },
+              {
+                text: 'No guide. No kitchen bed. No emotional goat.',
+                portraitKey: 'player',
+              },
+              {
+                text: 'I need to find someone in the bazaar who actually knows this city.',
+                portraitKey: 'player',
+              },
+            ],
+            () => {
+              this.finishLeaveFakeHotelSequence()
+            },
+            'player',
+          )
+        })
+      })
+    })
+  }
+
+  private finishLeaveFakeHotelSequence() {
     this.isCutscenePlaying = false
-
     this.setStoryUIVisible(true)
-
-    this.objectiveBox.setText('Objective: Leave and find a real hotel.')
-
-    this.showEmotion(this.player, '...')
+    this.storyStage = 'findRealHotel'
+    this.objectiveBox.setText('Objective: Go to the bazaar.')
   }
 
   private showEmotion(actor: Phaser.Physics.Arcade.Sprite, text: string) {
@@ -1750,6 +1856,9 @@ export default class VillageScene extends Phaser.Scene {
     let nearestDistance = maxDistance
 
     this.npcs.forEach((npc) => {
+      if (!npc.visible) return
+      if (npc.getData('insideFakeHotel')) return
+
       const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y)
 
       if (distance < nearestDistance) {
@@ -1768,6 +1877,13 @@ export default class VillageScene extends Phaser.Scene {
       const dot = this.minimapNpcDots[index]
 
       if (!dot) return
+
+      if (!npc.visible || npc.getData('insideFakeHotel')) {
+        dot.setVisible(false)
+        return
+      }
+
+      dot.setVisible(true)
 
       const normalizedX = Phaser.Math.Clamp(npc.x / this.mapPixelWidth, 0, 1)
 
@@ -1848,6 +1964,7 @@ export default class VillageScene extends Phaser.Scene {
     this.minimap.ignore([
       this.dialogue.container,
       this.objectiveBox.container,
+      this.minigame.container,
       this.interactPrompt,
       this.questMarker,
       this.minimapBorder,
@@ -1875,6 +1992,7 @@ export default class VillageScene extends Phaser.Scene {
       this.dialogue.container,
       this.objectiveBox.container,
       this.hud.container,
+      this.minigame.container,
       this.minimapBorder,
       this.minimapPlayerDot,
       this.minimapQuestDot,
@@ -2309,13 +2427,30 @@ export default class VillageScene extends Phaser.Scene {
     console.log('Reputation:', this.reputation)
   }
 
-  private applyMinigameReward(choice: MinigameChoice) {
-    if (choice.goldDelta) {
-      this.changeCoins(choice.goldDelta)
+  private addStoryItem(itemKey: keyof typeof this.storyItems) {
+    if (!(itemKey in this.storyItems)) {
+      console.warn(`Unknown story item: ${itemKey}`)
+      return
     }
 
-    if (choice.reputationDelta) {
-      this.changeReputation(choice.reputationDelta)
-    }
+    this.storyItems[itemKey] = true
+    console.log('Story item acquired:', itemKey)
+  }
+
+  private showMinigamePlaceholder(title: string, description: string) {
+    console.warn(`${title}: not implemented yet.`)
+
+    this.minigame.show({
+      title,
+      description: [description, 'Coming in a future update.'],
+      choices: [
+        {
+          label: 'Continue',
+          value: 'continue',
+          response: 'Placeholder complete. Full minigame coming soon.',
+        },
+      ],
+      onComplete: () => {},
+    })
   }
 }
