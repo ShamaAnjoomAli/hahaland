@@ -229,6 +229,7 @@ export default class BootScene extends Phaser.Scene {
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
       console.error('Failed to load asset:', file.key, file.src)
     })
+
   }
 
   create() {

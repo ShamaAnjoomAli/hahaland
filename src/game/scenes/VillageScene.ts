@@ -130,17 +130,15 @@ export default class VillageScene extends Phaser.Scene {
   private complimentTipCost = 1
 
   private scamHousePathToSmallTalk = [
-    { x: 620, y: 420 },
-    { x: 780, y: 420 },
-    { x: 920, y: 420 },
+    { x: 1700, y: 1540 },
+    { x: 1750, y: 1660 },
+    { x: 2050, y: 1660 },
   ]
 
   private scamHousePathAfterSmallTalk = [
-    { x: 920, y: 420 },
-    { x: 1100, y: 1000 },
-    { x: 1250, y: 1350 },
-    { x: 1400, y: 1300 },
-    { x: 2000, y: 1550 },
+    { x: 2050, y: 1660 },
+    { x: 2300, y: 1580 },
+    { x: 2500, y: 1515 },
     { x: 2695, y: 1480 },
   ]
 
@@ -250,6 +248,9 @@ export default class VillageScene extends Phaser.Scene {
     completedPyramidRiddles: false,
   }
 
+  // To make the player enter the city below the gate
+  private foregroundGateLayer?: Phaser.Tilemaps.TilemapLayer;
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super('VillageScene')
@@ -283,18 +284,42 @@ export default class VillageScene extends Phaser.Scene {
     const waterLayer = map.createLayer('Water', tileset)
     const buildingsLayer = map.createLayer('Buildings', tileset)
     const propsLayer = map.createLayer('Props', tileset)
+    const foregroundGateLayer = map.createLayer('ForegroundGate', tileset)
 
-    // --- Layer depth ordering ---
-    // Lower depth draws first (ground), higher depth draws on top (carts, then player).
+    console.log(
+      'Map layers:',
+      map.layers.map((layer) => layer.name)
+    )
+
+    console.log(
+      'ForegroundGate created:',
+      Boolean(foregroundGateLayer)
+    )
+
+    if (!foregroundGateLayer) {
+      console.warn(
+        'ForegroundGate layer not found. Check the exact layer name in Tiled.'
+      )
+    } else {
+      this.foregroundGateLayer = foregroundGateLayer
+    }
+
     groundLayer?.setDepth(0)
     pathsLayer?.setDepth(1)
     waterLayer?.setDepth(2)
     buildingsLayer?.setDepth(10)
     propsLayer?.setDepth(20)
+    foregroundGateLayer?.setDepth(9000)
+
     this.worldObjects.push(
-      ...([groundLayer, pathsLayer, waterLayer, buildingsLayer, propsLayer].filter(
-        Boolean,
-      ) as Phaser.GameObjects.GameObject[]),
+      ...([
+        groundLayer,
+        pathsLayer,
+        waterLayer,
+        buildingsLayer,
+        propsLayer,
+        foregroundGateLayer,
+      ].filter(Boolean) as Phaser.GameObjects.GameObject[]),
     )
 
     // Initialization of dialogues with NPC
@@ -392,6 +417,7 @@ export default class VillageScene extends Phaser.Scene {
     this.startGameTimer(600)
 
     this.createUICamera()
+
     this.startOpeningSequence()
 
     // --- Keyboard input ---
@@ -2458,4 +2484,5 @@ export default class VillageScene extends Phaser.Scene {
       onComplete: () => {},
     })
   }
+
 }
