@@ -1163,7 +1163,8 @@ export default class VillageScene extends Phaser.Scene {
     this.dialogue.showChoice({
       lines: [
         'The hotel is a little walk from here.',
-        'You can skip the travel, but some story moments may be missed.',
+        'You can skip the travel ...',
+        'but some story moments may be missed.'
       ],
       portraitKey: npc.texture.key,
       choices: [
@@ -1750,7 +1751,11 @@ export default class VillageScene extends Phaser.Scene {
                 portraitKey: 'player',
               },
               {
-                text: 'I need to find someone in the bazaar who actually knows this city.',
+                text: 'I need to find someone in the bazaar...',
+                portraitKey: 'player',
+              },
+              {
+                text: 'Someone who actually knows this city.',
                 portraitKey: 'player',
               },
             ],

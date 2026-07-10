@@ -142,8 +142,10 @@ export default class DialogueBox {
         fontSize: "20px",
         color: "#ffffff",
         wordWrap: {
-          width: width - dialogueTextX - 100,
+          width: 360,
+          useAdvancedWrap: true,
         },
+        lineSpacing: 4,
       }
     );
 
