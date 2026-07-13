@@ -457,46 +457,26 @@ export default class BazaarChallengePopup {
     this.createBase()
 
     const width = this.scene.scale.width
-    const top = this.getPanelTop()
-    const bottom = this.getPanelBottom()
-    const panelHeight = bottom - top
-    const success = result.success
-
-    this.addTitle('Bazaar Trial Result')
-
-    // Responsive vertical anchors. These remain separated even when the
-    // internal Phaser canvas is shorter than the CSS-rendered canvas.
-    const badgeRadius = Phaser.Math.Clamp(panelHeight * 0.075, 34, 43)
-    const badgeY = top + Math.max(92, panelHeight * 0.18)
-    const resultTitleY = top + Math.max(156, panelHeight * 0.31)
-
-    const buttonHeight = 46
-    const buttonY = bottom - 40
-    const rewardY = buttonY - 70
-
-    const responseHeight = Phaser.Math.Clamp(panelHeight * 0.18, 82, 98)
-    const responseY = Math.min(
-      top + panelHeight * 0.53,
-      rewardY - responseHeight / 2 - 28
-    )
+    const height = this.scene.scale.height
+    const status = result.success ? 'CHALLENGE COMPLETE' : 'BAZAAR CHAOS'
 
     const badge = this.scene.add.circle(
       width / 2,
-      badgeY,
-      badgeRadius,
-      success ? 0x205936 : 0x743519,
+      this.getPanelTop() + 130,
+      54,
+      result.success ? 0x204f2f : 0x6a3217,
       1
     )
-    badge.setStrokeStyle(4, success ? 0x72ff9b : 0xffbd63, 1)
+    badge.setStrokeStyle(4, result.success ? 0x72ff9b : 0xffc36b, 1)
 
     const badgeText = this.scene.add.text(
       width / 2,
-      badgeY,
-      success ? '✓' : '!',
+      this.getPanelTop() + 130,
+      result.success ? '✓' : '!',
       {
         fontFamily: 'Georgia',
-        fontSize: `${Math.round(badgeRadius * 1.05)}px`,
-        color: success ? '#72ff9b' : '#ffbd63',
+        fontSize: '54px',
+        color: result.success ? '#72ff9b' : '#ffc36b',
         stroke: '#000000',
         strokeThickness: 6,
         fontStyle: 'bold',
@@ -504,140 +484,51 @@ export default class BazaarChallengePopup {
     )
     badgeText.setOrigin(0.5)
 
-    const resultTitle = this.scene.add.text(
-      width / 2,
-      resultTitleY,
-      success ? 'CHALLENGE COMPLETE' : 'BAZAAR CHAOS',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '27px',
-        color: success ? '#72ff9b' : '#ffd966',
-        stroke: '#000000',
-        strokeThickness: 6,
-        fontStyle: 'bold',
-        align: 'center',
-      }
-    )
-    resultTitle.setOrigin(0.5)
+    const title = this.scene.add.text(width / 2, this.getPanelTop() + 210, status, {
+      fontFamily: 'Georgia',
+      fontSize: '31px',
+      color: result.success ? '#72ff9b' : '#ffd966',
+      stroke: '#000000',
+      strokeThickness: 6,
+      fontStyle: 'bold',
+      align: 'center',
+    })
+    title.setOrigin(0.5)
 
-    const responsePanel = this.scene.add.rectangle(
-      width / 2,
-      responseY,
-      this.panelWidth - 150,
-      responseHeight,
-      0x241507,
-      0.98
-    )
-    responsePanel.setStrokeStyle(3, 0x9b682c, 1)
-
-    const response = this.scene.add.text(
-      width / 2,
-      responseY,
-      result.response,
-      {
-        fontFamily: 'Georgia',
-        fontSize: '16px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 4,
-        align: 'center',
-        lineSpacing: 4,
-        wordWrap: {
-          width: this.panelWidth - 205,
-          useAdvancedWrap: true,
-        },
-      }
-    )
+    const response = this.scene.add.text(width / 2, height / 2 + 5, result.response, {
+      fontFamily: 'Georgia',
+      fontSize: '20px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      wordWrap: { width: this.panelWidth - 100 },
+    })
     response.setOrigin(0.5)
 
-    const rewardGap = 14
-    const rewardCardWidth = Math.min(
-      220,
-      (this.panelWidth - 100 - rewardGap) / 2
-    )
-    const rewardCardHeight = 48
-    const rewardLeftX = width / 2 - rewardCardWidth / 2 - rewardGap / 2
-    const rewardRightX = width / 2 + rewardCardWidth / 2 + rewardGap / 2
-
-    const goldShadow = this.scene.add.rectangle(
-      rewardLeftX + 3,
-      rewardY + 3,
-      rewardCardWidth,
-      rewardCardHeight,
-      0x000000,
-      0.28
-    )
-    const goldCard = this.scene.add.rectangle(
-      rewardLeftX,
-      rewardY,
-      rewardCardWidth,
-      rewardCardHeight,
-      0xead8aa,
-      1
-    )
-    goldCard.setStrokeStyle(3, 0xd4af37, 1)
-
-    const reputationShadow = this.scene.add.rectangle(
-      rewardRightX + 3,
-      rewardY + 3,
-      rewardCardWidth,
-      rewardCardHeight,
-      0x000000,
-      0.28
-    )
-    const reputationCard = this.scene.add.rectangle(
-      rewardRightX,
-      rewardY,
-      rewardCardWidth,
-      rewardCardHeight,
-      0xead8aa,
-      1
-    )
-    reputationCard.setStrokeStyle(3, 0xd4af37, 1)
-
-    const goldText = this.scene.add.text(
-      rewardLeftX,
-      rewardY,
-      `GOLD  ${result.goldDelta >= 0 ? '+' : ''}${result.goldDelta}`,
-      {
-        fontFamily: 'Georgia',
-        fontSize: '18px',
-        color: '#74420d',
-        stroke: '#fff4cf',
-        strokeThickness: 2,
-        fontStyle: 'bold',
-      }
-    )
-    goldText.setOrigin(0.5)
-
-    const reputationText = this.scene.add.text(
-      rewardRightX,
-      rewardY,
-      `REPUTATION  ${
+    const rewardText = this.scene.add.text(
+      width / 2,
+      this.getPanelBottom() - 125,
+      `${result.goldDelta >= 0 ? '+' : ''}${result.goldDelta} gold     ${
         result.reputationDelta >= 0 ? '+' : ''
-      }${result.reputationDelta}`,
+      }${result.reputationDelta} reputation`,
       {
         fontFamily: 'Georgia',
-        fontSize: '16px',
-        color: '#245d78',
-        stroke: '#fff4cf',
-        strokeThickness: 2,
+        fontSize: '24px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 5,
+        align: 'center',
         fontStyle: 'bold',
       }
     )
-    reputationText.setOrigin(0.5)
+    rewardText.setOrigin(0.5)
 
     this.addObject(badge)
     this.addObject(badgeText)
-    this.addObject(resultTitle)
-    this.addObject(responsePanel)
+    this.addObject(title)
     this.addObject(response)
-    this.addObject(goldShadow)
-    this.addObject(goldCard)
-    this.addObject(reputationShadow)
-    this.addObject(reputationCard)
-    this.addObject(goldText)
-    this.addObject(reputationText)
+    this.addObject(rewardText)
 
     this.addTween({
       targets: [badge, badgeText],
@@ -650,19 +541,18 @@ export default class BazaarChallengePopup {
     })
 
     this.resultLocked = false
-
     this.createButton(
       width / 2,
-      buttonY,
-      220,
-      buttonHeight,
+      this.getPanelBottom() - 62,
+      230,
+      54,
       'Continue',
       () => {
         this.currentOnComplete?.(result)
         this.hide()
       },
       0x27633a,
-      17
+      18
     )
   }
 
@@ -1732,11 +1622,8 @@ export default class BazaarChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle('7. Eagle Keeper — Nile Falcon Courier')
-    this.addInstruction(
-      'Click or press SPACE to flap through all 6 sun rings.',
-      top + 86
-    )
+    this.addTitle('7. Eagle Keeper — Sky Courier Dash')
+    this.addInstruction('Click or press SPACE to flap. Fly through 6 delivery rings without losing all 3 hearts.')
 
     type FlightState = 'ready' | 'countdown' | 'playing' | 'finished'
     type FlightObstacle = {
@@ -1758,15 +1645,8 @@ export default class BazaarChallengePopup {
 
     const playLeft = this.getPanelLeft() + 34
     const playRight = this.getPanelRight() - 34
-
-    const hudY = top + 130
-    const hudHeight = 42
-    const playTop = hudY + hudHeight / 2 + 20
-
-    const buttonY = bottom - 38
-    const statusY = buttonY - 48
-    const playBottom = statusY - 25
-
+    const playTop = top + 166
+    const playBottom = bottom - 108
     const playWidth = playRight - playLeft
     const playHeight = playBottom - playTop
     const eagleX = playLeft + 122
@@ -1785,347 +1665,87 @@ export default class BazaarChallengePopup {
       (playTop + playBottom) / 2,
       playWidth,
       playHeight,
-      0x1f4e6b,
+      0x183b52,
       1
     )
-    playBg.setStrokeStyle(4, 0xd4af37, 1)
+    playBg.setStrokeStyle(3, 0xd6a13b, 1)
     playBg.setInteractive({ useHandCursor: true })
     this.addObject(playBg)
 
-    const skyArt = this.scene.add.graphics()
+    const sun = this.scene.add.circle(playRight - 62, playTop + 50, 27, 0xffd966, 0.9)
+    this.addObject(sun)
 
-    skyArt.fillGradientStyle(
-      0x204e6a,
-      0x204e6a,
-      0xe1a04d,
-      0xe1a04d,
-      1
-    )
-    skyArt.fillRect(playLeft, playTop, playWidth, playHeight)
+    const skyline = this.scene.add.graphics()
+    skyline.fillStyle(0x3a291a, 0.7)
+    skyline.fillRect(playLeft, playBottom - 26, playWidth, 26)
+    for (let x = playLeft + 12; x < playRight; x += 54) {
+      const buildingHeight = 18 + ((x * 7) % 34)
+      skyline.fillRect(x, playBottom - 26 - buildingHeight, 38, buildingHeight)
+    }
+    this.addObject(skyline)
 
-    skyArt.fillStyle(0xd1a354, 1)
-    skyArt.fillRect(playLeft, playBottom - 34, playWidth, 34)
+    const heartsText = this.scene.add.text(playLeft + 14, top + 126, '♥ ♥ ♥', {
+      fontFamily: 'Arial',
+      fontSize: '24px',
+      color: '#ff6b6b',
+      stroke: '#000000',
+      strokeThickness: 4,
+    })
 
-    skyArt.fillStyle(0x6e4b2a, 0.95)
-    skyArt.fillTriangle(
-      playLeft + 72,
-      playBottom - 34,
-      playLeft + 146,
-      playBottom - Math.min(145, playHeight * 0.72),
-      playLeft + 220,
-      playBottom - 34
-    )
-    skyArt.fillTriangle(
-      playLeft + 185,
-      playBottom - 34,
-      playLeft + 257,
-      playBottom - Math.min(122, playHeight * 0.62),
-      playLeft + 329,
-      playBottom - 34
-    )
-    skyArt.fillTriangle(
-      playRight - 220,
-      playBottom - 34,
-      playRight - 157,
-      playBottom - Math.min(113, playHeight * 0.58),
-      playRight - 94,
-      playBottom - 34
-    )
-
-    skyArt.fillStyle(0x7a5630, 0.9)
-    skyArt.fillRect(playRight - 120, playBottom - 80, 16, 46)
-    skyArt.fillRect(playRight - 96, playBottom - 88, 16, 54)
-    skyArt.fillRect(playRight - 72, playBottom - 74, 16, 40)
-
-    skyArt.fillStyle(0xffd966, 0.96)
-    skyArt.fillCircle(playRight - 78, playTop + 55, 24)
-
-    skyArt.lineStyle(2, 0xf4cf61, 0.75)
-    skyArt.strokeRect(
-      playLeft + 5,
-      playTop + 5,
-      playWidth - 10,
-      playHeight - 10
-    )
-
-    this.addObject(skyArt)
-
-    // HUD cards are intentionally explicit rather than generated through a
-    // helper, preventing width/height arguments from being confused with x/y.
-    const leftHudX = playLeft + 67
-    const centerHudX = width / 2
-    const rightHudX = playRight - 72
-
-    const leftHudWidth = 122
-    const centerHudWidth = 190
-    const rightHudWidth = 142
-
-    const leftHudShadow = this.scene.add.rectangle(
-      leftHudX + 3,
-      hudY + 3,
-      leftHudWidth,
-      hudHeight,
-      0x000000,
-      0.3
-    )
-    const leftHudCard = this.scene.add.rectangle(
-      leftHudX,
-      hudY,
-      leftHudWidth,
-      hudHeight,
-      0xf0dfb5,
-      1
-    )
-    leftHudCard.setStrokeStyle(3, 0xb8862e, 1)
-    const leftHudBand = this.scene.add.rectangle(
-      leftHudX,
-      hudY - hudHeight / 2 + 6,
-      leftHudWidth - 10,
-      8,
-      0x245d78,
-      1
-    )
-
-    const centerHudShadow = this.scene.add.rectangle(
-      centerHudX + 3,
-      hudY + 3,
-      centerHudWidth,
-      hudHeight,
-      0x000000,
-      0.3
-    )
-    const centerHudCard = this.scene.add.rectangle(
-      centerHudX,
-      hudY,
-      centerHudWidth,
-      hudHeight,
-      0xf0dfb5,
-      1
-    )
-    centerHudCard.setStrokeStyle(3, 0xb8862e, 1)
-    const centerHudBand = this.scene.add.rectangle(
-      centerHudX,
-      hudY - hudHeight / 2 + 6,
-      centerHudWidth - 10,
-      8,
-      0x245d78,
-      1
-    )
-
-    const rightHudShadow = this.scene.add.rectangle(
-      rightHudX + 3,
-      hudY + 3,
-      rightHudWidth,
-      hudHeight,
-      0x000000,
-      0.3
-    )
-    const rightHudCard = this.scene.add.rectangle(
-      rightHudX,
-      hudY,
-      rightHudWidth,
-      hudHeight,
-      0xf0dfb5,
-      1
-    )
-    rightHudCard.setStrokeStyle(3, 0xb8862e, 1)
-    const rightHudBand = this.scene.add.rectangle(
-      rightHudX,
-      hudY - hudHeight / 2 + 6,
-      rightHudWidth - 10,
-      8,
-      0x245d78,
-      1
-    )
-
-    this.addObject(leftHudShadow)
-    this.addObject(leftHudCard)
-    this.addObject(leftHudBand)
-    this.addObject(centerHudShadow)
-    this.addObject(centerHudCard)
-    this.addObject(centerHudBand)
-    this.addObject(rightHudShadow)
-    this.addObject(rightHudCard)
-    this.addObject(rightHudBand)
-
-    const heartsText = this.scene.add.text(
-      leftHudX,
-      hudY + 4,
-      '♥ ♥ ♥',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '20px',
-        color: '#9b2525',
-        stroke: '#3c160e',
-        strokeThickness: 3,
-        fontStyle: 'bold',
-      }
-    )
-    heartsText.setOrigin(0.5)
-
-    const progressText = this.scene.add.text(
-      centerHudX,
-      hudY + 4,
-      'DELIVERY 0 / 6',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '16px',
-        color: '#245d78',
-        stroke: '#ffffff',
-        strokeThickness: 2,
-        fontStyle: 'bold',
-      }
-    )
+    const progressText = this.scene.add.text(width / 2, top + 128, 'DELIVERY 0 / 6', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#ffd966',
+      stroke: '#000000',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
     progressText.setOrigin(0.5)
 
-    const scoreText = this.scene.add.text(
-      rightHudX,
-      hudY + 4,
-      'SCORE 0',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '15px',
-        color: '#245d78',
-        stroke: '#ffffff',
-        strokeThickness: 2,
-        fontStyle: 'bold',
-      }
-    )
-    scoreText.setOrigin(0.5)
+    const scoreText = this.scene.add.text(playRight - 14, top + 128, 'SCORE 0', {
+      fontFamily: 'Georgia',
+      fontSize: '17px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
+    scoreText.setOrigin(1, 0.5)
 
     this.addObject(heartsText)
     this.addObject(progressText)
     this.addObject(scoreText)
 
-    const statusPanel = this.scene.add.rectangle(
-      width / 2,
-      statusY,
-      this.panelWidth - 185,
-      30,
-      0xead8aa,
-      0.98
-    )
-    statusPanel.setStrokeStyle(2, 0xb8862e, 1)
+    const status = this.addStatusText('Press Start Flight, click the sky, or press SPACE.', bottom - 86, '#f5ead7')
 
-    const status = this.scene.add.text(
-      width / 2,
-      statusY,
-      'Click the sky or press SPACE to flap.',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '14px',
-        color: '#245d78',
-        fontStyle: 'bold',
-        align: 'center',
-        wordWrap: { width: this.panelWidth - 215 },
-      }
-    )
-    status.setOrigin(0.5)
-
-    this.addObject(statusPanel)
-    this.addObject(status)
-
-    const countdownText = this.scene.add.text(
-      width / 2,
-      (playTop + playBottom) / 2,
-      '3',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '68px',
-        color: '#ffd966',
-        stroke: '#000000',
-        strokeThickness: 9,
-        fontStyle: 'bold',
-        align: 'center',
-      }
-    )
+    const countdownText = this.scene.add.text(width / 2, (playTop + playBottom) / 2, '3', {
+      fontFamily: 'Georgia',
+      fontSize: '72px',
+      color: '#ffd966',
+      stroke: '#000000',
+      strokeThickness: 9,
+      fontStyle: 'bold',
+      align: 'center',
+    })
     countdownText.setOrigin(0.5)
     countdownText.setVisible(false)
     this.addObject(countdownText)
 
-    const eagle = this.scene.add.container(
-      eagleX,
-      (playTop + playBottom) / 2
-    )
-
-    const rearWing = this.scene.add.triangle(
-      -9,
-      1,
-      -25,
-      -11,
-      -2,
-      -4,
-      -8,
-      11,
-      0xd4c089,
-      1
-    )
+    const eagle = this.scene.add.container(eagleX, (playTop + playBottom) / 2)
+    const rearWing = this.scene.add.triangle(-9, 1, -25, -11, -2, -4, -8, 11, 0xd6d0bd, 1)
     rearWing.setStrokeStyle(2, 0x3a2b20, 1)
-
-    const body = this.scene.add.ellipse(0, 0, 34, 20, 0xf2e2b8, 1)
+    const body = this.scene.add.ellipse(0, 0, 34, 20, 0xf2ead7, 1)
     body.setStrokeStyle(2, 0x3a2b20, 1)
-
-    const wing = this.scene.add.triangle(
-      -3,
-      1,
-      -19,
-      13,
-      4,
-      4,
-      10,
-      -12,
-      0xe7d39d,
-      1
-    )
+    const wing = this.scene.add.triangle(-3, 1, -19, 13, 4, 4, 10, -12, 0xffffff, 1)
     wing.setStrokeStyle(2, 0x3a2b20, 1)
-
     const head = this.scene.add.circle(15, -4, 8, 0xffffff, 1)
     head.setStrokeStyle(2, 0x3a2b20, 1)
-
-    const beak = this.scene.add.triangle(
-      25,
-      -4,
-      0,
-      -5,
-      10,
-      0,
-      0,
-      5,
-      0xf5b642,
-      1
-    )
-
+    const beak = this.scene.add.triangle(25, -4, 0, -5, 10, 0, 0, 5, 0xf5b642, 1)
     const eye = this.scene.add.circle(18, -6, 1.8, 0x111111, 1)
-
-    const packageBox = this.scene.add.rectangle(
-      -1,
-      13,
-      17,
-      12,
-      0xb76b2e,
-      1
-    )
+    const packageBox = this.scene.add.rectangle(-1, 13, 17, 12, 0xb76b2e, 1)
     packageBox.setStrokeStyle(2, 0x4a2813, 1)
-
-    const packageRibbon = this.scene.add.rectangle(
-      -1,
-      13,
-      3,
-      12,
-      0xffd966,
-      1
-    )
-
-    eagle.add([
-      rearWing,
-      body,
-      wing,
-      head,
-      beak,
-      eye,
-      packageBox,
-      packageRibbon,
-    ])
+    const packageRibbon = this.scene.add.rectangle(-1, 13, 3, 12, 0xffd966, 1)
+    eagle.add([rearWing, body, wing, head, beak, eye, packageBox, packageRibbon])
     this.addObject(eagle)
 
     const wingTween = this.addTween({
@@ -2139,43 +1759,24 @@ export default class BazaarChallengePopup {
     wingTween.pause()
 
     const obstacles: FlightObstacle[] = []
-    const obstacleColors = [
-      0x9b5b2c,
-      0x72533a,
-      0xa66a34,
-      0x655144,
-      0x8f552b,
-      0x4f704c,
-    ]
-    const gapCenters = [0.42, 0.62, 0.36, 0.56, 0.44, 0.6]
+    const obstacleColors = [0x9b5b2c, 0x72533a, 0xa66a34, 0x655144, 0x8f552b, 0x4f704c]
+    const gapCenters = [0.42, 0.62, 0.36, 0.56, 0.44, 0.60]
 
     const updateObstacleGeometry = (obstacle: FlightObstacle) => {
-      const topHeight = Math.max(
-        8,
-        obstacle.gapY - obstacle.gapSize / 2 - playTop
-      )
+      const topHeight = Math.max(8, obstacle.gapY - obstacle.gapSize / 2 - playTop)
       const lowerY = obstacle.gapY + obstacle.gapSize / 2
       const bottomHeight = Math.max(8, playBottom - lowerY)
 
-      obstacle.topBlock.setPosition(
-        obstacle.x,
-        playTop + topHeight / 2
-      )
+      obstacle.topBlock.setPosition(obstacle.x, playTop + topHeight / 2)
       obstacle.topBlock.setDisplaySize(obstacle.width, topHeight)
-
-      obstacle.bottomBlock.setPosition(
-        obstacle.x,
-        lowerY + bottomHeight / 2
-      )
+      obstacle.bottomBlock.setPosition(obstacle.x, lowerY + bottomHeight / 2)
       obstacle.bottomBlock.setDisplaySize(obstacle.width, bottomHeight)
-
       obstacle.ring.setPosition(obstacle.x, obstacle.gapY)
       obstacle.ringLabel.setPosition(obstacle.x, obstacle.gapY)
 
       const insideFlightArea =
         obstacle.x + obstacle.width / 2 >= playLeft &&
         obstacle.x - obstacle.width / 2 <= playRight
-
       obstacle.topBlock.setVisible(insideFlightArea)
       obstacle.bottomBlock.setVisible(insideFlightArea)
       obstacle.ring.setVisible(insideFlightArea)
@@ -2185,62 +1786,25 @@ export default class BazaarChallengePopup {
     for (let index = 0; index < 6; index += 1) {
       const isFinal = index === 5
       const obstacleWidth = isFinal ? 72 : 58
-      const gapSize = isFinal
-        ? Math.min(124, playHeight * 0.55)
-        : Math.min(
-            Math.max(96, 132 - index * 5),
-            playHeight * 0.54
-          )
+      const gapSize = isFinal ? 124 : Math.max(100, 132 - index * 5)
       const x = playRight + 235 + index * 285
       const gapY = playTop + playHeight * gapCenters[index]
       const color = isFinal ? 0x3f7f50 : obstacleColors[index]
 
-      const topBlock = this.scene.add.rectangle(
-        x,
-        playTop,
-        obstacleWidth,
-        40,
-        color,
-        1
-      )
+      const topBlock = this.scene.add.rectangle(x, playTop, obstacleWidth, 40, color, 1)
       topBlock.setStrokeStyle(3, 0x2b160a, 1)
-
-      const bottomBlock = this.scene.add.rectangle(
-        x,
-        playBottom,
-        obstacleWidth,
-        40,
-        color,
-        1
-      )
+      const bottomBlock = this.scene.add.rectangle(x, playBottom, obstacleWidth, 40, color, 1)
       bottomBlock.setStrokeStyle(3, 0x2b160a, 1)
-
-      const ring = this.scene.add.circle(
-        x,
-        gapY,
-        isFinal ? 35 : 30,
-        0x000000,
-        0
-      )
-      ring.setStrokeStyle(
-        isFinal ? 7 : 6,
-        isFinal ? 0x72ff9b : 0xd4af37,
-        1
-      )
-
-      const ringLabel = this.scene.add.text(
-        x,
-        gapY,
-        isFinal ? 'DELIVER' : `${index + 1}`,
-        {
-          fontFamily: 'Georgia',
-          fontSize: isFinal ? '10px' : '15px',
-          color: '#fff6cf',
-          stroke: '#000000',
-          strokeThickness: 4,
-          fontStyle: 'bold',
-        }
-      )
+      const ring = this.scene.add.circle(x, gapY, isFinal ? 35 : 30, 0x000000, 0)
+      ring.setStrokeStyle(isFinal ? 7 : 6, isFinal ? 0x72ff9b : 0xffd966, 1)
+      const ringLabel = this.scene.add.text(x, gapY, isFinal ? 'DELIVER' : `${index + 1}`, {
+        fontFamily: 'Georgia',
+        fontSize: isFinal ? '10px' : '15px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      })
       ringLabel.setOrigin(0.5)
 
       this.addObject(topBlock)
@@ -2259,25 +1823,18 @@ export default class BazaarChallengePopup {
         gapSize,
         width: obstacleWidth,
         passed: false,
-        bobAmount:
-          index === 2 || index === 4
-            ? Math.min(18, playHeight * 0.08)
-            : 0,
+        bobAmount: index === 2 || index === 4 ? 18 : 0,
         bobSpeed: index === 2 ? 1.8 : 1.35,
         phase: index * 0.9,
         isFinal,
       }
-
       obstacles.push(obstacle)
       updateObstacleGeometry(obstacle)
     }
 
     const refreshHud = () => {
       heartsText.setText(
-        Array.from(
-          { length: 3 },
-          (_value, index) => (index < hearts ? '♥' : '♡')
-        ).join(' ')
+        Array.from({ length: 3 }, (_value, index) => (index < hearts ? '♥' : '♡')).join(' ')
       )
       progressText.setText(`DELIVERY ${ringsPassed} / 6`)
       scoreText.setText(`SCORE ${score}`)
@@ -2285,9 +1842,7 @@ export default class BazaarChallengePopup {
 
     const flap = () => {
       if (state !== 'playing' || this.resultLocked) return
-
       velocityY = -292
-
       this.addTween({
         targets: eagle,
         scaleX: 1.08,
@@ -2299,57 +1854,41 @@ export default class BazaarChallengePopup {
 
     const finishFlight = (success: boolean) => {
       if (state === 'finished') return
-
       state = 'finished'
       wingTween.pause()
 
       if (success) {
-        status.setText('Royal parcel delivered safely to the Nile tower.')
-
+        status.setText('Package delivered! The customer catches it without spilling tea.')
         this.addTween({
           targets: eagle,
           x: playRight - 62,
-          y: playTop + 58,
+          y: playTop + 72,
           angle: 0,
           duration: 650,
           ease: 'Sine.easeInOut',
         })
-
-        this.complete(
-          {
-            success: true,
-            goldDelta: hearts === 3 ? 600 : hearts === 2 ? 470 : 350,
-            reputationDelta:
-              hearts === 3 ? 24 : hearts === 2 ? 19 : 14,
-            response:
-              hearts === 3
-                ? `Flawless delivery. You cleared all 6 rings with ${score} points and the royal parcel did not even wobble.`
-                : `Delivery complete with ${hearts} heart${
-                    hearts === 1 ? '' : 's'
-                  } left and ${score} points. The falcon demands premium seed mix.`,
-          },
-          900
-        )
+        this.complete({
+          success: true,
+          goldDelta: hearts === 3 ? 600 : hearts === 2 ? 470 : 350,
+          reputationDelta: hearts === 3 ? 24 : hearts === 2 ? 19 : 14,
+          response:
+            hearts === 3
+              ? `Flawless delivery. You cleared all 6 rings with ${score} points and the package did not even wobble.`
+              : `Delivery complete with ${hearts} heart${hearts === 1 ? '' : 's'} left and ${score} points. The eagle demands premium seed mix.`,
+        }, 900)
       } else {
-        status.setText(
-          'The parcel survives. The falcon’s royal pride does not.'
-        )
-
-        this.complete(
-          {
-            success: false,
-            goldDelta: Math.max(40, ringsPassed * 45),
-            reputationDelta: Math.max(0, ringsPassed * 2),
-            response: `You cleared ${ringsPassed} of 6 delivery rings and scored ${score}. Three collisions ended the flight early.`,
-          },
-          900
-        )
+        status.setText('The package lands safely. The eagle’s pride does not.')
+        this.complete({
+          success: false,
+          goldDelta: Math.max(40, ringsPassed * 45),
+          reputationDelta: Math.max(0, ringsPassed * 2),
+          response: `You cleared ${ringsPassed} of 6 delivery rings and scored ${score}. Three collisions ended the flight early.`,
+        }, 900)
       }
     }
 
     const takeHit = (message: string) => {
       if (invulnerable || state !== 'playing') return
-
       invulnerable = true
       hearts -= 1
       velocityY = -185
@@ -2373,32 +1912,25 @@ export default class BazaarChallengePopup {
       this.schedule(1050, () => {
         invulnerable = false
         eagle.setAlpha(1)
-
-        if (state === 'playing') {
-          status.setText('Recover and keep flying through the sun rings.')
-        }
+        if (state === 'playing') status.setText('Recover! Keep flying through the rings.')
       })
     }
 
     let startButton: ButtonHandle
-
     const startCountdown = () => {
       if (state !== 'ready') return
-
       state = 'countdown'
       startButton.bg.setVisible(false)
       startButton.text.setVisible(false)
       startButton.setEnabled(false)
       countdownText.setVisible(true)
-      status.setText('The Nile winds are rising...')
+      status.setText('Get ready...')
 
       const steps = ['3', '2', '1', 'FLY!']
-
       steps.forEach((step, index) => {
         this.schedule(index * 700, () => {
           countdownText.setText(step)
           countdownText.setScale(step === 'FLY!' ? 0.75 : 1)
-
           this.addTween({
             targets: countdownText,
             scaleX: step === 'FLY!' ? 1 : 1.25,
@@ -2413,12 +1945,9 @@ export default class BazaarChallengePopup {
         state = 'playing'
         wingTween.resume()
         velocityY = -210
-        status.setText('CLICK THE SKY OR PRESS SPACE TO FLAP')
+        status.setText('CLICK OR PRESS SPACE TO FLAP')
       })
-
-      this.schedule(2700, () => {
-        countdownText.setVisible(false)
-      })
+      this.schedule(2700, () => countdownText.setVisible(false))
     }
 
     const handleControl = () => {
@@ -2426,22 +1955,16 @@ export default class BazaarChallengePopup {
         startCountdown()
         return
       }
-
       flap()
     }
 
     playBg.on('pointerdown', handleControl)
-    this.runtimeCleanups.push(() => {
-      playBg.off('pointerdown', handleControl)
-    })
+    this.runtimeCleanups.push(() => playBg.off('pointerdown', handleControl))
 
     const keyboard = this.scene.input.keyboard
-
     if (keyboard) {
       keyboard.on('keydown-SPACE', handleControl)
-      this.runtimeCleanups.push(() => {
-        keyboard.off('keydown-SPACE', handleControl)
-      })
+      this.runtimeCleanups.push(() => keyboard.off('keydown-SPACE', handleControl))
     }
 
     const updateFlight = (_time: number, delta: number) => {
@@ -2451,113 +1974,54 @@ export default class BazaarChallengePopup {
       elapsed += dt
       velocityY += 700 * dt
       eagle.y += velocityY * dt
-      eagle.setRotation(
-        Phaser.Math.Clamp(velocityY / 760, -0.38, 0.48)
-      )
+      eagle.setRotation(Phaser.Math.Clamp(velocityY / 760, -0.38, 0.48))
 
       if (eagle.y < playTop + 15) {
         eagle.y = playTop + 15
-        takeHit('Too high! The falcon clips a royal banner.')
+        takeHit('Too high! The eagle clips the market banner.')
       } else if (eagle.y > playBottom - 15) {
         eagle.y = playBottom - 15
         takeHit('Too low! A rooftop basket explodes into dates.')
       }
 
-      const eagleHitbox = new Phaser.Geom.Rectangle(
-        eagle.x - 14,
-        eagle.y - 10,
-        28,
-        21
-      )
+      const eagleHitbox = new Phaser.Geom.Rectangle(eagle.x - 14, eagle.y - 10, 28, 21)
 
       obstacles.forEach((obstacle) => {
         obstacle.x -= speed * dt
-
         if (obstacle.bobAmount > 0) {
-          obstacle.gapY =
-            obstacle.baseGapY +
-            Math.sin(
-              elapsed * obstacle.bobSpeed + obstacle.phase
-            ) *
-              obstacle.bobAmount
+          obstacle.gapY = obstacle.baseGapY + Math.sin(elapsed * obstacle.bobSpeed + obstacle.phase) * obstacle.bobAmount
         }
-
         updateObstacleGeometry(obstacle)
 
-        if (
-          !obstacle.passed &&
-          obstacle.x + obstacle.width / 2 < eagleX - 10
-        ) {
+        if (!obstacle.passed && obstacle.x + obstacle.width / 2 < eagleX - 10) {
           obstacle.passed = true
           ringsPassed += 1
-
           const centerDistance = Math.abs(eagle.y - obstacle.gapY)
           const perfect = centerDistance <= 21
-
           score += perfect ? 175 : 110
           speed = Math.min(188, speed + 7)
-
           obstacle.ring.setStrokeStyle(6, 0x72ff9b, 1)
           obstacle.ringLabel.setColor('#72ff9b')
-
           refreshHud()
-          status.setText(
-            perfect
-              ? 'Perfect sun ring! +175'
-              : 'Sun ring cleared! +110'
-          )
+          status.setText(perfect ? 'Perfect ring! +175' : 'Checkpoint cleared! +110')
 
-          if (ringsPassed >= 6) {
-            finishFlight(true)
-          }
+          if (ringsPassed >= 6) finishFlight(true)
         }
 
-        if (
-          invulnerable ||
-          obstacle.passed ||
-          state !== 'playing'
-        ) {
-          return
-        }
+        if (invulnerable || obstacle.passed || state !== 'playing') return
 
-        const hitTop =
-          Phaser.Geom.Intersects.RectangleToRectangle(
-            eagleHitbox,
-            obstacle.topBlock.getBounds()
-          )
-
-        const hitBottom =
-          Phaser.Geom.Intersects.RectangleToRectangle(
-            eagleHitbox,
-            obstacle.bottomBlock.getBounds()
-          )
-
+        const hitTop = Phaser.Geom.Intersects.RectangleToRectangle(eagleHitbox, obstacle.topBlock.getBounds())
+        const hitBottom = Phaser.Geom.Intersects.RectangleToRectangle(eagleHitbox, obstacle.bottomBlock.getBounds())
         if (hitTop || hitBottom) {
-          takeHit(
-            obstacle.isFinal
-              ? 'You clipped the Nile delivery tower!'
-              : 'Impact! The royal parcel nearly slips loose.'
-          )
+          takeHit(obstacle.isFinal ? 'You clipped the delivery tower!' : 'Impact! The package nearly slips loose.')
         }
       })
     }
 
     this.scene.events.on('update', updateFlight)
-    this.runtimeCleanups.push(() => {
-      this.scene.events.off('update', updateFlight)
-    })
+    this.runtimeCleanups.push(() => this.scene.events.off('update', updateFlight))
 
-    startButton = this.createButton(
-      width / 2,
-      buttonY,
-      252,
-      44,
-      'BEGIN FALCON FLIGHT',
-      startCountdown,
-      0x8b5a2b,
-      16
-    )
-
+    startButton = this.createButton(width / 2, bottom - 47, 245, 48, 'START FLIGHT', startCountdown, 0x27633a, 18)
     refreshHud()
     this.container.bringToTop(eagle)
     this.container.bringToTop(countdownText)

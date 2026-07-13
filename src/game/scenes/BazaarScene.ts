@@ -159,7 +159,7 @@ private bazaarExitPoint?: {
       0.15
     )
   
-    this.cameras.main.setZoom(0.6)
+    this.cameras.main.setZoom(0.7)
   
     this.createBazaarMinimap(mapWidth, mapHeight)
   
