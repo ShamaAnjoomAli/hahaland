@@ -1,0 +1,583 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.10.2",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 22,
+  "height": 18,
+  "tilewidth": 64,
+  "tileheight": 64,
+  "infinite": false,
+  "nextlayerid": 4,
+  "nextobjectid": 57,
+  "tilesets": [],
+  "layers": [
+    {
+      "id": 1,
+      "name": "Background",
+      "type": "imagelayer",
+      "visible": true,
+      "opacity": 1,
+      "x": 0,
+      "y": 0,
+      "image": "bazaar_background.png",
+      "repeatx": false,
+      "repeaty": false
+    },
+    {
+      "id": 2,
+      "name": "CollisionObjects",
+      "type": "objectgroup",
+      "visible": true,
+      "opacity": 1,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        {
+          "id": 1,
+          "name": "MapSellerCore",
+          "type": "collision",
+          "x": 120,
+          "y": 125,
+          "width": 150,
+          "height": 110,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 2,
+          "name": "ScaleMerchantCore",
+          "type": "collision",
+          "x": 492,
+          "y": 230,
+          "width": 150,
+          "height": 105,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 3,
+          "name": "SpiceMerchantCore",
+          "type": "collision",
+          "x": 980,
+          "y": 335,
+          "width": 160,
+          "height": 110,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 4,
+          "name": "DateMerchantCore",
+          "type": "collision",
+          "x": 125,
+          "y": 485,
+          "width": 145,
+          "height": 105,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 5,
+          "name": "PotterySellerCore",
+          "type": "collision",
+          "x": 1110,
+          "y": 555,
+          "width": 145,
+          "height": 120,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 6,
+          "name": "DonkeyMasterCore",
+          "type": "collision",
+          "x": 235,
+          "y": 765,
+          "width": 165,
+          "height": 125,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 7,
+          "name": "EagleKeeperCore",
+          "type": "collision",
+          "x": 950,
+          "y": 835,
+          "width": 145,
+          "height": 120,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 8,
+          "name": "NorthGateLeftPillar",
+          "type": "collision",
+          "x": 602,
+          "y": 0,
+          "width": 55,
+          "height": 120,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 9,
+          "name": "NorthGateRightPillar",
+          "type": "collision",
+          "x": 755,
+          "y": 0,
+          "width": 55,
+          "height": 120,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 10,
+          "name": "BazaarEntranceLeftPillar",
+          "type": "collision",
+          "x": 610,
+          "y": 970,
+          "width": 55,
+          "height": 125,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 11,
+          "name": "BazaarEntranceRightPillar",
+          "type": "collision",
+          "x": 760,
+          "y": 970,
+          "width": 55,
+          "height": 125,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 12,
+          "name": "LeftFountainCore",
+          "type": "collision",
+          "x": 22,
+          "y": 222,
+          "width": 70,
+          "height": 70,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 13,
+          "name": "CenterFountainCore",
+          "type": "collision",
+          "x": 650,
+          "y": 620,
+          "width": 86,
+          "height": 80,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 14,
+          "name": "CenterPalmCoreTop",
+          "type": "collision",
+          "x": 605,
+          "y": 470,
+          "width": 48,
+          "height": 54,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 15,
+          "name": "CenterPalmCoreRight",
+          "type": "collision",
+          "x": 825,
+          "y": 600,
+          "width": 48,
+          "height": 64,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 16,
+          "name": "LowerLeftPalmCore",
+          "type": "collision",
+          "x": 58,
+          "y": 1000,
+          "width": 55,
+          "height": 70,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 17,
+          "name": "PlaceholderTopLeftCore",
+          "type": "collision",
+          "x": 0,
+          "y": 95,
+          "width": 38,
+          "height": 95,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 18,
+          "name": "PlaceholderTopCenterCore",
+          "type": "collision",
+          "x": 385,
+          "y": 135,
+          "width": 90,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 19,
+          "name": "PlaceholderTopRightYellowCore",
+          "type": "collision",
+          "x": 855,
+          "y": 180,
+          "width": 85,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 20,
+          "name": "PlaceholderTopRightOrangeCore",
+          "type": "collision",
+          "x": 1160,
+          "y": 175,
+          "width": 70,
+          "height": 70,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 21,
+          "name": "PlaceholderFarRightBuildingCore",
+          "type": "collision",
+          "x": 1348,
+          "y": 145,
+          "width": 45,
+          "height": 140,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 22,
+          "name": "PlaceholderLeftMiddleTanCore",
+          "type": "collision",
+          "x": 270,
+          "y": 355,
+          "width": 95,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 23,
+          "name": "PlaceholderCenterRedCore",
+          "type": "collision",
+          "x": 470,
+          "y": 465,
+          "width": 80,
+          "height": 65,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 24,
+          "name": "PlaceholderCenterBlueCore",
+          "type": "collision",
+          "x": 750,
+          "y": 375,
+          "width": 85,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 25,
+          "name": "PlaceholderRightMiddleSmallCore",
+          "type": "collision",
+          "x": 970,
+          "y": 530,
+          "width": 80,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 26,
+          "name": "PlaceholderRightEdgeGoldCore",
+          "type": "collision",
+          "x": 1330,
+          "y": 505,
+          "width": 55,
+          "height": 95,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 27,
+          "name": "PlaceholderLeftBlueCore",
+          "type": "collision",
+          "x": 0,
+          "y": 690,
+          "width": 45,
+          "height": 90,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 28,
+          "name": "PlaceholderMiddleBlueCore",
+          "type": "collision",
+          "x": 450,
+          "y": 620,
+          "width": 85,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 29,
+          "name": "PlaceholderCenterBottomTanACore",
+          "type": "collision",
+          "x": 565,
+          "y": 845,
+          "width": 95,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 30,
+          "name": "PlaceholderCenterPurpleCore",
+          "type": "collision",
+          "x": 780,
+          "y": 785,
+          "width": 85,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 31,
+          "name": "PlaceholderRightBottomGreyCore",
+          "type": "collision",
+          "x": 1185,
+          "y": 785,
+          "width": 80,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 32,
+          "name": "PlaceholderBottomRightYellowCore",
+          "type": "collision",
+          "x": 1288,
+          "y": 950,
+          "width": 75,
+          "height": 95,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 33,
+          "name": "PlaceholderBottomCenterCore",
+          "type": "collision",
+          "x": 510,
+          "y": 1030,
+          "width": 80,
+          "height": 75,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 34,
+          "name": "TopLeftArchitectureEdge",
+          "type": "collision",
+          "x": 0,
+          "y": 0,
+          "width": 170,
+          "height": 45,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 35,
+          "name": "TopRightArchitectureEdge",
+          "type": "collision",
+          "x": 1160,
+          "y": 0,
+          "width": 242,
+          "height": 50,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 36,
+          "name": "BottomLeftArchitectureEdge",
+          "type": "collision",
+          "x": 0,
+          "y": 1080,
+          "width": 150,
+          "height": 42,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 37,
+          "name": "BottomRightArchitectureEdge",
+          "type": "collision",
+          "x": 1110,
+          "y": 1082,
+          "width": 292,
+          "height": 40,
+          "rotation": 0,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Spawns",
+      "type": "objectgroup",
+      "visible": true,
+      "opacity": 1,
+      "x": 0,
+      "y": 0,
+      "objects": [
+        {
+          "id": 1,
+          "name": "BazaarPlayerSpawn",
+          "type": "spawn",
+          "x": 704,
+          "y": 1042,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 2,
+          "name": "BazaarExit",
+          "type": "spawn",
+          "x": 704,
+          "y": 112,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 3,
+          "name": "NPC_3",
+          "type": "npc",
+          "x": 205,
+          "y": 275,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 4,
+          "name": "NPC_4",
+          "type": "npc",
+          "x": 570,
+          "y": 342,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 5,
+          "name": "NPC_8",
+          "type": "npc",
+          "x": 1045,
+          "y": 405,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 6,
+          "name": "NPC_7",
+          "type": "npc",
+          "x": 205,
+          "y": 560,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 7,
+          "name": "NPC_10",
+          "type": "npc",
+          "x": 1155,
+          "y": 640,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 8,
+          "name": "NPC_11",
+          "type": "npc",
+          "x": 330,
+          "y": 800,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        },
+        {
+          "id": 9,
+          "name": "NPC_15",
+          "type": "npc",
+          "x": 955,
+          "y": 850,
+          "width": 0,
+          "height": 0,
+          "rotation": 0,
+          "visible": true,
+          "point": true
+        }
+      ]
+    }
+  ],
+  "properties": [
+    {
+      "name": "backgroundImageKey",
+      "type": "string",
+      "value": "bazaar-background"
+    },
+    {
+      "name": "sourceImageWidth",
+      "type": "int",
+      "value": 1402
+    },
+    {
+      "name": "sourceImageHeight",
+      "type": "int",
+      "value": 1122
+    }
+  ]
+}

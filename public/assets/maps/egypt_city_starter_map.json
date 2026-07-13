@@ -95,7 +95,7 @@
          "name":"Paths",
          "opacity":1,
          "type":"tilelayer",
-         "visible":false,
+         "visible":true,
          "width":45,
          "x":0,
          "y":0
@@ -144,7 +144,7 @@
          "name":"Water",
          "opacity":1,
          "type":"tilelayer",
-         "visible":false,
+         "visible":true,
          "width":45,
          "x":0,
          "y":0
@@ -193,7 +193,7 @@
          "name":"Buildings",
          "opacity":1,
          "type":"tilelayer",
-         "visible":false,
+         "visible":true,
          "width":45,
          "x":0,
          "y":0
@@ -242,7 +242,7 @@
          "name":"Props",
          "opacity":1,
          "type":"tilelayer",
-         "visible":false,
+         "visible":true,
          "width":45,
          "x":0,
          "y":0
@@ -638,7 +638,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -683,8 +683,8 @@
                  "type":"spawn",
                  "visible":true,
                  "width":0,
-                 "x":2667.2,
-                 "y":1490.53333333333
+                 "x":2659.86666666667,
+                 "y":1496.53333333333
                 }, 
                 {
                  "height":0,
@@ -761,12 +761,62 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":1308.33333333333,
-                 "y":1264.45454545455
+                 "x":1418.33333333333,
+                 "y":1334.45454545455
+                }, 
+                {
+                 "height":0,
+                 "id":61,
+                 "name":"BazaarEntrance",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":1484,
+                 "y":1254
+                }, 
+                {
+                 "height":0,
+                 "id":62,
+                 "name":"BazaarReturnSpawn",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":1482,
+                 "y":1284
+                }, 
+                {
+                 "height":0,
+                 "id":63,
+                 "name":"",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":1308,
+                 "y":1222
+                }, 
+                {
+                 "height":0,
+                 "id":64,
+                 "name":"",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":1306,
+                 "y":1264
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -820,7 +870,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":61,
+ "nextobjectid":65,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",

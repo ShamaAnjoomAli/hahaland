@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 
 import BootScene from './game/scenes/BootScene'
 import VillageScene from './game/scenes/VillageScene'
+import BazaarScene from './game/scenes/BazaarScene'
 
 import './Game.css'
 
@@ -98,7 +99,11 @@ export default function Game() {
           debug: false,
         },
       },
-      scene: [BootScene, VillageScene],
+      scene: [
+        BootScene,
+        VillageScene,
+        BazaarScene,
+      ],
       scale: {
         mode: Phaser.Scale.FIT,
         // autoCenter: Phaser.Scale.CENTER_BOTH,

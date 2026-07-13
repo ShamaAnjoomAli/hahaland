@@ -230,6 +230,16 @@ export default class BootScene extends Phaser.Scene {
       console.error('Failed to load asset:', file.key, file.src)
     })
 
+    this.load.image(
+      'bazaar-background',
+      'assets/maps/bazaar_background.png'
+    )
+    
+    this.load.tilemapTiledJSON(
+      'egypt_bazaar',
+      'assets/maps/egypt_bazaar_map.json'
+    )
+    
   }
 
   create() {
