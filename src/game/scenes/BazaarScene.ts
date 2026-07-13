@@ -24,6 +24,39 @@ export default class BazaarScene extends Phaser.Scene {
 
   private completedMarkets = new Set<string>()
 
+  private worldObjects: Phaser.GameObjects.GameObject[] = []
+private uiCamera!: Phaser.Cameras.Scene2D.Camera
+
+private minimapConfig = {
+  x: 0,
+  y: 0,
+  width: 180,
+  height: 120,
+}
+
+private minimapBackground?: Phaser.GameObjects.Image
+private minimapBorder?: Phaser.GameObjects.Rectangle
+private minimapPlayerDot?: Phaser.GameObjects.Arc
+private minimapNpcDots: Phaser.GameObjects.Arc[] = []
+
+private mapPixelWidth = 0
+private mapPixelHeight = 0
+
+private bazaarExitPoint?: {
+    x: number
+    y: number
+  }
+  
+  private bazaarExitGlow?: Phaser.GameObjects.Arc
+  private bazaarExitRing?: Phaser.GameObjects.Arc
+  private bazaarExitArrow?: Phaser.GameObjects.Text
+  private bazaarExitLabel?: Phaser.GameObjects.Container
+  private bazaarExitLabelText?: Phaser.GameObjects.Text
+  
+  private bazaarExitRadius = 90
+  private minimapExitDot?: Phaser.GameObjects.Arc
+
+  private gateForeground?: Phaser.GameObjects.Image
   constructor() {
     super('BazaarScene')
   }
@@ -45,83 +78,104 @@ export default class BazaarScene extends Phaser.Scene {
     const map = this.make.tilemap({
       key: 'egypt_bazaar',
     })
-
+  
     const background = this.add.image(
       0,
       0,
       'bazaar-background'
     )
-
+  
     background.setOrigin(0, 0)
     background.setDepth(0)
+  
+    this.worldObjects.push(background)
+  
+    this.gateForeground = this.add.image(
+        639.5,
+        870,
+        'bazaar-gate-foreground'
+      )
+      
+      this.gateForeground.setOrigin(0, 0)
+      this.gateForeground.setDepth(9000)
+      
+      this.worldObjects.push(this.gateForeground)
+
 
     const mapWidth =
       map.widthInPixels || background.width
-
+  
     const mapHeight =
       map.heightInPixels || background.height
-
+  
     this.physics.world.setBounds(
       0,
       0,
       mapWidth,
       mapHeight
     )
-
+  
     this.cameras.main.setBounds(
       0,
       0,
       mapWidth,
       mapHeight
     )
-
+  
     this.dialogue = new DialogueBox(this)
     this.objectiveBox = new ObjectiveBox(this)
     this.minigame = new MinigamePopup(this)
-
+  
     this.objectiveBox.setText(
       'Objective: Explore the bazaar markets.'
     )
-
+  
     this.createPlayer(map)
+    this.worldObjects.push(this.player)
+  
     this.createNPCsFromMap(map)
     this.createCollisionObjects(map)
+    this.createBazaarExitMarker(map)
     this.createInteractPrompt()
-
+  
     this.cameras.main.startFollow(
       this.player,
       true,
       0.15,
       0.15
     )
-
-    this.cameras.main.setZoom(0.8)
-
+  
+    this.cameras.main.setZoom(0.6)
+  
+    this.createBazaarMinimap(mapWidth, mapHeight)
+  
     this.hud = new GameHUD(
       this,
-      this.scale.width - 176,
-      126,
-      160
+      this.minimapConfig.x,
+      this.minimapConfig.y + this.minimapConfig.height + 8,
+      this.minimapConfig.width
     )
-
+  
     this.hud.setCoins(this.coins)
     this.hud.setTime(0)
-
+  
+    this.createUICamera()
+  
     this.keys = this.input.keyboard!.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
     })
-
+  
     this.interactKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.E
     )
-
+  
     this.spaceKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     )
-
+  
     this.dialogue.show(
       [
         {
@@ -158,6 +212,8 @@ export default class BazaarScene extends Phaser.Scene {
 
       return
     }
+
+    this.updateBazaarMinimap()
 
     this.updateInteractPrompt()
 
@@ -263,7 +319,7 @@ export default class BazaarScene extends Phaser.Scene {
       npc.setDepth(npc.y)
 
       this.npcs.push(npc)
-
+this.worldObjects.push(npc)
       this.physics.add.collider(
         this.player,
         npc
@@ -334,6 +390,7 @@ export default class BazaarScene extends Phaser.Scene {
 
     this.interactPrompt.setDepth(20000)
     this.interactPrompt.setVisible(false)
+    this.worldObjects.push(this.interactPrompt)
   }
 
   private updateInteractPrompt() {
@@ -521,41 +578,35 @@ export default class BazaarScene extends Phaser.Scene {
   }
 
   private handleBazaarExit() {
-    const exit = this.getOptionalSpawnPointFromKey(
-      'BazaarExit'
+    if (!this.bazaarExitPoint) return false
+  
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.bazaarExitPoint.x,
+      this.bazaarExitPoint.y
     )
-
-    if (!exit) return false
-
-    const distance =
-      Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        exit.x,
-        exit.y
-      )
-
-    if (distance > 90) return false
-
-    this.objectiveBox.setText(
-      'Press E to return to the city.'
+  
+    const playerIsNear =
+      distance <= this.bazaarExitRadius
+  
+    this.bazaarExitLabelText?.setText(
+      playerIsNear ? 'E Return to City' : 'Return to City'
     )
-
+  
+    this.bazaarExitGlow?.setFillStyle(
+      playerIsNear ? 0x00ff66 : 0x00aa44,
+      0.25
+    )
+  
     if (
-      Phaser.Input.Keyboard.JustDown(
-        this.interactKey
-      )
+      playerIsNear &&
+      Phaser.Input.Keyboard.JustDown(this.interactKey)
     ) {
-      this.scene.start('VillageScene', {
-        fromBazaar: true,
-        spawnName: 'BazaarReturnSpawn',
-        coins: this.coins,
-        reputation: this.reputation,
-      })
-
+      this.startReturnToVillage()
       return true
     }
-
+  
     return false
   }
 
@@ -870,4 +921,372 @@ export default class BazaarScene extends Phaser.Scene {
 
     return sprites[name] ?? 'npc1'
   }
+
+  private createBazaarMinimap(
+    mapWidth: number,
+    mapHeight: number
+  ) {
+    this.mapPixelWidth = mapWidth
+    this.mapPixelHeight = mapHeight
+  
+    const minimapWidth = 180
+    const minimapHeight = 120
+    const padding = 4
+    
+    const x = this.scale.width - minimapWidth - padding
+    const y = 18
+  
+    this.minimapConfig = {
+      x,
+      y,
+      width: minimapWidth,
+      height: minimapHeight,
+    }
+  
+    this.minimapBackground = this.add.image(
+      x,
+      y,
+      'bazaar-background'
+    )
+  
+    this.minimapBackground.setOrigin(0, 0)
+    this.minimapBackground.setDisplaySize(
+      minimapWidth,
+      minimapHeight
+    )
+    this.minimapBackground.setScrollFactor(0)
+    this.minimapBackground.setDepth(20000)
+    this.minimapBackground.setAlpha(0.92)
+  
+    this.minimapBorder = this.add.rectangle(
+      x,
+      y,
+      minimapWidth,
+      minimapHeight,
+      0x000000,
+      0
+    )
+  
+    this.minimapBorder.setOrigin(0)
+    this.minimapBorder.setScrollFactor(0)
+    this.minimapBorder.setDepth(20001)
+    this.minimapBorder.setStrokeStyle(2, 0xffffff, 0.9)
+  
+    this.minimapPlayerDot = this.add.circle(
+      x,
+      y,
+      4,
+      0xff0000
+    )
+  
+    this.minimapPlayerDot.setScrollFactor(0)
+    this.minimapPlayerDot.setDepth(20003)
+  
+    this.minimapExitDot = this.add.circle(
+        x,
+        y,
+        6,
+        0x00ff66
+      )
+      
+      this.minimapExitDot.setScrollFactor(0)
+      this.minimapExitDot.setDepth(20006)
+      this.minimapExitDot.setStrokeStyle(2, 0x000000)
+
+    this.minimapNpcDots = this.npcs.map(() => {
+      const dot = this.add.circle(
+        x,
+        y,
+        3,
+        0x66ccff
+      )
+  
+      dot.setScrollFactor(0)
+      dot.setDepth(20002)
+      dot.setStrokeStyle(1, 0x000000)
+  
+      return dot
+    })
+  }
+
+  private updateBazaarMinimap() {
+    if (
+        !this.minimapPlayerDot ||
+        !this.minimapBackground ||
+        !this.minimapBorder
+      ) {
+        return
+      }  
+    const px = Phaser.Math.Clamp(
+      this.player.x / this.mapPixelWidth,
+      0,
+      1
+    )
+  
+    const py = Phaser.Math.Clamp(
+      this.player.y / this.mapPixelHeight,
+      0,
+      1
+    )
+  
+    this.minimapPlayerDot.setPosition(
+      this.minimapConfig.x + px * this.minimapConfig.width,
+      this.minimapConfig.y + py * this.minimapConfig.height
+    )
+  
+    this.npcs.forEach((npc, index) => {
+      const dot = this.minimapNpcDots[index]
+  
+      if (!dot) return
+  
+      const nx = Phaser.Math.Clamp(
+        npc.x / this.mapPixelWidth,
+        0,
+        1
+      )
+  
+      const ny = Phaser.Math.Clamp(
+        npc.y / this.mapPixelHeight,
+        0,
+        1
+      )
+  
+      dot.setPosition(
+        this.minimapConfig.x + nx * this.minimapConfig.width,
+        this.minimapConfig.y + ny * this.minimapConfig.height
+      )
+    })
+
+    if (this.minimapExitDot && this.bazaarExitPoint) {
+        const ex = Phaser.Math.Clamp(
+          this.bazaarExitPoint.x / this.mapPixelWidth,
+          0,
+          1
+        )
+      
+        const ey = Phaser.Math.Clamp(
+          this.bazaarExitPoint.y / this.mapPixelHeight,
+          0,
+          1
+        )
+      
+        this.minimapExitDot.setPosition(
+          this.minimapConfig.x + ex * this.minimapConfig.width,
+          this.minimapConfig.y + ey * this.minimapConfig.height
+        )
+      }
+  }
+
+  private createBazaarExitMarker(
+    map: Phaser.Tilemaps.Tilemap
+  ) {
+    const point = this.getSpawnPoint(map, 'BazaarExit')
+  
+    this.bazaarExitPoint = point
+  
+    this.bazaarExitGlow = this.add.circle(
+      point.x,
+      point.y,
+      26,
+      0x00aa44,
+      0.25
+    )
+  
+    this.bazaarExitRing = this.add.circle(
+      point.x,
+      point.y,
+      22,
+      0x00aa44,
+      0
+    )
+  
+    this.bazaarExitRing.setStrokeStyle(4, 0xffdd66, 1)
+  
+    this.bazaarExitArrow = this.add.text(
+      point.x,
+      point.y - 5,
+      '↑',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '22px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 5,
+        fontStyle: 'bold',
+      }
+    )
+  
+    this.bazaarExitArrow.setOrigin(0.5)
+  
+    const labelBg = this.add.rectangle(
+      0,
+      0,
+      210,
+      34,
+      0x000000,
+      0.78
+    )
+  
+    labelBg.setStrokeStyle(2, 0xffdd66, 1)
+  
+    this.bazaarExitLabelText = this.add.text(
+      0,
+      0,
+      'Return to City',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '16px',
+        color: '#ffdd66',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+  
+    this.bazaarExitLabelText.setOrigin(0.5)
+  
+    this.bazaarExitLabel = this.add.container(
+      point.x,
+      point.y - 58,
+      [labelBg, this.bazaarExitLabelText]
+    )
+  
+    const objects = [
+      this.bazaarExitGlow,
+      this.bazaarExitRing,
+      this.bazaarExitArrow,
+      this.bazaarExitLabel,
+    ]
+  
+    objects.forEach((obj) => {
+      obj.setDepth(9500)
+    })
+  
+    this.worldObjects.push(...objects)
+  
+    this.tweens.add({
+      targets: this.bazaarExitGlow,
+      scaleX: 1.55,
+      scaleY: 1.55,
+      alpha: 0.1,
+      duration: 750,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  
+    this.tweens.add({
+      targets: this.bazaarExitRing,
+      scaleX: 1.18,
+      scaleY: 1.18,
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  
+    this.tweens.add({
+      targets: this.bazaarExitArrow,
+      y: point.y - 10,
+      duration: 550,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  }
+
+  private startReturnToVillage() {
+    const width = this.scale.width
+    const height = this.scale.height
+  
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x050505,
+      1
+    )
+  
+    overlay.setScrollFactor(0)
+    overlay.setDepth(90000)
+  
+    const title = this.add.text(
+      width / 2,
+      height / 2 - 30,
+      'RETURNING TO CITY',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '38px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 6,
+        fontStyle: 'bold',
+      }
+    )
+  
+    title.setOrigin(0.5)
+    title.setScrollFactor(0)
+    title.setDepth(90001)
+  
+    this.cameras.main.fadeOut(650, 0, 0, 0)
+  
+    this.time.delayedCall(850, () => {
+      this.scene.start('VillageScene', {
+        fromBazaar: true,
+        spawnName: 'BazaarReturnSpawn',
+        coins: this.coins,
+        reputation: this.reputation,
+      })
+    })
+  }
+
+  private createUICamera() {
+    const uiObjects: Phaser.GameObjects.GameObject[] = []
+  
+    const addUIObject = (
+      obj?: Phaser.GameObjects.GameObject | null
+    ) => {
+      if (obj) {
+        uiObjects.push(obj)
+      }
+    }
+  
+    addUIObject(this.dialogue?.container)
+    addUIObject(this.objectiveBox?.container)
+    addUIObject(this.hud?.container)
+    addUIObject(this.minigame?.container)
+  
+    addUIObject(this.minimapBackground)
+    addUIObject(this.minimapBorder)
+    addUIObject(this.minimapPlayerDot)
+    addUIObject(this.minimapExitDot)
+    this.minimapNpcDots.forEach((dot) => {
+      addUIObject(dot)
+    })
+  
+    if (uiObjects.length > 0) {
+      this.cameras.main.ignore(uiObjects)
+    }
+  
+    this.uiCamera = this.cameras.add(
+      0,
+      0,
+      this.scale.width,
+      this.scale.height
+    )
+  
+    this.uiCamera.setName('BazaarUICamera')
+    this.uiCamera.setScroll(0, 0)
+    this.uiCamera.setZoom(1)
+  
+    const cleanWorldObjects = this.worldObjects.filter(Boolean)
+  
+    if (cleanWorldObjects.length > 0) {
+      this.uiCamera.ignore(cleanWorldObjects)
+    }
+
+    this.worldObjects.push(this.gateForeground)
+  }
+
 }

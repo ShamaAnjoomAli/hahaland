@@ -239,7 +239,11 @@ export default class BootScene extends Phaser.Scene {
       'egypt_bazaar',
       'assets/maps/egypt_bazaar_map.json'
     )
-    
+
+    this.load.image(
+      'bazaar-gate-foreground',
+      'assets/maps/bazaar_gate_foreground.png'
+    )
   }
 
   create() {

@@ -251,14 +251,46 @@ export default class VillageScene extends Phaser.Scene {
   // To make the player enter the city below the gate
   private foregroundGateLayer?: Phaser.Tilemaps.TilemapLayer;
 
-  private bazaarEntrancePoint?: { x: number; y: number }
-  private bazaarEntranceMarker?: Phaser.GameObjects.Arc
-  private bazaarEntranceLabel?: Phaser.GameObjects.Text
-  private bazaarEntranceRadius = 80
+  private bazaarEntranceMarker?: Phaser.GameObjects.Arc  
+  private bazaarEntrancePoint?: {
+    x: number
+    y: number
+  }
   
+  private bazaarEntranceGlow?: Phaser.GameObjects.Arc
+  private bazaarEntranceRing?: Phaser.GameObjects.Arc
+  private bazaarEntranceInner?: Phaser.GameObjects.Arc
+  private bazaarEntranceArrow?: Phaser.GameObjects.Text
+  private bazaarEntranceLabel?: Phaser.GameObjects.Container
+  private bazaarEntranceLabelText?: Phaser.GameObjects.Text
+  private bazaarEntranceZone?: Phaser.GameObjects.Zone
+  
+  private bazaarEntranceRadius = 95
+  
+  private returnFromBazaar = false
+private villageSpawnName = 'PlayerSpawn'
+
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super('VillageScene')
+  }
+
+  init(data?: {
+    fromBazaar?: boolean
+    spawnName?: string
+    coins?: number
+    reputation?: number
+  }) {
+    this.returnFromBazaar = Boolean(data?.fromBazaar)
+    this.villageSpawnName = data?.spawnName ?? 'PlayerSpawn'
+  
+    if (typeof data?.coins === 'number') {
+      this.coins = data.coins
+    }
+  
+    if (typeof data?.reputation === 'number') {
+      this.reputation = data.reputation
+    }
   }
 
   /**
@@ -343,8 +375,10 @@ export default class VillageScene extends Phaser.Scene {
     // --- Player setup ---
     // Spawn the player sprite at the starting position with physics and a slightly smaller scale.
     // this.player = this.physics.add.sprite(20, 10, "player");
-    const gameplaySpawn = this.getSpawnPoint(map, 'PlayerSpawn')
-
+const gameplaySpawn = this.getSpawnPoint(
+  map,
+  this.villageSpawnName
+)
     const introSpawn = this.getOptionalSpawnPoint(map, 'PlayerIntroStart') ?? {
       x: gameplaySpawn.x,
       y: gameplaySpawn.y - 90,
@@ -423,8 +457,27 @@ export default class VillageScene extends Phaser.Scene {
 
     this.createUICamera()
 
-    this.startOpeningSequence()
-
+    if (this.returnFromBazaar) {
+      this.isOpeningSequencePlaying = false
+      this.isCutscenePlaying = false
+    
+      this.player.setVisible(true)
+      this.player.setPosition(gameplaySpawn.x, gameplaySpawn.y)
+      this.player.setVelocity(0)
+      this.player.stop()
+    
+      this.storyStage = 'bazaarQuests'
+    
+      this.setStoryUIVisible(true)
+    
+      this.objectiveBox.setText(
+        'Objective: Continue your journey through Hahaland.'
+      )
+    
+      this.cameras.main.centerOn(gameplaySpawn.x, gameplaySpawn.y)
+    } else {
+      this.startOpeningSequence()
+    }
     // --- Keyboard input ---
     // Bind WASD keys for four-directional movement.
     this.keys = this.input.keyboard!.addKeys({
@@ -603,6 +656,17 @@ export default class VillageScene extends Phaser.Scene {
       console.log('Player position:', {
         x: Math.round(this.player.x),
         y: Math.round(this.player.y),
+      })
+    }
+
+    if (
+      Phaser.Input.Keyboard.JustDown(
+        this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
+      )
+    ) {
+      this.scene.start('BazaarScene', {
+        coins: this.coins,
+        reputation: this.reputation,
       })
     }
 
@@ -1969,12 +2033,14 @@ export default class VillageScene extends Phaser.Scene {
     this.mapPixelHeight = map.heightInPixels
 
     const minimapWidth = 160
-    const minimapHeight = 100
-    const padding = 16
+const minimapHeight = Math.round(
+  minimapWidth * (map.heightInPixels / map.widthInPixels)
+)
 
-    const x = this.scale.width - minimapWidth - padding
-    const y = padding
+const padding = 16
 
+const x = this.scale.width - minimapWidth - padding
+const y = padding
     this.minimapConfig = {
       x,
       y,
@@ -2533,113 +2599,283 @@ export default class VillageScene extends Phaser.Scene {
     const point = this.getOptionalSpawnPoint(map, 'BazaarEntrance')
   
     if (!point) {
-      console.warn('BazaarEntrance spawn point not found.')
+      console.warn('BazaarEntrance spawn point not found in Tiled.')
       return
     }
   
     this.bazaarEntrancePoint = point
   
-    this.bazaarEntranceMarker = this.add.circle(
+    this.bazaarEntranceGlow = this.add.circle(
       point.x,
       point.y,
-      22,
-      0xff2222,
+      38,
+      0xff4422,
+      0.25
+    )
+  
+    this.bazaarEntranceRing = this.add.circle(
+      point.x,
+      point.y,
+      34,
+      0xff0000,
+      0
+    )
+  
+    this.bazaarEntranceRing.setStrokeStyle(4, 0xffdd66, 1)
+  
+    this.bazaarEntranceInner = this.add.circle(
+      point.x,
+      point.y,
+      16,
+      0xff3311,
       0.85
     )
   
-    this.bazaarEntranceMarker.setDepth(8500)
-    this.bazaarEntranceMarker.setVisible(false)
-    this.bazaarEntranceMarker.setInteractive({
-      useHandCursor: true,
-    })
+    this.bazaarEntranceInner.setStrokeStyle(2, 0xffffff, 0.95)
   
-    this.bazaarEntranceMarker.on('pointerdown', () => {
-      if (this.storyStage === 'bazaarTraining') {
-        this.enterBazaarScene()
-      }
-    })
-  
-    this.tweens.add({
-      targets: this.bazaarEntranceMarker,
-      scaleX: 1.45,
-      scaleY: 1.45,
-      alpha: 0.35,
-      duration: 650,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-  
-    this.bazaarEntranceLabel = this.add.text(
+    this.bazaarEntranceArrow = this.add.text(
       point.x,
-      point.y - 48,
-      'Enter Bazaar',
+      point.y - 5,
+      '↓',
       {
         fontFamily: 'Georgia',
-        fontSize: '18px',
-        color: '#ffdddd',
+        fontSize: '28px',
+        color: '#ffffff',
         stroke: '#000000',
         strokeThickness: 5,
         fontStyle: 'bold',
       }
     )
   
-    this.bazaarEntranceLabel.setOrigin(0.5)
-    this.bazaarEntranceLabel.setDepth(8501)
-    this.bazaarEntranceLabel.setVisible(false)
+    this.bazaarEntranceArrow.setOrigin(0.5)
   
-    this.worldObjects.push(
-      this.bazaarEntranceMarker,
-      this.bazaarEntranceLabel
+    const labelBg = this.add.rectangle(
+      0,
+      0,
+      190,
+      34,
+      0x000000,
+      0.78
     )
+  
+    labelBg.setStrokeStyle(2, 0xffdd66, 1)
+  
+    this.bazaarEntranceLabelText = this.add.text(
+      0,
+      0,
+      'Enter Bazaar',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '16px',
+        color: '#ffdd66',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+  
+    this.bazaarEntranceLabelText.setOrigin(0.5)
+  
+    this.bazaarEntranceLabel = this.add.container(
+      point.x,
+      point.y - 58,
+      [labelBg, this.bazaarEntranceLabelText]
+    )
+  
+    this.bazaarEntranceZone = this.add.zone(
+      point.x,
+      point.y,
+      120,
+      120
+    )
+  
+    this.bazaarEntranceZone.setInteractive({
+      useHandCursor: true,
+    })
+  
+    this.bazaarEntranceZone.on('pointerdown', () => {
+      if (this.storyStage !== 'bazaarTraining') return
+      this.enterBazaarScene()
+    })
+  
+    const markerObjects = [
+      this.bazaarEntranceGlow,
+      this.bazaarEntranceRing,
+      this.bazaarEntranceInner,
+      this.bazaarEntranceArrow,
+      this.bazaarEntranceLabel,
+      this.bazaarEntranceZone,
+    ]
+  
+    markerObjects.forEach((obj) => {
+      obj.setDepth(9500)
+      obj.setVisible(false)
+    })
+  
+    this.worldObjects.push(...markerObjects)
+  
+    this.tweens.add({
+      targets: this.bazaarEntranceGlow,
+      scaleX: 1.55,
+      scaleY: 1.55,
+      alpha: 0.1,
+      duration: 750,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  
+    this.tweens.add({
+      targets: this.bazaarEntranceRing,
+      scaleX: 1.18,
+      scaleY: 1.18,
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  
+    this.tweens.add({
+      targets: this.bazaarEntranceArrow,
+      y: point.y - 12,
+      duration: 550,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  
+    this.minimap?.ignore(markerObjects)
+    this.uiCamera?.ignore(markerObjects)
   }
 
   private showBazaarEntranceMarker() {
-    this.bazaarEntranceMarker?.setVisible(true)
-    this.bazaarEntranceLabel?.setVisible(true)
+    const objects = [
+      this.bazaarEntranceGlow,
+      this.bazaarEntranceRing,
+      this.bazaarEntranceInner,
+      this.bazaarEntranceArrow,
+      this.bazaarEntranceLabel,
+      this.bazaarEntranceZone,
+    ]
+  
+    objects.forEach((obj) => {
+      obj?.setVisible(true)
+      obj?.setActive(true)
+    })
   }
 
   private hideBazaarEntranceMarker() {
-    this.bazaarEntranceMarker?.setVisible(false)
-    this.bazaarEntranceLabel?.setVisible(false)
+    const objects = [
+      this.bazaarEntranceGlow,
+      this.bazaarEntranceRing,
+      this.bazaarEntranceInner,
+      this.bazaarEntranceArrow,
+      this.bazaarEntranceLabel,
+      this.bazaarEntranceZone,
+    ]
+  
+    objects.forEach((obj) => {
+      obj?.setVisible(false)
+      obj?.setActive(false)
+    })
   }
 
   private enterBazaarScene() {
     this.hideBazaarEntranceMarker()
+    this.setStoryUIVisible(false)
   
-    this.scene.start('BazaarScene', {
-      coins: this.coins,
-      reputation: this.reputation,
+    const width = this.scale.width
+    const height = this.scale.height
+  
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x050505,
+      1
+    )
+  
+    overlay.setScrollFactor(0)
+    overlay.setDepth(90000)
+  
+    const title = this.add.text(
+      width / 2,
+      height / 2 - 36,
+      'BAZAAR DISTRICT',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '42px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 6,
+        fontStyle: 'bold',
+      }
+    )
+  
+    title.setOrigin(0.5)
+    title.setScrollFactor(0)
+    title.setDepth(90001)
+  
+    const subtitle = this.add.text(
+      width / 2,
+      height / 2 + 28,
+      'Entering the loudest place in Hahaland...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '20px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+      }
+    )
+  
+    subtitle.setOrigin(0.5)
+    subtitle.setScrollFactor(0)
+    subtitle.setDepth(90001)
+  
+    this.cameras.main.fadeOut(650, 0, 0, 0)
+  
+    this.time.delayedCall(950, () => {
+      this.scene.start('BazaarScene', {
+        coins: this.coins,
+        reputation: this.reputation,
+      })
     })
   }
 
-  private handleBazaarEntranceInput() {
-    if (this.storyStage !== 'bazaarTraining') return false
-    if (!this.bazaarEntrancePoint) return false
-  
-    const distance = Phaser.Math.Distance.Between(
-      this.player.x,
-      this.player.y,
-      this.bazaarEntrancePoint.x,
-      this.bazaarEntrancePoint.y
-    )
-  
-    const playerIsNear = distance <= this.bazaarEntranceRadius
-  
-    if (this.bazaarEntranceLabel) {
-      this.bazaarEntranceLabel.setText(
-        playerIsNear ? 'E Enter Bazaar' : 'Enter Bazaar'
-      )
-    }
-  
-    if (
-      playerIsNear &&
-      Phaser.Input.Keyboard.JustDown(this.interactKey)
-    ) {
-      this.enterBazaarScene()
-      return true
-    }
-  
-    return false
+ private handleBazaarEntranceInput() {
+  if (this.storyStage !== 'bazaarTraining') return false
+  if (!this.bazaarEntrancePoint) return false
+  if (!this.bazaarEntranceGlow?.visible) return false
+
+  const distance = Phaser.Math.Distance.Between(
+    this.player.x,
+    this.player.y,
+    this.bazaarEntrancePoint.x,
+    this.bazaarEntrancePoint.y
+  )
+
+  const playerIsNear =
+    distance <= this.bazaarEntranceRadius
+
+  this.bazaarEntranceLabelText?.setText(
+    playerIsNear ? 'E Enter Bazaar' : 'Enter Bazaar'
+  )
+
+  this.bazaarEntranceInner?.setFillStyle(
+    playerIsNear ? 0x00aa44 : 0xff3311,
+    0.9
+  )
+
+  if (
+    playerIsNear &&
+    Phaser.Input.Keyboard.JustDown(this.interactKey)
+  ) {
+    this.enterBazaarScene()
+    return true
   }
+
+  return false
+}
 }
