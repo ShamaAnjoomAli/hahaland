@@ -97,7 +97,9 @@ export default class BazaarChallengePopup {
         })
         break
       case 'eagle-delivery':
-        this.createEagleDeliveryGame()
+        this.ensureEagleDeliveryAssets(() => {
+          this.createEagleDeliveryGame()
+        })
         break
     }
   }
@@ -277,6 +279,127 @@ export default class BazaarChallengePopup {
     missingAssets.forEach((asset) => {
       this.scene.load.image(asset.key, asset.path)
     })
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
+  }
+
+  private ensureEagleDeliveryAssets(onReady: () => void) {
+    const backgroundKey = 'eagle_egypt_bg_v2'
+    const spriteKey = 'eagle_cartoon_v3'
+
+    const needsBackground =
+      !this.scene.textures.exists(backgroundKey)
+    const needsSprite =
+      !this.scene.textures.exists(spriteKey)
+
+    if (!needsBackground && !needsSprite) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(430, this.panelWidth - 80),
+      108,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Preparing the Nile sky and royal falcon...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(380, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+
+    const handleLoadError = (
+      file: Phaser.Loader.File
+    ) => {
+      if (
+        file.key === backgroundKey ||
+        file.key === spriteKey
+      ) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (
+        !this.isVisible ||
+        session !== this.sessionId
+      ) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      if (
+        loadFailed ||
+        !this.scene.textures.exists(backgroundKey) ||
+        !this.scene.textures.exists(spriteKey)
+      ) {
+        const errorText = this.addStatusText(
+          'Could not load the Eagle Delivery assets.\n\nCheck public/assets/minigames/egypt_sky_background_v2.png and eagle_cartoon_4frame.png.',
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(16)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    if (needsBackground) {
+      this.scene.load.image(
+        backgroundKey,
+        'assets/minigames/egypt_sky_background_v2.png'
+      )
+    }
+
+    if (needsSprite) {
+      this.scene.load.spritesheet(
+        spriteKey,
+        'assets/minigames/eagle_cartoon_4frame.png',
+        {
+          frameWidth: 320,
+          frameHeight: 192,
+        }
+      )
+    }
 
     if (!this.scene.load.isLoading()) {
       this.scene.load.start()
@@ -3329,75 +3452,88 @@ export default class BazaarChallengePopup {
     let invulnerable = false
     let elapsed = 0
 
-    const playBg = this.scene.add.rectangle(
-      width / 2,
-      (playTop + playBottom) / 2,
-      playWidth,
-      playHeight,
-      0x1f4e6b,
-      1
+    const backgroundKey = 'eagle_egypt_bg_v2'
+    const backgroundSource = this.scene.textures
+      .get(backgroundKey)
+      .getSourceImage() as {
+        width: number
+        height: number
+      }
+
+    const playCenterY = (playTop + playBottom) / 2
+
+    // Cover the full flight window without stretching or letterboxing.
+    const backgroundScale = Math.max(
+      playWidth / backgroundSource.width,
+      playHeight / backgroundSource.height
     )
-    playBg.setStrokeStyle(4, 0xd4af37, 1)
-    playBg.setInteractive({ useHandCursor: true })
+
+    const playBg = this.scene.add.image(
+      width / 2,
+      playCenterY - Math.min(16, playHeight * 0.055),
+      backgroundKey
+    )
+    playBg.setScale(backgroundScale)
+
+    const backgroundMaskShape = this.scene.make.graphics({
+      x: 0,
+      y: 0,
+      add: false,
+    })
+    backgroundMaskShape.setScrollFactor(0)
+    backgroundMaskShape.fillStyle(0xffffff, 1)
+    backgroundMaskShape.fillRect(
+      playLeft,
+      playTop,
+      playWidth,
+      playHeight
+    )
+
+    const backgroundMask =
+      backgroundMaskShape.createGeometryMask()
+
+    playBg.setMask(backgroundMask)
     this.addObject(playBg)
 
-    const skyArt = this.scene.add.graphics()
+    this.runtimeCleanups.push(() => {
+      playBg.clearMask(false)
+      backgroundMask.destroy()
+      backgroundMaskShape.destroy()
+    })
 
-    skyArt.fillGradientStyle(
-      0x204e6a,
-      0x204e6a,
-      0xe1a04d,
-      0xe1a04d,
-      1
+    const backgroundTint = this.scene.add.rectangle(
+      width / 2,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0x102638,
+      0.055
     )
-    skyArt.fillRect(playLeft, playTop, playWidth, playHeight)
+    this.addObject(backgroundTint)
 
-    skyArt.fillStyle(0xd1a354, 1)
-    skyArt.fillRect(playLeft, playBottom - 34, playWidth, 34)
-
-    skyArt.fillStyle(0x6e4b2a, 0.95)
-    skyArt.fillTriangle(
-      playLeft + 72,
-      playBottom - 34,
-      playLeft + 146,
-      playBottom - Math.min(145, playHeight * 0.72),
-      playLeft + 220,
-      playBottom - 34
+    const playBorder = this.scene.add.rectangle(
+      width / 2,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0x000000,
+      0
     )
-    skyArt.fillTriangle(
-      playLeft + 185,
-      playBottom - 34,
-      playLeft + 257,
-      playBottom - Math.min(122, playHeight * 0.62),
-      playLeft + 329,
-      playBottom - 34
+    playBorder.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(playBorder)
+
+    // Capture clicks across the whole visible game area, not only the
+    // rendered pixels of the background.
+    const playInputZone = this.scene.add.rectangle(
+      width / 2,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0xffffff,
+      0.001
     )
-    skyArt.fillTriangle(
-      playRight - 220,
-      playBottom - 34,
-      playRight - 157,
-      playBottom - Math.min(113, playHeight * 0.58),
-      playRight - 94,
-      playBottom - 34
-    )
-
-    skyArt.fillStyle(0x7a5630, 0.9)
-    skyArt.fillRect(playRight - 120, playBottom - 80, 16, 46)
-    skyArt.fillRect(playRight - 96, playBottom - 88, 16, 54)
-    skyArt.fillRect(playRight - 72, playBottom - 74, 16, 40)
-
-    skyArt.fillStyle(0xffd966, 0.96)
-    skyArt.fillCircle(playRight - 78, playTop + 55, 24)
-
-    skyArt.lineStyle(2, 0xf4cf61, 0.75)
-    skyArt.strokeRect(
-      playLeft + 5,
-      playTop + 5,
-      playWidth - 10,
-      playHeight - 10
-    )
-
-    this.addObject(skyArt)
+    playInputZone.setInteractive({ useHandCursor: true })
+    this.addObject(playInputZone)
 
     // HUD cards are intentionally explicit rather than generated through a
     // helper, preventing width/height arguments from being confused with x/y.
@@ -3592,100 +3728,38 @@ export default class BazaarChallengePopup {
     countdownText.setVisible(false)
     this.addObject(countdownText)
 
-    const eagle = this.scene.add.container(
+    const eagleAnimationKey = 'eagle-cartoon-fly-v3'
+
+    if (!this.scene.anims.exists(eagleAnimationKey)) {
+      this.scene.anims.create({
+        key: eagleAnimationKey,
+        frames: this.scene.anims.generateFrameNumbers(
+          'eagle_cartoon_v3',
+          {
+            start: 0,
+            end: 3,
+          }
+        ),
+        frameRate: 5,
+        repeat: -1,
+        yoyo: true,
+      })
+    }
+
+    const eagle = this.scene.add.sprite(
       eagleX,
-      (playTop + playBottom) / 2
+      (playTop + playBottom) / 2,
+      'eagle_cartoon_v3',
+      0
     )
+    eagle.setDisplaySize(112, 67)
+    eagle.play(eagleAnimationKey)
+    eagle.anims.pause()
 
-    const rearWing = this.scene.add.triangle(
-      -9,
-      1,
-      -25,
-      -11,
-      -2,
-      -4,
-      -8,
-      11,
-      0xd4c089,
-      1
-    )
-    rearWing.setStrokeStyle(2, 0x3a2b20, 1)
+    const eagleBaseScaleX = eagle.scaleX
+    const eagleBaseScaleY = eagle.scaleY
 
-    const body = this.scene.add.ellipse(0, 0, 34, 20, 0xf2e2b8, 1)
-    body.setStrokeStyle(2, 0x3a2b20, 1)
-
-    const wing = this.scene.add.triangle(
-      -3,
-      1,
-      -19,
-      13,
-      4,
-      4,
-      10,
-      -12,
-      0xe7d39d,
-      1
-    )
-    wing.setStrokeStyle(2, 0x3a2b20, 1)
-
-    const head = this.scene.add.circle(15, -4, 8, 0xffffff, 1)
-    head.setStrokeStyle(2, 0x3a2b20, 1)
-
-    const beak = this.scene.add.triangle(
-      25,
-      -4,
-      0,
-      -5,
-      10,
-      0,
-      0,
-      5,
-      0xf5b642,
-      1
-    )
-
-    const eye = this.scene.add.circle(18, -6, 1.8, 0x111111, 1)
-
-    const packageBox = this.scene.add.rectangle(
-      -1,
-      13,
-      17,
-      12,
-      0xb76b2e,
-      1
-    )
-    packageBox.setStrokeStyle(2, 0x4a2813, 1)
-
-    const packageRibbon = this.scene.add.rectangle(
-      -1,
-      13,
-      3,
-      12,
-      0xffd966,
-      1
-    )
-
-    eagle.add([
-      rearWing,
-      body,
-      wing,
-      head,
-      beak,
-      eye,
-      packageBox,
-      packageRibbon,
-    ])
     this.addObject(eagle)
-
-    const wingTween = this.addTween({
-      targets: wing,
-      angle: { from: -12, to: 15 },
-      duration: 150,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-    wingTween.pause()
 
     const obstacles: FlightObstacle[] = []
     const obstacleColors = [
@@ -3835,14 +3909,17 @@ export default class BazaarChallengePopup {
     const flap = () => {
       if (state !== 'playing' || this.resultLocked) return
 
-      velocityY = -292
+      velocityY = -338
+
+      this.scene.tweens.killTweensOf(eagle)
 
       this.addTween({
         targets: eagle,
-        scaleX: 1.08,
-        scaleY: 0.92,
-        duration: 75,
+        scaleX: eagleBaseScaleX * 1.055,
+        scaleY: eagleBaseScaleY * 0.9,
+        duration: 70,
         yoyo: true,
+        ease: 'Sine.easeOut',
       })
     }
 
@@ -3850,7 +3927,7 @@ export default class BazaarChallengePopup {
       if (state === 'finished') return
 
       state = 'finished'
-      wingTween.pause()
+      eagle.anims.pause()
 
       if (success) {
         status.setText('Royal parcel delivered safely to the Nile tower.')
@@ -3901,7 +3978,7 @@ export default class BazaarChallengePopup {
 
       invulnerable = true
       hearts -= 1
-      velocityY = -185
+      velocityY = -255
       refreshHud()
       status.setText(message)
       this.scene.cameras.main.shake(180, 0.007)
@@ -3960,8 +4037,8 @@ export default class BazaarChallengePopup {
 
       this.schedule(2150, () => {
         state = 'playing'
-        wingTween.resume()
-        velocityY = -210
+        eagle.anims.resume()
+        velocityY = -235
         status.setText('CLICK THE SKY OR PRESS SPACE TO FLAP')
       })
 
@@ -3979,9 +4056,9 @@ export default class BazaarChallengePopup {
       flap()
     }
 
-    playBg.on('pointerdown', handleControl)
+    playInputZone.on('pointerdown', handleControl)
     this.runtimeCleanups.push(() => {
-      playBg.off('pointerdown', handleControl)
+      playInputZone.off('pointerdown', handleControl)
     })
 
     const keyboard = this.scene.input.keyboard
@@ -3998,25 +4075,26 @@ export default class BazaarChallengePopup {
 
       const dt = Math.min(delta, 34) / 1000
       elapsed += dt
-      velocityY += 700 * dt
+      velocityY += 610 * dt
+      velocityY = Math.min(velocityY, 355)
       eagle.y += velocityY * dt
       eagle.setRotation(
         Phaser.Math.Clamp(velocityY / 760, -0.38, 0.48)
       )
 
-      if (eagle.y < playTop + 15) {
-        eagle.y = playTop + 15
+      if (eagle.y < playTop + 25) {
+        eagle.y = playTop + 25
         takeHit('Too high! The falcon clips a royal banner.')
-      } else if (eagle.y > playBottom - 15) {
-        eagle.y = playBottom - 15
+      } else if (eagle.y > playBottom - 25) {
+        eagle.y = playBottom - 25
         takeHit('Too low! A rooftop basket explodes into dates.')
       }
 
       const eagleHitbox = new Phaser.Geom.Rectangle(
-        eagle.x - 14,
-        eagle.y - 10,
-        28,
-        21
+        eagle.x - 31,
+        eagle.y - 15,
+        62,
+        30
       )
 
       obstacles.forEach((obstacle) => {
