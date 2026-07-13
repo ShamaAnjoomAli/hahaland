@@ -1,101 +1,99 @@
-import Phaser from "phaser";
+import Phaser from 'phaser'
 
 export default class GameHUD {
-  public container: Phaser.GameObjects.Container;
+  public container: Phaser.GameObjects.Container
 
-  private coinText: Phaser.GameObjects.Text;
-  private timerText: Phaser.GameObjects.Text;
-  private bg: Phaser.GameObjects.Graphics;
+  private coinText: Phaser.GameObjects.Text
+  private timerText: Phaser.GameObjects.Text
+  private bg: Phaser.GameObjects.Graphics
 
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
-    width = 160
+    width = 220
   ) {
-    this.bg = scene.add.graphics();
+    const height = 34
+    const dividerX = Math.round(width * 0.48)
+    const clockX = dividerX + 18
 
-    this.bg.fillStyle(0x000000, 0.72);
-    this.bg.fillRoundedRect(
-      x,
-      y,
-      width,
-      34,
-      8
-    );
+    this.container = scene.add.container(x, y)
 
-    this.bg.lineStyle(2, 0xffffff, 0.35);
-    this.bg.strokeRoundedRect(
-      x,
-      y,
-      width,
-      34,
-      8
-    );
+    this.bg = scene.add.graphics()
 
-    // coin icon
+    this.bg.fillStyle(0x000000, 0.72)
+    this.bg.fillRoundedRect(0, 0, width, height, 8)
+
+    this.bg.lineStyle(2, 0xffffff, 0.35)
+    this.bg.strokeRoundedRect(0, 0, width, height, 8)
+
+    // Divider between coins and timer.
+    this.bg.lineStyle(1, 0xffffff, 0.22)
+    this.bg.lineBetween(dividerX, 6, dividerX, height - 6)
+
     const coinIcon = scene.add.circle(
-      x + 18,
-      y + 17,
+      18,
+      height / 2,
       8,
       0xffd966
-    );
-
-    coinIcon.setStrokeStyle(2, 0x9b7a3f);
+    )
+    coinIcon.setStrokeStyle(2, 0x9b7a3f)
 
     this.coinText = scene.add.text(
-      x + 32,
-      y + 8,
-      "0",
+      34,
+      height / 2,
+      '0',
       {
-        fontFamily: "Arial",
-        fontSize: "16px",
-        color: "#ffffff",
+        fontFamily: 'Arial',
+        fontSize: '16px',
+        color: '#ffffff',
       }
-    );
+    )
+    this.coinText.setOrigin(0, 0.5)
 
-    // clock icon
     const clockIcon = scene.add.circle(
-      x + 88,
-      y + 17,
+      clockX,
+      height / 2,
       8,
       0x222222
-    );
-
-    clockIcon.setStrokeStyle(2, 0xffffff);
+    )
+    clockIcon.setStrokeStyle(2, 0xffffff)
 
     const clockHandA = scene.add.line(
       0,
       0,
-      x + 88,
-      y + 17,
-      x + 88,
-      y + 12,
+      clockX,
+      height / 2,
+      clockX,
+      height / 2 - 5,
       0xffffff
-    );
+    )
+    clockHandA.setLineWidth(2)
 
     const clockHandB = scene.add.line(
       0,
       0,
-      x + 88,
-      y + 17,
-      x + 92,
-      y + 17,
+      clockX,
+      height / 2,
+      clockX + 4,
+      height / 2,
       0xffffff
-    );
+    )
+    clockHandB.setLineWidth(2)
 
     this.timerText = scene.add.text(
-      x + 102,
-      y + 8,
-      "02:00",
+      clockX + 16,
+      height / 2,
+      '00:00',
       {
-        fontFamily: "Arial",
-        fontSize: "16px",
-        color: "#ffffff",
+        fontFamily: 'Arial',
+        fontSize: '16px',
+        color: '#ffffff',
       }
-    );
+    )
+    this.timerText.setOrigin(0, 0.5)
 
-    this.container = scene.add.container(0, 0, [
+    this.container.add([
       this.bg,
       coinIcon,
       this.coinText,
@@ -103,30 +101,35 @@ export default class GameHUD {
       clockHandA,
       clockHandB,
       this.timerText,
-    ]);
+    ])
 
-    this.container.setScrollFactor(0);
-    this.container.setDepth(20050);
+    this.container.setScrollFactor(0)
+    this.container.setDepth(20050)
   }
 
   setCoins(value: number) {
-    this.coinText.setText(`${value}`);
+    const safeValue = Math.max(0, Math.floor(value))
+    this.coinText.setText(`${safeValue}`)
   }
 
   setTime(seconds: number) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const safeSeconds = Math.max(0, Math.ceil(seconds))
+
+    const minutes = Math.floor(safeSeconds / 60)
+    const remainingSeconds = safeSeconds % 60
 
     const formattedTime =
-      `${minutes.toString().padStart(2, "0")}:` +
-      `${remainingSeconds.toString().padStart(2, "0")}`;
+      `${minutes.toString().padStart(2, '0')}:` +
+      `${remainingSeconds.toString().padStart(2, '0')}`
 
-    this.timerText.setText(formattedTime);
+    this.timerText.setText(formattedTime)
 
-    if (seconds <= 10) {
-      this.timerText.setColor("#ff6666");
+    if (safeSeconds <= 10) {
+      this.timerText.setColor('#ff6666')
+    } else if (safeSeconds <= 30) {
+      this.timerText.setColor('#ffd966')
     } else {
-      this.timerText.setColor("#ffffff");
+      this.timerText.setColor('#ffffff')
     }
   }
 }

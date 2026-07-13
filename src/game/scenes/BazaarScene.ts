@@ -7,6 +7,9 @@ import BazaarChallengePopup, {
     type BazaarGameId,
     type BazaarMinigameResult,
   } from '../ui/BazaarChallengePopup'
+  import {
+    startOrResumeSharedCountdown,
+  } from '../utils/utility'
   
   type MinigameChoice = {
     label: string
@@ -71,6 +74,8 @@ private bazaarExitPoint?: {
   private minimapExitDot?: Phaser.GameObjects.Arc
 
   private gateForeground?: Phaser.GameObjects.Image
+  private timerEvent?: Phaser.Time.TimerEvent
+  private stopGameTimer?: () => void
   constructor() {
     super('BazaarScene')
   }
@@ -171,8 +176,19 @@ private bazaarExitPoint?: {
     )
   
     this.hud.setCoins(this.coins)
-    this.hud.setTime(0)
-  
+    this.hud.setCoins(this.coins)
+
+    const timerController = startOrResumeSharedCountdown(
+      this,
+      (remainingSeconds) => {
+        this.hud.setTime(remainingSeconds)
+      },
+      {
+        totalSeconds: 600,
+      }
+    )
+    
+    this.stopGameTimer = timerController.stop
     this.createUICamera()
   
     this.keys = this.input.keyboard!.addKeys({

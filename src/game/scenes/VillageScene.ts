@@ -6,6 +6,9 @@ import DialogueBox from '../ui/DialogueBox'
 import ObjectiveBox from '../ui/ObjectiveBox'
 import GameHUD from '../ui/GameHUD'
 import MinigamePopup, { type MinigameChoice } from '../ui/MinigamePopup'
+import {
+  startOrResumeSharedCountdown,
+} from '../utils/utility'
 
 type ObjectiveStep = {
   objectiveText: string
@@ -270,6 +273,9 @@ export default class VillageScene extends Phaser.Scene {
   private returnFromBazaar = false
 private villageSpawnName = 'PlayerSpawn'
 
+private timerEvent?: Phaser.Time.TimerEvent
+
+private stopGameTimer?: () => void
   /** Registers this scene with Phaser under the key "VillageScene". */
   constructor() {
     super('VillageScene')
@@ -453,7 +459,18 @@ const gameplaySpawn = this.getSpawnPoint(
     )
 
     this.hud.setCoins(this.coins)
-    this.startGameTimer(600)
+
+    const timerController = startOrResumeSharedCountdown(
+      this,
+      (remainingSeconds) => {
+        this.hud.setTime(remainingSeconds)
+      },
+      {
+        totalSeconds: 600,
+      }
+    )
+    
+    this.stopGameTimer = timerController.stop
 
     this.createUICamera()
 
@@ -2345,27 +2362,6 @@ const y = padding
   private removeCoins(amount: number) {
     this.coins -= amount
     this.hud.setCoins(this.coins)
-  }
-
-  private startGameTimer(seconds: number) {
-    this.remainingTime = seconds
-    this.hud.setTime(this.remainingTime)
-
-    this.timerEvent = this.time.addEvent({
-      delay: 1000,
-      loop: true,
-      callback: () => {
-        if (this.isTimeUp) return
-
-        this.remainingTime--
-
-        this.hud.setTime(this.remainingTime)
-
-        if (this.remainingTime <= 0) {
-          this.endGameDueToTime()
-        }
-      },
-    })
   }
 
   private endGameDueToTime() {
