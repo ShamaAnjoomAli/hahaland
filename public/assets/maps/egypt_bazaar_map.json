@@ -660,8 +660,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":355.333333333333,
-                 "y":869.333333333333
+                 "x":338.333333333333,
+                 "y":842.333333333333
                 }, 
                 {
                  "height":0,
@@ -673,8 +673,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":957.666666666667,
-                 "y":967.333333333333
+                 "x":951.666666666667,
+                 "y":944.333333333333
                 }, 
                 {
                  "height":0,
@@ -691,7 +691,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -705,7 +705,7 @@
          "offsety":845,
          "opacity":1,
          "type":"imagelayer",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }],

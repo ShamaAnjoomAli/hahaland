@@ -92,7 +92,9 @@ export default class BazaarChallengePopup {
         this.createPotteryFraudGame()
         break
       case 'donkey-race':
-        this.createDonkeyRaceGame()
+        this.ensureDonkeyRaceAssets(() => {
+          this.createDonkeyRaceGame()
+        })
         break
       case 'eagle-delivery':
         this.createEagleDeliveryGame()
@@ -163,6 +165,122 @@ export default class BazaarChallengePopup {
     scrollObject.setScrollFactor?.(0)
     this.container.add(object)
     return object
+  }
+
+  private ensureDonkeyRaceAssets(onReady: () => void) {
+    const assets = [
+      {
+        key: 'bazaar_race_bg',
+        path: 'assets/minigames/bazaar_race_bg.png',
+      },
+      {
+        key: 'donkey_topview',
+        path: 'assets/minigames/donkey_topview.png',
+      },
+    ]
+
+    const missingAssets = assets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingAssets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(420, this.panelWidth - 80),
+      105,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Loading Royal Thunder and the Bazaar road...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(370, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+
+    const handleLoadError = (
+      file: Phaser.Loader.File
+    ) => {
+      if (
+        missingAssets.some((asset) => asset.key === file.key)
+      ) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (
+        !this.isVisible ||
+        session !== this.sessionId
+      ) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      if (loadFailed) {
+        const missingNames = missingAssets
+          .filter(
+            (asset) =>
+              !this.scene.textures.exists(asset.key)
+          )
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load:\n${missingNames}\n\nCheck that both PNG files are inside public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(16)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingAssets.forEach((asset) => {
+      this.scene.load.image(asset.key, asset.path)
+    })
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
   }
 
   private createBase() {
@@ -1582,145 +1700,1576 @@ export default class BazaarChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle('6. Donkey Master — Bazaar Dash')
-    this.addInstruction('Hit JUMP when the moving marker is inside the green zone. Land three jumps before losing two hearts.')
+    this.addTitle('6. Donkey Master — Royal Thunder Rally')
+    this.addInstruction(
+      'Switch lanes, jump market hazards, collect dates, and race to the temple gate.',
+      top + 86
+    )
 
-    let round = 1
-    let hits = 0
-    let lives = 2
-    let roundActive = false
-    let markerTween: Phaser.Tweens.Tween | undefined
+    type RaceState = 'ready' | 'countdown' | 'playing' | 'finished'
+    type EntityKind =
+      | 'cart'
+      | 'pottery'
+      | 'date-basket'
+      | 'watermelon'
+      | 'chicken'
+      | 'dates'
+      | 'golden-date'
 
-    const roundText = this.addStatusText('Obstacle 1/3', top + 130, '#ffd966')
-    const status = this.addStatusText('Royal Thunder is considering whether effort is worth it.', top + 162)
-    const livesText = this.scene.add.text(this.getPanelRight() - 75, top + 130, '♥ ♥', {
-      fontFamily: 'Arial',
-      fontSize: '25px',
-      color: '#ff6b6b',
-      stroke: '#000000',
-      strokeThickness: 4,
-    })
-    livesText.setOrigin(0.5)
-    this.addObject(livesText)
+    type RaceEntity = {
+      container: Phaser.GameObjects.Container
+      kind: EntityKind
+      lane: number
+      active: boolean
+      jumpable: boolean
+      collectible: boolean
+      dangerous: boolean
+      passed: boolean
+      laneVelocity: number
+      hitWidth: number
+      hitHeight: number
+    }
 
-    const trackLeft = width / 2 - Math.min(285, this.panelWidth / 2 - 90)
-    const trackRight = width / 2 + Math.min(285, this.panelWidth / 2 - 90)
-    const trackY = top + 255
-    const trackWidth = trackRight - trackLeft
+    const backgroundLeft = this.getPanelLeft() + 34
+    const backgroundRight = this.getPanelRight() - 34
+    const backgroundWidth = backgroundRight - backgroundLeft
 
-    const meter = this.scene.add.rectangle(width / 2, trackY, trackWidth, 32, 0x33291f, 1)
-    meter.setStrokeStyle(3, 0xffd966, 1)
-    const target = this.scene.add.rectangle(width / 2, trackY, 95, 28, 0x2c9b55, 0.9)
-    const marker = this.scene.add.circle(trackLeft, trackY, 14, 0x66ccff, 1)
-    marker.setStrokeStyle(3, 0xffffff, 1)
+    // Match the playable lanes to the actual paved road in the background
+    // image instead of letting the donkey drive over the market stalls.
+    // The outer 17.2% on each side contains the market stalls.
+    // Only the centre section is the three-lane road.
+    const roadLeft = backgroundLeft + backgroundWidth * 0.172
+    const roadRight = backgroundLeft + backgroundWidth * 0.828
+    const roadTop = top + 178
 
-    const road = this.scene.add.rectangle(width / 2, top + 365, trackWidth, 70, 0x6a4828, 1)
-    road.setStrokeStyle(3, 0xb07a3c, 1)
-    const donkey = this.scene.add.rectangle(trackLeft + 45, top + 365, 104, 50, 0x86552f, 1)
-    donkey.setStrokeStyle(4, 0xffd966, 1)
-    const donkeyLabel = this.scene.add.text(donkey.x, donkey.y, 'ROYAL\nTHUNDER', {
-      fontFamily: 'Georgia',
-      fontSize: '13px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 3,
-      align: 'center',
-    })
-    donkeyLabel.setOrigin(0.5)
-    const obstacle = this.scene.add.rectangle(trackRight - 55, top + 365, 42, 82, 0xaa3d2d, 1)
-    obstacle.setStrokeStyle(3, 0xffffff, 1)
+    const controlY = bottom - 42
+    const statusY = controlY - 42
+    const roadBottom = statusY - 24
 
-    this.addObject(meter)
-    this.addObject(target)
-    this.addObject(marker)
-    this.addObject(road)
-    this.addObject(donkey)
-    this.addObject(donkeyLabel)
-    this.addObject(obstacle)
+    const roadWidth = roadRight - roadLeft
+    const roadHeight = roadBottom - roadTop
+    const laneWidth = roadWidth / 3
 
-    const targetPositions = [
-      width / 2 - trackWidth * 0.2,
-      width / 2 + trackWidth * 0.22,
-      width / 2 - trackWidth * 0.04,
+    const laneX = [
+      roadLeft + laneWidth * 0.5,
+      roadLeft + laneWidth * 1.5,
+      roadLeft + laneWidth * 2.5,
     ]
 
-    const startRound = () => {
-      roundActive = true
-      roundText.setText(`Obstacle ${round}/3`)
-      target.x = targetPositions[round - 1]
-      target.width = 105 - round * 16
-      marker.x = trackLeft
-      markerTween?.stop()
-      markerTween = this.addTween({
-        targets: marker,
-        x: trackRight,
-        duration: 1150 - round * 180,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
+    const donkeyY = roadBottom - 54
+    const finishDistance = 4100
+
+    let state: RaceState = 'ready'
+    let currentLane = 1
+    let hearts = 3
+    let datesCollected = 0
+    let score = 0
+    let distance = 0
+    let speed = 155
+    let spawnCooldown = 0.8
+    let patternIndex = 0
+    let invulnerable = false
+    let jumping = false
+    let royalRush = false
+    let royalRushTime = 0
+    let finishGateVisible = false
+
+    const raceBackgroundKey = 'bazaar_race_bg'
+    const donkeyImageKey = 'donkey_topview'
+    const hasRaceBackground = this.scene.textures.exists(raceBackgroundKey)
+    const hasDonkeyImage = this.scene.textures.exists(donkeyImageKey)
+
+    // Use two full-width images rather than a TileSprite. A TileSprite
+    // centres/crops this particular texture, hiding the Bazaar stalls.
+    // The two images scroll and wrap while a mask limits them to the
+    // race viewport.
+    const raceBackgroundSegments: Phaser.GameObjects.Image[] = []
+    let raceBackgroundSegmentHeight = roadHeight
+
+    const roadBackdrop = this.scene.add.rectangle(
+      width / 2,
+      (roadTop + roadBottom) / 2,
+      this.panelWidth - 62,
+      roadHeight + 10,
+      0xc99d55,
+      1
+    )
+    roadBackdrop.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(roadBackdrop)
+
+    if (hasRaceBackground) {
+      const backgroundSource = this.scene.textures
+        .get(raceBackgroundKey)
+        .getSourceImage() as { width: number; height: number }
+
+      // Preserve the complete image width so both market sides stay visible.
+      // The image is taller than the race window, so two copies are wrapped
+      // vertically to create continuous forward movement.
+      raceBackgroundSegmentHeight =
+        backgroundWidth *
+        (backgroundSource.height / backgroundSource.width)
+
+      const backgroundMaskShape = this.scene.make.graphics({
+        x: 0,
+        y: 0,
+        add: false,
       })
-      status.setText(round === 1 ? 'Basket ahead!' : round === 2 ? 'Chicken cart ahead!' : 'Suspiciously tall pottery stack ahead!')
+      backgroundMaskShape.setScrollFactor(0)
+      backgroundMaskShape.fillStyle(0xffffff, 1)
+      backgroundMaskShape.fillRect(
+        backgroundLeft,
+        roadTop,
+        backgroundWidth,
+        roadHeight
+      )
+
+      const backgroundMask =
+        backgroundMaskShape.createGeometryMask()
+
+      const firstBackgroundY =
+        roadBottom - raceBackgroundSegmentHeight / 2
+
+      for (let index = 0; index < 2; index += 1) {
+        const backgroundSegment = this.scene.add.image(
+          width / 2,
+          firstBackgroundY -
+            index * raceBackgroundSegmentHeight,
+          raceBackgroundKey
+        )
+
+        backgroundSegment.setDisplaySize(
+          backgroundWidth,
+          raceBackgroundSegmentHeight
+        )
+        backgroundSegment.setMask(backgroundMask)
+
+        this.addObject(backgroundSegment)
+        raceBackgroundSegments.push(backgroundSegment)
+      }
+
+      this.runtimeCleanups.push(() => {
+        raceBackgroundSegments.forEach((segment) => {
+          segment.clearMask(false)
+        })
+        backgroundMask.destroy()
+        backgroundMaskShape.destroy()
+      })
+    } else {
+      const leftSand = this.scene.add.rectangle(
+        (this.getPanelLeft() + roadLeft) / 2,
+        (roadTop + roadBottom) / 2,
+        roadLeft - this.getPanelLeft() - 4,
+        roadHeight,
+        0xc89548,
+        1
+      )
+
+      const rightSand = this.scene.add.rectangle(
+        (roadRight + this.getPanelRight()) / 2,
+        (roadTop + roadBottom) / 2,
+        this.getPanelRight() - roadRight - 4,
+        roadHeight,
+        0xc89548,
+        1
+      )
+
+      const fallbackRoad = this.scene.add.rectangle(
+        width / 2,
+        (roadTop + roadBottom) / 2,
+        roadWidth,
+        roadHeight,
+        0x5c4635,
+        1
+      )
+      fallbackRoad.setStrokeStyle(3, 0x2b1a10, 1)
+
+      this.addObject(leftSand)
+      this.addObject(rightSand)
+      this.addObject(fallbackRoad)
+
+      const scenery = this.scene.add.graphics()
+
+      scenery.fillStyle(0x8d542b, 1)
+      scenery.fillTriangle(
+        this.getPanelLeft() + 20,
+        roadTop + 86,
+        roadLeft - 6,
+        roadTop + 28,
+        roadLeft - 6,
+        roadTop + 112
+      )
+      scenery.fillTriangle(
+        this.getPanelRight() - 20,
+        roadTop + 92,
+        roadRight + 6,
+        roadTop + 35,
+        roadRight + 6,
+        roadTop + 118
+      )
+
+      scenery.fillStyle(0x245d78, 1)
+      scenery.fillRect(
+        this.getPanelLeft() + 24,
+        roadTop + 84,
+        roadLeft - this.getPanelLeft() - 32,
+        8
+      )
+      scenery.fillRect(
+        roadRight + 8,
+        roadTop + 90,
+        this.getPanelRight() - roadRight - 32,
+        8
+      )
+
+      scenery.fillStyle(0x6e4b2a, 0.9)
+      scenery.fillTriangle(
+        this.getPanelLeft() + 18,
+        roadBottom - 18,
+        this.getPanelLeft() + 48,
+        roadBottom - 72,
+        roadLeft - 8,
+        roadBottom - 18
+      )
+      scenery.fillTriangle(
+        roadRight + 8,
+        roadBottom - 18,
+        this.getPanelRight() - 46,
+        roadBottom - 80,
+        this.getPanelRight() - 15,
+        roadBottom - 18
+      )
+
+      this.addObject(scenery)
+    }
+
+    const laneLines: Phaser.GameObjects.Rectangle[] = []
+
+    // The image background already contains lane markers. Only draw generated
+    // markers when the fallback road is being used.
+    if (!hasRaceBackground) {
+      for (let divider = 1; divider <= 2; divider += 1) {
+        const dividerX = roadLeft + laneWidth * divider
+
+        for (let row = 0; row < 6; row += 1) {
+          const dash = this.scene.add.rectangle(
+            dividerX,
+            roadTop + 18 + row * (roadHeight / 5),
+            5,
+            34,
+            0xe8d4a5,
+            0.85
+          )
+
+          this.addObject(dash)
+          laneLines.push(dash)
+        }
+      }
+    }
+
+    const hudY = top + 130
+    const hudHeight = 42
+    const hudCardWidth = 145
+    const centerHudWidth = 190
+
+    const createHudCard = (
+      x: number,
+      cardWidth: number,
+      bandColor: number
+    ) => {
+      const shadow = this.scene.add.rectangle(
+        x + 3,
+        hudY + 3,
+        cardWidth,
+        hudHeight,
+        0x000000,
+        0.3
+      )
+
+      const card = this.scene.add.rectangle(
+        x,
+        hudY,
+        cardWidth,
+        hudHeight,
+        0xf0dfb5,
+        1
+      )
+      card.setStrokeStyle(3, 0xb8862e, 1)
+
+      const band = this.scene.add.rectangle(
+        x,
+        hudY - hudHeight / 2 + 6,
+        cardWidth - 10,
+        8,
+        bandColor,
+        1
+      )
+
+      this.addObject(shadow)
+      this.addObject(card)
+      this.addObject(band)
+    }
+
+    const leftHudX = this.getPanelLeft() + 98
+    const centerHudX = width / 2
+    const rightHudX = this.getPanelRight() - 98
+
+    createHudCard(leftHudX, hudCardWidth, 0x8f2d2d)
+    createHudCard(centerHudX, centerHudWidth, 0x245d78)
+    createHudCard(rightHudX, hudCardWidth, 0x8b5a2b)
+
+    const heartsText = this.scene.add.text(
+      leftHudX,
+      hudY + 4,
+      '♥ ♥ ♥',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '20px',
+        color: '#9b2525',
+        stroke: '#3c160e',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    heartsText.setOrigin(0.5)
+
+    const progressText = this.scene.add.text(
+      centerHudX,
+      hudY + 4,
+      'RACE 0%',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#245d78',
+        stroke: '#ffffff',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
+    progressText.setOrigin(0.5)
+
+    const datesText = this.scene.add.text(
+      rightHudX,
+      hudY + 4,
+      'DATES 0',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '16px',
+        color: '#7a460f',
+        stroke: '#ffffff',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
+    datesText.setOrigin(0.5)
+
+    this.addObject(heartsText)
+    this.addObject(progressText)
+    this.addObject(datesText)
+
+    const speedTrack = this.scene.add.rectangle(
+      centerHudX,
+      hudY + 31,
+      centerHudWidth - 18,
+      8,
+      0x33271f,
+      1
+    )
+    speedTrack.setStrokeStyle(1, 0xd4af37, 1)
+
+    const speedFill = this.scene.add.rectangle(
+      centerHudX - (centerHudWidth - 22) / 2,
+      hudY + 31,
+      18,
+      5,
+      0x4fa4c7,
+      1
+    )
+    speedFill.setOrigin(0, 0.5)
+
+    this.addObject(speedTrack)
+    this.addObject(speedFill)
+
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 160,
+      28,
+      0xead8aa,
+      0.98
+    )
+    statusPanel.setStrokeStyle(2, 0xb8862e, 1)
+
+    const status = this.scene.add.text(
+      width / 2,
+      statusY,
+      'Use LEFT / RIGHT or A / D. Press SPACE to jump.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '14px',
+        color: '#245d78',
+        fontStyle: 'bold',
+        align: 'center',
+      }
+    )
+    status.setOrigin(0.5)
+
+    this.addObject(statusPanel)
+    this.addObject(status)
+
+    const donkey = this.scene.add.container(laneX[currentLane], donkeyY)
+
+    const donkeyShadow = this.scene.add.ellipse(
+      0,
+      30,
+      54,
+      16,
+      0x000000,
+      0.28
+    )
+    donkey.add(donkeyShadow)
+
+    const donkeyDisplayWidth = Math.min(78, laneWidth * 0.48)
+    const donkeyDisplayHeight = donkeyDisplayWidth * 1.25
+
+    if (hasDonkeyImage) {
+      const donkeyImage = this.scene.add.image(
+        0,
+        -donkeyDisplayHeight * 0.08,
+        donkeyImageKey
+      )
+      donkeyImage.setDisplaySize(
+        donkeyDisplayWidth,
+        donkeyDisplayHeight
+      )
+      donkey.add(donkeyImage)
+    } else {
+      const donkeyBody = this.scene.add.ellipse(
+        0,
+        0,
+        55,
+        34,
+        0x8a5a35,
+        1
+      )
+      donkeyBody.setStrokeStyle(3, 0x3a2415, 1)
+
+      const donkeyHead = this.scene.add.ellipse(
+        0,
+        -24,
+        30,
+        27,
+        0x9b6b43,
+        1
+      )
+      donkeyHead.setStrokeStyle(3, 0x3a2415, 1)
+
+      const leftEar = this.scene.add.triangle(
+        -9,
+        -43,
+        -15,
+        -8,
+        -2,
+        -20,
+        4,
+        0,
+        0x9b6b43,
+        1
+      )
+      leftEar.setStrokeStyle(2, 0x3a2415, 1)
+
+      const rightEar = this.scene.add.triangle(
+        9,
+        -43,
+        -4,
+        0,
+        2,
+        -20,
+        15,
+        -8,
+        0x9b6b43,
+        1
+      )
+      rightEar.setStrokeStyle(2, 0x3a2415, 1)
+
+      const muzzle = this.scene.add.ellipse(
+        0,
+        -18,
+        19,
+        12,
+        0xd1a07a,
+        1
+      )
+      muzzle.setStrokeStyle(2, 0x3a2415, 1)
+
+      const leftEye = this.scene.add.circle(
+        -6,
+        -29,
+        2.3,
+        0x111111,
+        1
+      )
+      const rightEye = this.scene.add.circle(
+        6,
+        -29,
+        2.3,
+        0x111111,
+        1
+      )
+
+      donkey.add([
+        donkeyBody,
+        donkeyHead,
+        leftEar,
+        rightEar,
+        muzzle,
+        leftEye,
+        rightEye,
+      ])
+    }
+
+    this.addObject(donkey)
+
+    const rushAura = this.scene.add.ellipse(
+      donkey.x,
+      donkey.y,
+      86,
+      108,
+      0xffd966,
+      0.13
+    )
+    rushAura.setStrokeStyle(4, 0xffd966, 0.8)
+    rushAura.setVisible(false)
+    this.addObject(rushAura)
+
+    const countdownText = this.scene.add.text(
+      width / 2,
+      (roadTop + roadBottom) / 2,
+      '3',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '68px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 9,
+        fontStyle: 'bold',
+      }
+    )
+    countdownText.setOrigin(0.5)
+    countdownText.setVisible(false)
+    this.addObject(countdownText)
+
+    const finishGate = this.scene.add.container(
+      width / 2,
+      roadTop - 58
+    )
+    finishGate.setVisible(false)
+
+    const gateLeft = this.scene.add.rectangle(
+      -roadWidth * 0.31,
+      18,
+      28,
+      88,
+      0xc79a4f,
+      1
+    )
+    gateLeft.setStrokeStyle(3, 0x5b3618, 1)
+
+    const gateRight = this.scene.add.rectangle(
+      roadWidth * 0.31,
+      18,
+      28,
+      88,
+      0xc79a4f,
+      1
+    )
+    gateRight.setStrokeStyle(3, 0x5b3618, 1)
+
+    const gateTop = this.scene.add.rectangle(
+      0,
+      -24,
+      roadWidth * 0.69,
+      36,
+      0x8b5a2b,
+      1
+    )
+    gateTop.setStrokeStyle(3, 0xd4af37, 1)
+
+    const gateText = this.scene.add.text(
+      0,
+      -24,
+      'FINISH',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+    gateText.setOrigin(0.5)
+
+    finishGate.add([gateLeft, gateRight, gateTop, gateText])
+    this.addObject(finishGate)
+
+    const entities: RaceEntity[] = []
+
+    const destroyEntity = (entity: RaceEntity) => {
+      entity.active = false
+      entity.container.destroy(true)
+    }
+
+    const createDateShape = (
+      parent: Phaser.GameObjects.Container,
+      x: number,
+      y: number,
+      golden = false
+    ) => {
+      const date = this.scene.add.ellipse(
+        x,
+        y,
+        13,
+        21,
+        golden ? 0xffd45c : 0x6d321f,
+        1
+      )
+      date.setStrokeStyle(
+        2,
+        golden ? 0xfff0a1 : 0x32170e,
+        1
+      )
+
+      const shine = this.scene.add.ellipse(
+        x - 2,
+        y - 3,
+        3,
+        8,
+        golden ? 0xffffff : 0xa96945,
+        0.7
+      )
+
+      parent.add([date, shine])
+    }
+
+    const createEntity = (
+      kind: EntityKind,
+      lane: number,
+      y: number,
+      laneVelocity = 0
+    ) => {
+      const entityContainer = this.scene.add.container(laneX[lane], y)
+
+      let jumpable = false
+      let collectible = false
+      let dangerous = true
+      let hitWidth = laneWidth * 0.58
+      let hitHeight = 40
+
+      if (kind === 'cart') {
+        const cart = this.scene.add.rectangle(
+          0,
+          0,
+          laneWidth * 0.62,
+          42,
+          0x8b5a2b,
+          1
+        )
+        cart.setStrokeStyle(3, 0x3a2415, 1)
+
+        const canopy = this.scene.add.rectangle(
+          0,
+          -17,
+          laneWidth * 0.55,
+          12,
+          0x245d78,
+          1
+        )
+        canopy.setStrokeStyle(2, 0xd4af37, 1)
+
+        const wheelLeft = this.scene.add.circle(
+          -laneWidth * 0.2,
+          20,
+          7,
+          0x2b211a,
+          1
+        )
+        const wheelRight = this.scene.add.circle(
+          laneWidth * 0.2,
+          20,
+          7,
+          0x2b211a,
+          1
+        )
+
+        entityContainer.add([cart, canopy, wheelLeft, wheelRight])
+        hitHeight = 48
+      }
+
+      if (kind === 'pottery') {
+        jumpable = true
+
+        for (let index = 0; index < 3; index += 1) {
+          const pot = this.scene.add.ellipse(
+            (index - 1) * 17,
+            index === 1 ? -3 : 5,
+            24,
+            35,
+            index === 1 ? 0xb56935 : 0x9f532d,
+            1
+          )
+          pot.setStrokeStyle(2, 0x4a2813, 1)
+          entityContainer.add(pot)
+        }
+
+        hitWidth = laneWidth * 0.48
+        hitHeight = 34
+      }
+
+      if (kind === 'date-basket') {
+        jumpable = true
+
+        const basket = this.scene.add.rectangle(
+          0,
+          5,
+          laneWidth * 0.52,
+          29,
+          0x9a6a3e,
+          1
+        )
+        basket.setStrokeStyle(3, 0x4a2a16, 1)
+
+        for (let index = 0; index < 5; index += 1) {
+          createDateShape(
+            entityContainer,
+            (index - 2) * 11,
+            -7 + Math.abs(index - 2) * 2
+          )
+        }
+
+        entityContainer.addAt(basket, 0)
+        hitWidth = laneWidth * 0.54
+        hitHeight = 33
+      }
+
+      if (kind === 'watermelon') {
+        jumpable = true
+
+        const melon = this.scene.add.circle(
+          0,
+          0,
+          17,
+          0x4e8a43,
+          1
+        )
+        melon.setStrokeStyle(3, 0x214e27, 1)
+
+        const stripe = this.scene.add.rectangle(
+          0,
+          0,
+          5,
+          31,
+          0x87b45c,
+          1
+        )
+        stripe.setAngle(20)
+
+        entityContainer.add([melon, stripe])
+        hitWidth = 34
+        hitHeight = 34
+      }
+
+      if (kind === 'chicken') {
+        jumpable = true
+
+        const body = this.scene.add.ellipse(
+          0,
+          3,
+          28,
+          21,
+          0xf4e7cd,
+          1
+        )
+        body.setStrokeStyle(2, 0x473529, 1)
+
+        const head = this.scene.add.circle(
+          10,
+          -7,
+          8,
+          0xffffff,
+          1
+        )
+        head.setStrokeStyle(2, 0x473529, 1)
+
+        const beak = this.scene.add.triangle(
+          20,
+          -6,
+          0,
+          -4,
+          8,
+          0,
+          0,
+          4,
+          0xf0ad36,
+          1
+        )
+
+        const comb = this.scene.add.circle(
+          10,
+          -16,
+          3,
+          0xd24734,
+          1
+        )
+
+        entityContainer.add([body, head, beak, comb])
+        hitWidth = 34
+        hitHeight = 28
+      }
+
+      if (kind === 'dates') {
+        collectible = true
+        dangerous = false
+        jumpable = false
+
+        createDateShape(entityContainer, -14, 2)
+        createDateShape(entityContainer, 0, -5)
+        createDateShape(entityContainer, 14, 2)
+
+        hitWidth = 44
+        hitHeight = 32
+      }
+
+      if (kind === 'golden-date') {
+        collectible = true
+        dangerous = false
+        jumpable = false
+
+        const glow = this.scene.add.circle(
+          0,
+          0,
+          24,
+          0xffd966,
+          0.18
+        )
+        glow.setStrokeStyle(2, 0xffe88a, 0.8)
+        entityContainer.add(glow)
+
+        createDateShape(entityContainer, 0, 0, true)
+
+        hitWidth = 34
+        hitHeight = 42
+
+        this.addTween({
+          targets: entityContainer,
+          scaleX: 1.13,
+          scaleY: 1.13,
+          duration: 360,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        })
+      }
+
+      this.addObject(entityContainer)
+
+      const entity: RaceEntity = {
+        container: entityContainer,
+        kind,
+        lane,
+        active: true,
+        jumpable,
+        collectible,
+        dangerous,
+        passed: false,
+        laneVelocity,
+        hitWidth,
+        hitHeight,
+      }
+
+      entities.push(entity)
+      return entity
+    }
+
+    const patterns: Array<
+      Array<{
+        kind: EntityKind
+        lane: number
+        offsetY?: number
+        laneVelocity?: number
+      }>
+    > = [
+      [{ kind: 'dates', lane: 1 }],
+      [{ kind: 'date-basket', lane: 0 }],
+      [{ kind: 'cart', lane: 2 }],
+      [
+        { kind: 'pottery', lane: 0 },
+        { kind: 'dates', lane: 2, offsetY: -72 },
+      ],
+      [{ kind: 'chicken', lane: 1, laneVelocity: 48 }],
+      [
+        { kind: 'cart', lane: 0 },
+        { kind: 'dates', lane: 1, offsetY: -80 },
+      ],
+      [{ kind: 'watermelon', lane: 2, laneVelocity: -58 }],
+      [
+        { kind: 'date-basket', lane: 1 },
+        { kind: 'dates', lane: 0, offsetY: -76 },
+      ],
+      [
+        { kind: 'pottery', lane: 0 },
+        { kind: 'cart', lane: 2 },
+      ],
+      [{ kind: 'golden-date', lane: 1 }],
+      [
+        { kind: 'cart', lane: 0 },
+        { kind: 'date-basket', lane: 1 },
+      ],
+      [
+        { kind: 'dates', lane: 2 },
+        { kind: 'chicken', lane: 0, offsetY: -82, laneVelocity: 52 },
+      ],
+      [
+        { kind: 'pottery', lane: 1 },
+        { kind: 'dates', lane: 0, offsetY: -72 },
+      ],
+      [
+        { kind: 'watermelon', lane: 0, laneVelocity: 62 },
+        { kind: 'dates', lane: 2, offsetY: -72 },
+      ],
+      [
+        { kind: 'date-basket', lane: 0 },
+        { kind: 'pottery', lane: 2 },
+      ],
+      [{ kind: 'golden-date', lane: 2 }],
+    ]
+
+    const spawnPattern = () => {
+      if (finishGateVisible) return
+
+      const pattern = patterns[patternIndex % patterns.length]
+      patternIndex += 1
+
+      pattern.forEach((entry) => {
+        createEntity(
+          entry.kind,
+          entry.lane,
+          roadTop - 35 + (entry.offsetY ?? 0),
+          entry.laneVelocity ?? 0
+        )
+      })
+    }
+
+    const updateHud = () => {
+      heartsText.setText(
+        Array.from(
+          { length: 3 },
+          (_value, index) => (index < hearts ? '♥' : '♡')
+        ).join(' ')
+      )
+
+      const progress = Phaser.Math.Clamp(
+        Math.floor((distance / finishDistance) * 100),
+        0,
+        100
+      )
+
+      progressText.setText(
+        royalRush ? `ROYAL RUSH  ${progress}%` : `RACE ${progress}%`
+      )
+
+      datesText.setText(`DATES ${datesCollected}`)
+
+      const speedRatio = Phaser.Math.Clamp(
+        (speed - 140) / 100,
+        0,
+        1
+      )
+      speedFill.width = Math.max(
+        8,
+        (centerHudWidth - 22) * speedRatio
+      )
+
+      speedFill.setFillStyle(
+        royalRush ? 0xffd966 : 0x4fa4c7,
+        1
+      )
+    }
+
+    const moveToLane = (direction: -1 | 1) => {
+      if (
+        (state !== 'playing' && state !== 'ready') ||
+        this.resultLocked
+      ) {
+        return
+      }
+
+      currentLane = Phaser.Math.Clamp(
+        currentLane + direction,
+        0,
+        2
+      )
+
+      this.scene.tweens.killTweensOf(donkey)
+
+      this.addTween({
+        targets: donkey,
+        x: laneX[currentLane],
+        duration: 105,
+        ease: 'Sine.easeOut',
+      })
+
+      rushAura.x = laneX[currentLane]
     }
 
     const jump = () => {
-      if (!roundActive || this.resultLocked) return
-      roundActive = false
-      markerTween?.stop()
+      if (
+        state !== 'playing' ||
+        jumping ||
+        this.resultLocked
+      ) {
+        return
+      }
 
-      const targetLeft = target.x - target.width / 2
-      const targetRight = target.x + target.width / 2
-      const hit = marker.x >= targetLeft && marker.x <= targetRight
+      jumping = true
+      status.setText('Royal Thunder jumps with questionable elegance.')
 
-      if (hit) {
-        hits += 1
-        status.setText('Perfect jump! Royal Thunder briefly respects you.')
+      this.addTween({
+        targets: donkey,
+        y: donkeyY - 52,
+        duration: 210,
+        yoyo: true,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          donkey.y = donkeyY
+          jumping = false
+
+          if (state === 'playing') {
+            status.setText(
+              royalRush
+                ? 'ROYAL RUSH! Small hazards cannot stop you.'
+                : 'Switch lanes, jump hazards, and collect dates.'
+            )
+          }
+        },
+      })
+
+      this.addTween({
+        targets: donkey,
+        angle: -6,
+        duration: 210,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+      })
+    }
+
+    const startRoyalRush = () => {
+      if (royalRush) return
+
+      royalRush = true
+      royalRushTime = 4.8
+      rushAura.setVisible(true)
+
+      status.setText(
+        'ROYAL RUSH! Date power protects Royal Thunder.'
+      )
+
+      this.addTween({
+        targets: rushAura,
+        scaleX: 1.18,
+        scaleY: 1.18,
+        alpha: 0.28,
+        duration: 240,
+        yoyo: true,
+        repeat: -1,
+      })
+
+      updateHud()
+    }
+
+    const collectEntity = (entity: RaceEntity) => {
+      if (!entity.active) return
+
+      if (entity.kind === 'dates') {
+        datesCollected += 1
+        score += royalRush ? 180 : 90
+
+        status.setText(
+          royalRush
+            ? 'Date combo! Royal Rush score doubled.'
+            : 'Fresh bazaar dates collected!'
+        )
+      }
+
+      if (entity.kind === 'golden-date') {
+        datesCollected += 2
+        score += 250
+        hearts = Math.min(3, hearts + 1)
+
+        status.setText(
+          'Golden date! One heart restored and the crowd cheers.'
+        )
+      }
+
+      if (datesCollected > 0 && datesCollected % 5 === 0) {
+        startRoyalRush()
+      }
+
+      updateHud()
+
+      this.addTween({
+        targets: entity.container,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        alpha: 0,
+        duration: 150,
+        onComplete: () => destroyEntity(entity),
+      })
+    }
+
+    const hitEntity = (entity: RaceEntity) => {
+      if (
+        !entity.active ||
+        invulnerable ||
+        state !== 'playing'
+      ) {
+        return
+      }
+
+      if (jumping && entity.jumpable) {
+        score += royalRush ? 180 : 100
+        status.setText('Perfect jump! +100')
+        destroyEntity(entity)
+        return
+      }
+
+      if (
+        royalRush &&
+        entity.kind !== 'cart'
+      ) {
+        score += 140
+        status.setText('ROYAL RUSH smash! +140')
+        this.scene.cameras.main.shake(80, 0.003)
+
         this.addTween({
-          targets: [donkey, donkeyLabel],
-          x: `+=${trackWidth / 3.3}`,
-          duration: 500,
-          ease: 'Sine.easeInOut',
+          targets: entity.container,
+          angle: 35,
+          scaleX: 1.35,
+          scaleY: 1.35,
+          alpha: 0,
+          duration: 180,
+          onComplete: () => destroyEntity(entity),
         })
-        this.addTween({
-          targets: [donkey, donkeyLabel],
-          y: '-=55',
-          duration: 250,
-          yoyo: true,
-          ease: 'Sine.easeOut',
-        })
+        return
+      }
 
-        if (hits >= 3) {
-          this.complete({
-            success: true,
-            goldDelta: 520,
-            reputationDelta: 20,
-            response: 'Three perfect jumps. Royal Thunder wins the Bazaar Dash and immediately requests retirement benefits.',
-          }, 850)
-          return
-        }
-      } else {
-        lives -= 1
-        livesText.setText(lives === 1 ? '♥ ♡' : '♡ ♡')
-        status.setText('Miss! Pots wobble, chickens scatter, dignity leaves the area.')
-        this.scene.cameras.main.shake(220, 0.008)
-        this.addTween({ targets: obstacle, angle: 15, duration: 90, yoyo: true, repeat: 4 })
+      invulnerable = true
+      hearts -= 1
+      speed = Math.max(145, speed - 28)
 
-        if (lives <= 0) {
-          this.complete({
+      updateHud()
+      status.setText(
+        entity.kind === 'date-basket'
+          ? 'Crash! Dates scatter across the road.'
+          : entity.kind === 'pottery'
+            ? 'Crash! A pottery merchant begins calculating damages.'
+            : entity.kind === 'chicken'
+              ? 'Chicken chaos! Royal Thunder loses a heart.'
+              : 'Market collision! Royal Thunder loses a heart.'
+      )
+
+      this.scene.cameras.main.shake(190, 0.008)
+
+      this.addTween({
+        targets: donkey,
+        alpha: 0.22,
+        duration: 85,
+        yoyo: true,
+        repeat: 5,
+      })
+
+      destroyEntity(entity)
+
+      if (hearts <= 0) {
+        state = 'finished'
+
+        this.complete(
+          {
             success: false,
-            goldDelta: 80,
-            reputationDelta: 2,
-            response: 'Two crashes. Royal Thunder finishes eventually, mostly because the market moved out of his way.',
-          }, 850)
+            goldDelta: Math.max(
+              60,
+              Math.floor(distance / 24) + datesCollected * 20
+            ),
+            reputationDelta: Math.max(
+              1,
+              Math.floor(distance / finishDistance * 8)
+            ),
+            response: `Royal Thunder reached ${Math.floor(
+              distance / finishDistance * 100
+            )}% of the rally and collected ${datesCollected} date${
+              datesCollected === 1 ? '' : 's'
+            }. Three market crashes ended the race.`,
+          },
+          800
+        )
+
+        return
+      }
+
+      this.schedule(950, () => {
+        invulnerable = false
+        donkey.setAlpha(1)
+
+        if (state === 'playing') {
+          status.setText(
+            'Recover! The temple finish gate is still ahead.'
+          )
+        }
+      })
+    }
+
+    const finishRace = () => {
+      if (state === 'finished') return
+
+      state = 'finished'
+
+      const finalGold =
+        280 +
+        datesCollected * 35 +
+        hearts * 85 +
+        Math.floor(score / 18)
+
+      const finalReputation =
+        10 +
+        hearts * 3 +
+        Math.min(8, datesCollected)
+
+      status.setText(
+        'Royal Thunder crosses the temple gate in glorious confusion.'
+      )
+
+      this.complete(
+        {
+          success: true,
+          goldDelta: finalGold,
+          reputationDelta: finalReputation,
+          response: `Rally complete with ${hearts} heart${
+            hearts === 1 ? '' : 's'
+          }, ${datesCollected} date${
+            datesCollected === 1 ? '' : 's'
+          }, and ${score} points. Royal Thunder immediately demands a royal stable.`,
+        },
+        900
+      )
+    }
+
+    let startButton: ButtonHandle
+
+    const startCountdown = () => {
+      if (state !== 'ready') return
+
+      state = 'countdown'
+      startButton.bg.setVisible(false)
+      startButton.text.setVisible(false)
+      startButton.setEnabled(false)
+      countdownText.setVisible(true)
+      status.setText('The bazaar road is clearing... mostly.')
+
+      const steps = ['3', '2', '1', 'RIDE!']
+
+      steps.forEach((step, index) => {
+        this.schedule(index * 650, () => {
+          countdownText.setText(step)
+          countdownText.setScale(step === 'RIDE!' ? 0.7 : 1)
+
+          this.addTween({
+            targets: countdownText,
+            scaleX: step === 'RIDE!' ? 1 : 1.22,
+            scaleY: step === 'RIDE!' ? 1 : 1.22,
+            duration: 160,
+            yoyo: true,
+          })
+        })
+      })
+
+      this.schedule(2000, () => {
+        state = 'playing'
+        status.setText(
+          'Switch lanes, jump hazards, and collect dates.'
+        )
+        spawnPattern()
+      })
+
+      this.schedule(2500, () => {
+        countdownText.setVisible(false)
+      })
+    }
+
+    const keyLeft = () => moveToLane(-1)
+    const keyRight = () => moveToLane(1)
+    const keyJump = () => jump()
+
+    const keyboard = this.scene.input.keyboard
+
+    if (keyboard) {
+      keyboard.on('keydown-LEFT', keyLeft)
+      keyboard.on('keydown-A', keyLeft)
+      keyboard.on('keydown-RIGHT', keyRight)
+      keyboard.on('keydown-D', keyRight)
+      keyboard.on('keydown-SPACE', keyJump)
+
+      this.runtimeCleanups.push(() => {
+        keyboard.off('keydown-LEFT', keyLeft)
+        keyboard.off('keydown-A', keyLeft)
+        keyboard.off('keydown-RIGHT', keyRight)
+        keyboard.off('keydown-D', keyRight)
+        keyboard.off('keydown-SPACE', keyJump)
+      })
+    }
+
+    const updateRace = (_time: number, delta: number) => {
+      if (state !== 'playing') return
+
+      const dt = Math.min(delta, 34) / 1000
+
+      speed = Math.min(
+        royalRush ? 245 : 220,
+        speed + dt * (royalRush ? 7 : 2.3)
+      )
+
+      distance += speed * dt
+      score += Math.floor(speed * dt * (royalRush ? 0.9 : 0.45))
+
+      if (raceBackgroundSegments.length > 0) {
+        raceBackgroundSegments.forEach((segment) => {
+          segment.y += speed * dt
+        })
+
+        raceBackgroundSegments.forEach((segment) => {
+          const segmentTop =
+            segment.y - raceBackgroundSegmentHeight / 2
+
+          if (segmentTop >= roadBottom) {
+            const otherSegment =
+              raceBackgroundSegments[0] === segment
+                ? raceBackgroundSegments[1]
+                : raceBackgroundSegments[0]
+
+            segment.y =
+              otherSegment.y - raceBackgroundSegmentHeight
+          }
+        })
+      }
+
+      rushAura.setPosition(donkey.x, donkey.y)
+
+      if (royalRush) {
+        royalRushTime -= dt
+
+        if (royalRushTime <= 0) {
+          royalRush = false
+          rushAura.setVisible(false)
+          rushAura.setScale(1)
+          rushAura.setAlpha(1)
+
+          status.setText(
+            'Royal Rush ended. Keep collecting dates.'
+          )
+        }
+      }
+
+      laneLines.forEach((dash) => {
+        dash.y += speed * dt
+
+        if (dash.y > roadBottom + 20) {
+          dash.y = roadTop - 20
+        }
+      })
+
+      spawnCooldown -= dt
+
+      if (
+        spawnCooldown <= 0 &&
+        !finishGateVisible
+      ) {
+        spawnPattern()
+        spawnCooldown = Phaser.Math.Clamp(
+          1.02 - speed / 500,
+          0.56,
+          0.78
+        )
+      }
+
+      if (
+        !finishGateVisible &&
+        distance >= finishDistance - 720
+      ) {
+        finishGateVisible = true
+        finishGate.setVisible(true)
+        finishGate.y = roadTop - 58
+        status.setText(
+          'Temple finish gate ahead! Hold your lane.'
+        )
+      }
+
+      if (finishGateVisible) {
+        finishGate.y += speed * dt
+
+        if (finishGate.y >= donkeyY - 20) {
+          distance = finishDistance
+          updateHud()
+          finishRace()
           return
         }
       }
 
-      round += 1
-      this.schedule(850, startRound)
+      const donkeyBounds = new Phaser.Geom.Rectangle(
+        donkey.x - donkeyDisplayWidth * 0.3,
+        donkey.y - donkeyDisplayHeight * 0.47,
+        donkeyDisplayWidth * 0.6,
+        jumping
+          ? donkeyDisplayHeight * 0.32
+          : donkeyDisplayHeight * 0.72
+      )
+
+      entities.forEach((entity) => {
+        if (!entity.active) return
+
+        entity.container.y += speed * dt
+
+        if (entity.laneVelocity !== 0) {
+          entity.container.x += entity.laneVelocity * dt
+
+          if (
+            entity.container.x < laneX[0] ||
+            entity.container.x > laneX[2]
+          ) {
+            entity.laneVelocity *= -1
+            entity.container.x = Phaser.Math.Clamp(
+              entity.container.x,
+              laneX[0],
+              laneX[2]
+            )
+          }
+
+          entity.container.rotation += dt * 1.5
+        }
+
+        const entityBounds = new Phaser.Geom.Rectangle(
+          entity.container.x - entity.hitWidth / 2,
+          entity.container.y - entity.hitHeight / 2,
+          entity.hitWidth,
+          entity.hitHeight
+        )
+
+        if (
+          Phaser.Geom.Intersects.RectangleToRectangle(
+            donkeyBounds,
+            entityBounds
+          )
+        ) {
+          if (entity.collectible) {
+            collectEntity(entity)
+          } else if (entity.dangerous) {
+            hitEntity(entity)
+          }
+        }
+
+        if (
+          entity.active &&
+          !entity.passed &&
+          entity.container.y > donkeyY + 38
+        ) {
+          entity.passed = true
+
+          if (
+            entity.dangerous &&
+            Math.abs(entity.container.x - donkey.x) <
+              laneWidth * 0.75
+          ) {
+            score += 55
+            status.setText('Near miss! +55')
+          }
+        }
+
+        if (
+          entity.active &&
+          entity.container.y > roadBottom + 70
+        ) {
+          destroyEntity(entity)
+        }
+      })
+
+      updateHud()
     }
 
-    this.createButton(width / 2, bottom - 68, 270, 62, 'JUMP!', jump, 0x27633a, 23)
-    this.schedule(650, startRound)
+    this.scene.events.on('update', updateRace)
+    this.runtimeCleanups.push(() => {
+      this.scene.events.off('update', updateRace)
+    })
+
+    const buttonWidth = 150
+
+    this.createButton(
+      width / 2 - 175,
+      controlY,
+      buttonWidth,
+      42,
+      '← LEFT',
+      () => moveToLane(-1),
+      0x245d78,
+      15
+    )
+
+    startButton = this.createButton(
+      width / 2,
+      controlY,
+      buttonWidth,
+      42,
+      'START RALLY',
+      startCountdown,
+      0x8b5a2b,
+      15
+    )
+
+    this.createButton(
+      width / 2 + 175,
+      controlY,
+      buttonWidth,
+      42,
+      'RIGHT →',
+      () => moveToLane(1),
+      0x245d78,
+      15
+    )
+
+    const jumpZone = this.scene.add.rectangle(
+      width / 2,
+      (roadTop + roadBottom) / 2,
+      roadWidth,
+      roadHeight,
+      0x000000,
+      0
+    )
+    jumpZone.setInteractive({ useHandCursor: true })
+    this.addObject(jumpZone)
+
+    const pointerJump = () => {
+      if (state === 'ready') {
+        startCountdown()
+      } else {
+        jump()
+      }
+    }
+
+    jumpZone.on('pointerdown', pointerJump)
+    this.runtimeCleanups.push(() => {
+      jumpZone.off('pointerdown', pointerJump)
+    })
+
+    updateHud()
+    this.container.bringToTop(donkey)
+    this.container.bringToTop(rushAura)
+    this.container.bringToTop(countdownText)
   }
 
   // ---------------------------------------------------------------------------

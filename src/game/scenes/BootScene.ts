@@ -244,6 +244,16 @@ export default class BootScene extends Phaser.Scene {
       'bazaar-gate-foreground',
       'assets/maps/bazaar_gate_foreground.png'
     )
+
+    this.load.image(
+      'bazaar_race_bg',
+      'assets/minigames/bazaar_race_bg.png'
+    )
+    
+    this.load.image(
+      'donkey_topview',
+      'assets/minigames/donkey_topview.png'
+    )
   }
 
   create() {
