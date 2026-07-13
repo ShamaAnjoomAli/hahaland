@@ -3,7 +3,21 @@ import NPC from '../entities/NPC'
 import DialogueBox from '../ui/DialogueBox'
 import ObjectiveBox from '../ui/ObjectiveBox'
 import GameHUD from '../ui/GameHUD'
-import MinigamePopup, { type MinigameChoice } from '../ui/MinigamePopup'
+import BazaarChallengePopup, {
+    type BazaarGameId,
+    type BazaarMinigameResult,
+  } from '../ui/BazaarChallengePopup'
+  
+  type MinigameChoice = {
+    label: string
+    value: string
+    response: string
+    success?: boolean
+    goldDelta?: number
+    reputationDelta?: number
+    setFlags?: string[]
+    setItems?: string[]
+  }
 
 export default class BazaarScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite
@@ -14,7 +28,7 @@ export default class BazaarScene extends Phaser.Scene {
   private dialogue!: DialogueBox
   private objectiveBox!: ObjectiveBox
   private hud!: GameHUD
-  private minigame!: MinigamePopup
+private minigame!: BazaarChallengePopup
 
   private npcs: NPC[] = []
   private interactPrompt!: Phaser.GameObjects.Container
@@ -124,8 +138,8 @@ private bazaarExitPoint?: {
   
     this.dialogue = new DialogueBox(this)
     this.objectiveBox = new ObjectiveBox(this)
-    this.minigame = new MinigamePopup(this)
-  
+    this.minigame = new BazaarChallengePopup(this)
+
     this.objectiveBox.setText(
       'Objective: Explore the bazaar markets.'
     )
@@ -193,34 +207,33 @@ private bazaarExitPoint?: {
   }
 
   update() {
-    if (this.minigame.open()) {
-      this.player.setVelocity(0)
-      this.player.stop()
-      return
-    }
-
-    if (this.dialogue.isOpen()) {
-      this.player.setVelocity(0)
-
-      if (
-        Phaser.Input.Keyboard.JustDown(
-          this.spaceKey
-        )
-      ) {
-        this.dialogue.next()
-      }
-
-      return
-    }
-
     this.updateBazaarMinimap()
 
-    this.updateInteractPrompt()
-
-    if (this.handleBazaarExit()) {
-      return
-    }
-
+    if (this.minigame.open()) {
+        this.player.setVelocity(0)
+        this.player.stop()
+        return
+      }
+    
+      if (this.dialogue.isOpen()) {
+        this.player.setVelocity(0)
+    
+        if (
+          Phaser.Input.Keyboard.JustDown(
+            this.spaceKey
+          )
+        ) {
+          this.dialogue.next()
+        }
+    
+        return
+      }
+    
+      this.updateInteractPrompt()
+    
+      if (this.handleBazaarExit()) {
+        return
+      }
     const speed = 115
 
     this.player.setVelocity(0)
@@ -486,79 +499,117 @@ this.worldObjects.push(npc)
     )
   }
 
-  private startMarketMinigame(
-    npcName: string,
-    portraitKey: string,
-    config: {
-      title: string
-      description: string[]
-      choices: MinigameChoice[]
-    }
-  ) {
+ private startMarketMinigame(
+  npcName: string,
+  portraitKey: string,
+  config: {
+    title: string
+    description: string[]
+    choices: MinigameChoice[]
+  }
+) {
+  const gameId = this.getBazaarGameId(npcName)
+
+  if (!gameId) {
     this.dialogue.show(
       [
         {
-          text: config.description[0],
-          portraitKey,
-        },
-        {
-          text: config.description[1],
+          text: 'This market is not ready yet.',
           portraitKey,
         },
       ],
-      () => {
-        this.minigame.show({
-          title: config.title,
-          description: config.description,
-          choices: config.choices,
-          onComplete: (choice) => {
-            this.applyMinigameReward(choice)
-            this.completedMarkets.add(npcName)
-
-            this.objectiveBox.setText(
-              `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`
-            )
-
-            if (this.completedMarkets.size >= 7) {
-              this.dialogue.show(
-                [
-                  {
-                    text: 'You survived the bazaar.',
-                    portraitKey: 'player',
-                  },
-                  {
-                    text: 'Your wallet is lighter, but your bargaining soul is stronger.',
-                    portraitKey: 'player',
-                  },
-                  {
-                    text: 'Find the Bazaar Exit gate.',
-                    portraitKey: 'player',
-                  },
-                ],
-                () => {
-                  this.objectiveBox.setText(
-                    'Objective: Exit the bazaar through the North Gate.'
-                  )
-                },
-                'player'
-              )
-            }
-          },
-        })
-      },
+      undefined,
       portraitKey
     )
+
+    return
+  }
+
+  this.dialogue.show(
+    [
+      {
+        text: config.description[0],
+        portraitKey,
+      },
+      {
+        text: config.description[1],
+        portraitKey,
+      },
+    ],
+    () => {
+      this.minigame.show({
+        gameId,
+        portraitKey,
+        onComplete: (result) => {
+          this.applyMinigameReward(result)
+          this.completedMarkets.add(npcName)
+
+          this.objectiveBox.setText(
+            `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`
+          )
+
+          if (this.completedMarkets.size >= 7) {
+            this.dialogue.show(
+              [
+                {
+                  text: 'You survived the bazaar.',
+                  portraitKey: 'player',
+                },
+                {
+                  text: 'Your wallet is lighter, but your bargaining soul is stronger.',
+                  portraitKey: 'player',
+                },
+                {
+                  text: 'You are no longer just a tourist.',
+                  portraitKey: 'player',
+                },
+                {
+                  text: 'You are a certified bazaar survivor.',
+                  portraitKey: 'player',
+                },
+                {
+                  text: 'Find the bazaar entrance and return to the city.',
+                  portraitKey: 'player',
+                },
+              ],
+              () => {
+                this.objectiveBox.setText(
+                  'Objective: Exit the bazaar through the entrance gate.'
+                )
+              },
+              'player'
+            )
+          }
+        },
+      })
+    },
+    portraitKey
+  )
+}
+
+private getBazaarGameId(npcName: string): BazaarGameId | null {
+    const games: Record<string, BazaarGameId> = {
+      NPC_3: 'map-bargain',
+      NPC_4: 'scale-puzzle',
+      NPC_8: 'spice-memory',
+      NPC_7: 'date-trade',
+      NPC_10: 'pottery-fraud',
+      NPC_11: 'donkey-race',
+      NPC_15: 'eagle-delivery',
+    }
+  
+    return games[npcName] ?? null
   }
 
   private applyMinigameReward(
-    choice: MinigameChoice
+    result: BazaarMinigameResult
   ) {
-    if (choice.goldDelta) {
-      this.changeCoins(choice.goldDelta)
+    if (typeof result.goldDelta === 'number') {
+      this.changeCoins(result.goldDelta)
     }
-
-    if (choice.reputationDelta) {
-      this.changeReputation(choice.reputationDelta)
+  
+    if (typeof result.reputationDelta === 'number') {
+      this.changeReputation(result.reputationDelta)
     }
   }
 
