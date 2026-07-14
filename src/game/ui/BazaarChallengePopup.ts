@@ -83,7 +83,9 @@ export default class BazaarChallengePopup {
         this.createScalePuzzleGame()
         break
       case 'spice-memory':
-        this.createSpiceMemoryGame()
+        this.ensureSpiceRevealAssets(() => {
+          this.createSpiceMemoryGame()
+        })
         break
       case 'date-trade':
         this.ensureDateQuizAssets(() => {
@@ -169,6 +171,151 @@ export default class BazaarChallengePopup {
     scrollObject.setScrollFactor?.(0)
     this.container.add(object)
     return object
+  }
+
+  private ensureSpiceRevealAssets(onReady: () => void) {
+    const assets = [
+      {
+        key: 'spice_reveal_cinnamon',
+        path: 'assets/minigames/spice_reveal/spice_01_cinnamon.png',
+      },
+      {
+        key: 'spice_reveal_cardamom',
+        path: 'assets/minigames/spice_reveal/spice_02_cardamom.png',
+      },
+      {
+        key: 'spice_reveal_saffron',
+        path: 'assets/minigames/spice_reveal/spice_03_saffron.png',
+      },
+      {
+        key: 'spice_reveal_cloves',
+        path: 'assets/minigames/spice_reveal/spice_04_cloves.png',
+      },
+      {
+        key: 'spice_reveal_cumin',
+        path: 'assets/minigames/spice_reveal/spice_05_cumin.png',
+      },
+      {
+        key: 'spice_reveal_black_pepper',
+        path: 'assets/minigames/spice_reveal/spice_06_black_pepper.png',
+      },
+      {
+        key: 'spice_reveal_turmeric',
+        path: 'assets/minigames/spice_reveal/spice_07_turmeric.png',
+      },
+      {
+        key: 'spice_reveal_star_anise',
+        path: 'assets/minigames/spice_reveal/spice_08_star_anise.png',
+      },
+      ...Array.from({ length: 8 }, (_value, index) => ({
+        key: `spice_reveal_tile_${index + 1}`,
+        path: `assets/minigames/spice_reveal/tile_${String(index + 1).padStart(2, '0')}.png`,
+      })),
+    ]
+
+    const missingAssets = assets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingAssets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(455, this.panelWidth - 80),
+      112,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Preparing the Spice Merchant mystery tablets...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(400, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (
+        missingAssets.some(
+          (asset) => asset.key === file.key
+        )
+      ) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (
+        !this.isVisible ||
+        session !== this.sessionId
+      ) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissing = missingAssets.filter(
+        (asset) => !this.scene.textures.exists(asset.key)
+      )
+
+      if (loadFailed || stillMissing.length > 0) {
+        const missingNames = stillMissing
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load the Spice Reveal artwork.\n\n${missingNames}\n\nCopy the spice_reveal folder into public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(15)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingAssets.forEach((asset) => {
+      this.scene.load.image(asset.key, asset.path)
+    })
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
   }
 
   private ensureDonkeyRaceAssets(onReady: () => void) {
@@ -1453,170 +1600,707 @@ export default class BazaarChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle('3. Spice Merchant — Memory Rush')
-    this.addInstruction('Watch each glowing bowl, then repeat the sequence. Bowls shuffle after every round.')
+    this.addTitle('3. Spice Merchant — Mystery Tablet Reveal')
+    this.addInstruction(
+      'Reveal the Egyptian tablets and identify the hidden spice before the 12-second sand runs out.',
+      top + 86
+    )
 
-    const spices = [
-      { name: 'Cumin', code: 'CU', color: 0xd49a2f },
-      { name: 'Cinnamon', code: 'CI', color: 0x9a3c25 },
-      { name: 'Cardamom', code: 'CA', color: 0x4d8f52 },
-      { name: 'Pepper', code: 'PE', color: 0x4e4a48 },
-    ]
-
-    let round = 1
-    let mistakes = 0
-    let sequence: number[] = []
-    let inputIndex = 0
-    let acceptingInput = false
-
-    const roundText = this.addStatusText('Round 1/3', top + 132, '#ffd966')
-    const status = this.addStatusText('Get ready...', top + 165)
-    const hearts = this.scene.add.text(this.getPanelRight() - 75, top + 132, '♥ ♥', {
-      fontFamily: 'Arial',
-      fontSize: '25px',
-      color: '#ff6b6b',
-      stroke: '#000000',
-      strokeThickness: 4,
-    })
-    hearts.setOrigin(0.5)
-    this.addObject(hearts)
-
-    const positions = [width / 2 - 225, width / 2 - 75, width / 2 + 75, width / 2 + 225]
-    const bowlY = top + 290
-    const bowlObjects: Array<{
-      bowl: Phaser.GameObjects.Ellipse
-      label: Phaser.GameObjects.Text
-      spiceIndex: number
-    }> = []
-
-    const flashSpice = (spiceIndex: number) => {
-      const entry = bowlObjects.find((item) => item.spiceIndex === spiceIndex)
-      if (!entry) return
-
-      entry.bowl.setStrokeStyle(7, 0xffffff, 1)
-      this.addTween({
-        targets: [entry.bowl, entry.label],
-        scaleX: 1.16,
-        scaleY: 1.16,
-        duration: 180,
-        yoyo: true,
-        onComplete: () => entry.bowl.setStrokeStyle(4, 0xffd966, 1),
-      })
+    type SpiceRound = {
+      name: string
+      imageKey: string
+      tileKey: string
+      options: string[]
+      correctIndex: number
+      fact: string
     }
 
-    const shuffleBowls = () => {
-      const shuffledPositions = Phaser.Utils.Array.Shuffle([...positions])
-      bowlObjects.forEach((entry, index) => {
-        this.addTween({
-          targets: [entry.bowl, entry.label],
-          x: shuffledPositions[index],
-          duration: 420,
-          ease: 'Sine.easeInOut',
-        })
-      })
+    const rounds = Phaser.Utils.Array.Shuffle<SpiceRound>([
+      {
+        name: 'Cinnamon',
+        imageKey: 'spice_reveal_cinnamon',
+        tileKey: 'spice_reveal_tile_1',
+        options: ['Cinnamon', 'Turmeric', 'Cloves'],
+        correctIndex: 0,
+        fact: 'Cinnamon comes from the fragrant inner bark of cinnamon trees.',
+      },
+      {
+        name: 'Cardamom',
+        imageKey: 'spice_reveal_cardamom',
+        tileKey: 'spice_reveal_tile_2',
+        options: ['Cumin', 'Cardamom', 'Black pepper'],
+        correctIndex: 1,
+        fact: 'Cardamom pods hide aromatic seeds used in coffee, tea, and desserts.',
+      },
+      {
+        name: 'Saffron',
+        imageKey: 'spice_reveal_saffron',
+        tileKey: 'spice_reveal_tile_3',
+        options: ['Star anise', 'Saffron', 'Cinnamon'],
+        correctIndex: 1,
+        fact: 'Saffron is collected from delicate crocus flowers and is prized for its colour.',
+      },
+      {
+        name: 'Cloves',
+        imageKey: 'spice_reveal_cloves',
+        tileKey: 'spice_reveal_tile_4',
+        options: ['Cloves', 'Cardamom', 'Cumin'],
+        correctIndex: 0,
+        fact: 'Cloves are dried flower buds with a powerful warm aroma.',
+      },
+      {
+        name: 'Cumin',
+        imageKey: 'spice_reveal_cumin',
+        tileKey: 'spice_reveal_tile_5',
+        options: ['Black pepper', 'Cumin', 'Turmeric'],
+        correctIndex: 1,
+        fact: 'Cumin seeds add an earthy flavour to many Middle Eastern dishes.',
+      },
+      {
+        name: 'Black pepper',
+        imageKey: 'spice_reveal_black_pepper',
+        tileKey: 'spice_reveal_tile_6',
+        options: ['Saffron', 'Cloves', 'Black pepper'],
+        correctIndex: 2,
+        fact: 'Black peppercorns are dried berries and were once traded like treasure.',
+      },
+      {
+        name: 'Turmeric',
+        imageKey: 'spice_reveal_turmeric',
+        tileKey: 'spice_reveal_tile_7',
+        options: ['Turmeric', 'Cinnamon', 'Cardamom'],
+        correctIndex: 0,
+        fact: 'Turmeric is a golden root spice famous for its bright colour.',
+      },
+      {
+        name: 'Star anise',
+        imageKey: 'spice_reveal_star_anise',
+        tileKey: 'spice_reveal_tile_8',
+        options: ['Cumin', 'Star anise', 'Cloves'],
+        correctIndex: 1,
+        fact: 'Star anise has a sweet liquorice-like aroma and a distinctive star shape.',
+      },
+    ])
+
+    const totalRounds = rounds.length
+    const roundDuration = 12
+    const gridSize = 8
+    const totalTiles = gridSize * gridSize
+
+    let roundIndex = 0
+    let hearts = 3
+    let score = 0
+    let correctAnswers = 0
+    let secondsRemaining = roundDuration
+    let revealedTiles = 0
+    let roundLocked = true
+    let started = false
+    let roundTimer: Phaser.Time.TimerEvent | undefined
+    let currentRound = rounds[0]
+
+    const hudY = top + 130
+    const hudHeight = 42
+    const sideHudWidth = 145
+    const centerHudWidth = 190
+
+    const leftHudX = this.getPanelLeft() + 98
+    const centerHudX = width / 2
+    const rightHudX = this.getPanelRight() - 98
+
+    const createHudCard = (
+      x: number,
+      cardWidth: number,
+      bandColor: number
+    ) => {
+      const shadow = this.scene.add.rectangle(
+        x + 3,
+        hudY + 3,
+        cardWidth,
+        hudHeight,
+        0x000000,
+        0.3
+      )
+
+      const card = this.scene.add.rectangle(
+        x,
+        hudY,
+        cardWidth,
+        hudHeight,
+        0xf0dfb5,
+        1
+      )
+      card.setStrokeStyle(3, 0xb8862e, 1)
+
+      const band = this.scene.add.rectangle(
+        x,
+        hudY - hudHeight / 2 + 6,
+        cardWidth - 10,
+        8,
+        bandColor,
+        1
+      )
+
+      this.addObject(shadow)
+      this.addObject(card)
+      this.addObject(band)
     }
 
-    const playSequence = () => {
-      acceptingInput = false
-      inputIndex = 0
-      status.setText('WATCH')
-      sequence = Array.from({ length: round + 2 }, () => Phaser.Math.Between(0, spices.length - 1))
+    createHudCard(leftHudX, sideHudWidth, 0x8b5a2b)
+    createHudCard(centerHudX, centerHudWidth, 0x245d78)
+    createHudCard(rightHudX, sideHudWidth, 0x8f2d2d)
 
-      sequence.forEach((spiceIndex, index) => {
-        this.schedule(650 + index * 650, () => flashSpice(spiceIndex))
-      })
-
-      this.schedule(650 + sequence.length * 650, () => {
-        acceptingInput = true
-        status.setText('YOUR TURN')
-      })
-    }
-
-    const handleChoice = (spiceIndex: number) => {
-      if (!acceptingInput || this.resultLocked) return
-      flashSpice(spiceIndex)
-
-      if (spiceIndex !== sequence[inputIndex]) {
-        acceptingInput = false
-        mistakes += 1
-        hearts.setText(mistakes === 1 ? '♥ ♡' : '♡ ♡')
-        status.setText('Wrong spice! The merchant sneezes dramatically.')
-        this.scene.cameras.main.shake(180, 0.005)
-
-        if (mistakes >= 2) {
-          this.complete({
-            success: false,
-            goldDelta: -40,
-            reputationDelta: -1,
-            response: 'Two mistakes. Your final blend tastes like a cupboard argument. The merchant sells it to a tourist anyway.',
-          }, 900)
-          return
-        }
-
-        this.schedule(1100, playSequence)
-        return
+    const roundText = this.scene.add.text(
+      leftHudX,
+      hudY + 4,
+      `ROUND 1 / ${totalRounds}`,
+      {
+        fontFamily: 'Georgia',
+        fontSize: '15px',
+        color: '#74420d',
+        stroke: '#fff4cf',
+        strokeThickness: 2,
+        fontStyle: 'bold',
       }
+    )
+    roundText.setOrigin(0.5)
 
-      inputIndex += 1
-      status.setText(`Correct ${inputIndex}/${sequence.length}`)
-
-      if (inputIndex < sequence.length) return
-
-      acceptingInput = false
-      if (round >= 3) {
-        this.complete({
-          success: true,
-          goldDelta: 280,
-          reputationDelta: 16,
-          response: 'Three perfect blends. The Spice Merchant declares your nose “legally impressive.”',
-        }, 700)
-        return
+    const scoreText = this.scene.add.text(
+      centerHudX,
+      hudY + 4,
+      'SCORE 0',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#245d78',
+        stroke: '#ffffff',
+        strokeThickness: 2,
+        fontStyle: 'bold',
       }
+    )
+    scoreText.setOrigin(0.5)
 
-      round += 1
-      roundText.setText(`Round ${round}/3`)
-      status.setText('Correct! The bowls are moving...')
-      shuffleBowls()
-      this.schedule(900, playSequence)
-    }
+    const heartsText = this.scene.add.text(
+      rightHudX,
+      hudY + 4,
+      '♥ ♥ ♥',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '20px',
+        color: '#9b2525',
+        stroke: '#3c160e',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    heartsText.setOrigin(0.5)
 
-    spices.forEach((spice, index) => {
-      const bowl = this.scene.add.ellipse(positions[index], bowlY, 126, 92, spice.color, 1)
-      bowl.setStrokeStyle(4, 0xffd966, 1)
-      bowl.setInteractive({ useHandCursor: true })
+    this.addObject(roundText)
+    this.addObject(scoreText)
+    this.addObject(heartsText)
 
-      const label = this.scene.add.text(positions[index], bowlY, `${spice.code}\n${spice.name}`, {
+    const timerY = top + 165
+    const timerWidth = this.panelWidth - 118
+
+    const timerTrack = this.scene.add.rectangle(
+      width / 2,
+      timerY,
+      timerWidth,
+      12,
+      0x2b2118,
+      1
+    )
+    timerTrack.setStrokeStyle(2, 0xd4af37, 1)
+
+    const timerFill = this.scene.add.rectangle(
+      width / 2 - timerWidth / 2 + 2,
+      timerY,
+      timerWidth - 4,
+      8,
+      0x4fa4c7,
+      1
+    )
+    timerFill.setOrigin(0, 0.5)
+
+    const timerText = this.scene.add.text(
+      this.getPanelRight() - 46,
+      timerY,
+      '12.0s',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '13px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    timerText.setOrigin(1, 0.5)
+
+    this.addObject(timerTrack)
+    this.addObject(timerFill)
+    this.addObject(timerText)
+
+    const feedbackY = top + 194
+    const feedbackText = this.scene.add.text(
+      width / 2,
+      feedbackY,
+      'Reveal a few tablets, then make your guess.',
+      {
         fontFamily: 'Georgia',
         fontSize: '16px',
-        color: '#ffffff',
+        color: '#ffd966',
         stroke: '#000000',
         strokeThickness: 4,
         align: 'center',
-      })
-      label.setOrigin(0.5)
+        fontStyle: 'bold',
+        wordWrap: { width: this.panelWidth - 100 },
+      }
+    )
+    feedbackText.setOrigin(0.5)
+    this.addObject(feedbackText)
 
-      bowl.on('pointerdown', () => handleChoice(index))
-      bowl.on('pointerover', () => {
-        if (acceptingInput) bowl.setStrokeStyle(5, 0xffffff, 1)
-      })
-      bowl.on('pointerout', () => bowl.setStrokeStyle(4, 0xffd966, 1))
+    const answerY = bottom - 55
+    const puzzleSize = Math.min(
+      286,
+      this.panelWidth - 245,
+      answerY - (top + 216) - 40
+    )
+    const puzzleCenterY = top + 216 + puzzleSize / 2
 
-      this.addObject(bowl)
-      this.addObject(label)
-      bowlObjects.push({ bowl, label, spiceIndex: index })
+    const puzzleShadow = this.scene.add.rectangle(
+      width / 2 + 5,
+      puzzleCenterY + 6,
+      puzzleSize + 12,
+      puzzleSize + 12,
+      0x000000,
+      0.35
+    )
+
+    const puzzleBorder = this.scene.add.rectangle(
+      width / 2,
+      puzzleCenterY,
+      puzzleSize + 12,
+      puzzleSize + 12,
+      0x2b1809,
+      1
+    )
+    puzzleBorder.setStrokeStyle(4, 0xd4af37, 1)
+
+    const puzzleImage = this.scene.add.image(
+      width / 2,
+      puzzleCenterY,
+      currentRound.imageKey
+    )
+    puzzleImage.setDisplaySize(puzzleSize, puzzleSize)
+
+    this.addObject(puzzleShadow)
+    this.addObject(puzzleBorder)
+    this.addObject(puzzleImage)
+
+    const tileContainer = this.scene.add.container(
+      width / 2,
+      puzzleCenterY
+    )
+    this.addObject(tileContainer)
+
+    const answerGap = 16
+    const answerWidth = Math.min(
+      216,
+      (this.panelWidth - 92 - answerGap * 2) / 3
+    )
+    const answerX = [
+      width / 2 - answerWidth - answerGap,
+      width / 2,
+      width / 2 + answerWidth + answerGap,
+    ]
+
+    const answerButtons: ButtonHandle[] = []
+
+    const setAnswerButtonsVisible = (visible: boolean) => {
+      answerButtons.forEach((button) => {
+        button.bg.setVisible(visible)
+        button.text.setVisible(visible)
+      })
+    }
+
+    const updateHud = () => {
+      roundText.setText(
+        `ROUND ${roundIndex + 1} / ${totalRounds}`
+      )
+      scoreText.setText(`SCORE ${score}`)
+      heartsText.setText(
+        Array.from(
+          { length: 3 },
+          (_value, index) => (index < hearts ? '♥' : '♡')
+        ).join(' ')
+      )
+    }
+
+    const updateTimer = () => {
+      const ratio = Phaser.Math.Clamp(
+        secondsRemaining / roundDuration,
+        0,
+        1
+      )
+
+      timerFill.width = Math.max(
+        1,
+        (timerWidth - 4) * ratio
+      )
+
+      timerFill.setFillStyle(
+        secondsRemaining <= 3
+          ? 0xc23d35
+          : secondsRemaining <= 6
+            ? 0xd39a2f
+            : 0x4fa4c7,
+        1
+      )
+
+      timerText.setText(`${secondsRemaining.toFixed(1)}s`)
+      timerText.setColor(
+        secondsRemaining <= 3 ? '#ff7770' : '#ffd966'
+      )
+    }
+
+    const stopRoundTimer = () => {
+      roundTimer?.remove(false)
+      roundTimer = undefined
+    }
+
+    const revealAllTiles = () => {
+      const remainingTiles = tileContainer.list.filter(
+        (object) => object.active
+      )
+
+      remainingTiles.forEach((object) => {
+        const tile = object as Phaser.GameObjects.Image
+        tile.disableInteractive()
+      })
+
+      if (remainingTiles.length === 0) return
+
+      this.addTween({
+        targets: remainingTiles,
+        alpha: 0,
+        scaleX: 0.82,
+        scaleY: 0.82,
+        duration: 260,
+        stagger: 4,
+        ease: 'Sine.easeOut',
+      })
+    }
+
+    const styleAnswerButtons = (
+      selectedIndex: number | undefined,
+      correctIndex: number
+    ) => {
+      answerButtons.forEach((button, index) => {
+        button.setEnabled(false)
+        button.text.setAlpha(1)
+
+        if (index === correctIndex) {
+          button.bg.setFillStyle(0x27633a, 1)
+          button.bg.setStrokeStyle(3, 0x72ff9b, 1)
+          return
+        }
+
+        if (
+          selectedIndex !== undefined &&
+          index === selectedIndex
+        ) {
+          button.bg.setFillStyle(0x7d2d2d, 1)
+          button.bg.setStrokeStyle(3, 0xff7770, 1)
+        }
+      })
+    }
+
+    const finishGame = (completedAllRounds: boolean) => {
+      stopRoundTimer()
+      roundLocked = true
+
+      const success =
+        completedAllRounds &&
+        correctAnswers >= 5 &&
+        hearts > 0
+
+      const goldReward = success
+        ? 180 + correctAnswers * 55 + Math.floor(score / 18)
+        : Math.max(35, correctAnswers * 32 + Math.floor(score / 35))
+
+      const reputationReward = success
+        ? 8 + correctAnswers * 2
+        : Math.max(0, correctAnswers - 2)
+
+      this.complete(
+        {
+          success,
+          goldDelta: goldReward,
+          reputationDelta: reputationReward,
+          response: success
+            ? `You identified ${correctAnswers} of ${totalRounds} spices and scored ${score}. The Spice Merchant names you Keeper of the Mystery Shelf.`
+            : `You identified ${correctAnswers} of ${totalRounds} spices and scored ${score}. The remaining tablets keep their secrets for another day.`,
+        },
+        350
+      )
+    }
+
+    const startRoundTimer = () => {
+      stopRoundTimer()
+
+      roundTimer = this.scene.time.addEvent({
+        delay: 100,
+        loop: true,
+        callback: () => {
+          if (
+            roundLocked ||
+            !this.isVisible ||
+            this.resultLocked
+          ) {
+            return
+          }
+
+          secondsRemaining = Math.max(
+            0,
+            secondsRemaining - 0.1
+          )
+          updateTimer()
+
+          if (secondsRemaining > 0) return
+
+          roundLocked = true
+          stopRoundTimer()
+          hearts = Math.max(0, hearts - 1)
+          updateHud()
+          revealAllTiles()
+          styleAnswerButtons(undefined, currentRound.correctIndex)
+
+          feedbackText.setColor('#ffbd63')
+          feedbackText.setText(
+            `Time! The hidden spice was ${currentRound.name}. ${currentRound.fact}`
+          )
+
+          if (hearts <= 0) {
+            this.schedule(2900, () => finishGame(false))
+            return
+          }
+
+          if (roundIndex >= totalRounds - 1) {
+            this.schedule(2900, () => finishGame(true))
+            return
+          }
+
+          this.schedule(2900, () => {
+            roundIndex += 1
+            prepareRound(true)
+          })
+        },
+      })
+
+      this.timers.push(roundTimer)
+    }
+
+    const revealTile = (tile: Phaser.GameObjects.Image) => {
+      if (
+        roundLocked ||
+        tile.getData('revealed') === true ||
+        this.resultLocked
+      ) {
+        return
+      }
+
+      tile.setData('revealed', true)
+      tile.disableInteractive()
+      revealedTiles += 1
+
+      this.addTween({
+        targets: tile,
+        alpha: 0,
+        scaleX: 0.65,
+        scaleY: 0.65,
+        angle: Phaser.Math.Between(-12, 12),
+        duration: 130,
+        ease: 'Back.easeIn',
+        onComplete: () => tile.destroy(),
+      })
+    }
+
+    const handleAnswer = (selectedIndex: number) => {
+      if (roundLocked || this.resultLocked) return
+
+      roundLocked = true
+      stopRoundTimer()
+      revealAllTiles()
+
+      const correct =
+        selectedIndex === currentRound.correctIndex
+
+      styleAnswerButtons(
+        selectedIndex,
+        currentRound.correctIndex
+      )
+
+      if (correct) {
+        correctAnswers += 1
+
+        const unopenedTiles = Math.max(
+          0,
+          totalTiles - revealedTiles
+        )
+
+        const earned =
+          100 +
+          Math.ceil(secondsRemaining) * 10 +
+          unopenedTiles * 2
+
+        score += earned
+        feedbackText.setColor('#72ff9b')
+        feedbackText.setText(
+          `Correct! +${earned} points. ${currentRound.fact}`
+        )
+      } else {
+        hearts = Math.max(0, hearts - 1)
+        feedbackText.setColor('#ff7770')
+        feedbackText.setText(
+          `Not quite — it was ${currentRound.name}. ${currentRound.fact}`
+        )
+      }
+
+      updateHud()
+
+      if (hearts <= 0) {
+        this.schedule(2900, () => finishGame(false))
+        return
+      }
+
+      if (roundIndex >= totalRounds - 1) {
+        this.schedule(2900, () => finishGame(true))
+        return
+      }
+
+      this.schedule(2900, () => {
+        roundIndex += 1
+        prepareRound(true)
+      })
+    }
+
+    answerX.forEach((x, index) => {
+      const button = this.createButton(
+        x,
+        answerY,
+        answerWidth,
+        48,
+        `OPTION ${index + 1}`,
+        () => handleAnswer(index),
+        0x8b5a2b,
+        15
+      )
+      answerButtons.push(button)
     })
 
-    const tip = this.scene.add.text(width / 2, bottom - 70, 'Tip: color + abbreviation + position all matter.', {
-      fontFamily: 'Georgia',
-      fontSize: '15px',
-      color: '#d7c7ad',
-      stroke: '#000000',
-      strokeThickness: 3,
-    })
-    tip.setOrigin(0.5)
-    this.addObject(tip)
+    let startButton: ButtonHandle
 
-    this.schedule(900, playSequence)
+    const prepareRound = (activateImmediately: boolean) => {
+      stopRoundTimer()
+      roundLocked = true
+      currentRound = rounds[roundIndex]
+      secondsRemaining = roundDuration
+      revealedTiles = 0
+
+      puzzleImage.setTexture(currentRound.imageKey)
+      puzzleImage.setDisplaySize(puzzleSize, puzzleSize)
+
+      tileContainer.removeAll(true)
+
+      const cellWidth = puzzleSize / gridSize
+      const cellHeight = puzzleSize / gridSize
+
+      for (let row = 0; row < gridSize; row += 1) {
+        for (let column = 0; column < gridSize; column += 1) {
+          const tile = this.scene.add.image(
+            -puzzleSize / 2 + cellWidth * (column + 0.5),
+            -puzzleSize / 2 + cellHeight * (row + 0.5),
+            currentRound.tileKey
+          )
+
+          tile.setDisplaySize(
+            cellWidth + 1.2,
+            cellHeight + 1.2
+          )
+          tile.setInteractive({ useHandCursor: true })
+          tile.setData('revealed', false)
+          tile.on('pointerdown', () => revealTile(tile))
+          tileContainer.add(tile)
+        }
+      }
+
+      answerButtons.forEach((button, index) => {
+        button.text.setText(
+          `${String.fromCharCode(65 + index)}. ${currentRound.options[index]}`
+        )
+        button.setSelected(false)
+        button.setEnabled(true)
+        button.bg.setScale(1)
+        button.text.setScale(1)
+        button.bg.setAlpha(1)
+        button.text.setAlpha(1)
+      })
+
+      feedbackText.setColor('#ffd966')
+      feedbackText.setText('What spice is hidden beneath the tablets?')
+
+      updateHud()
+      updateTimer()
+
+      if (activateImmediately) {
+        setAnswerButtonsVisible(true)
+        startButton.bg.setVisible(false)
+        startButton.text.setVisible(false)
+        roundLocked = false
+        startRoundTimer()
+      } else {
+        setAnswerButtonsVisible(false)
+        startButton.bg.setVisible(true)
+        startButton.text.setVisible(true)
+      }
+
+      this.container.bringToTop(tileContainer)
+      this.container.bringToTop(feedbackText)
+      answerButtons.forEach((button) => {
+        this.container.bringToTop(button.bg)
+        this.container.bringToTop(button.text)
+      })
+    }
+
+    const beginGame = () => {
+      if (started) return
+
+      started = true
+      startButton.setEnabled(false)
+      startButton.bg.setVisible(false)
+      startButton.text.setVisible(false)
+      setAnswerButtonsVisible(true)
+      roundLocked = false
+      feedbackText.setText(
+        'Reveal strategically. You can guess at any time.'
+      )
+      startRoundTimer()
+    }
+
+    startButton = this.createButton(
+      width / 2,
+      answerY,
+      260,
+      50,
+      'BEGIN MYSTERY REVEAL',
+      beginGame,
+      0x27633a,
+      16
+    )
+
+    prepareRound(false)
+    this.container.bringToTop(startButton.bg)
+    this.container.bringToTop(startButton.text)
   }
 
   // ---------------------------------------------------------------------------
@@ -2166,7 +2850,9 @@ export default class BazaarChallengePopup {
 
       updateHud()
 
-      this.schedule(2500, () => {
+      const feedbackDelay = correct ? 3500 : 2800
+
+      this.schedule(feedbackDelay, () => {
         showNextQuestion()
       })
     }

@@ -563,7 +563,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":true,
+         "visible":false,
          "x":0,
          "y":0
         }, 
@@ -621,8 +621,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":983.666666666667,
-                 "y":377
+                 "x":705,
+                 "y":850.333333333333
                 }, 
                 {
                  "height":0,
