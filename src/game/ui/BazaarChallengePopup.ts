@@ -86,7 +86,9 @@ export default class BazaarChallengePopup {
         this.createSpiceMemoryGame()
         break
       case 'date-trade':
-        this.createDateTradeGame()
+        this.ensureDateQuizAssets(() => {
+          this.createDateTradeGame()
+        })
         break
       case 'pottery-fraud':
         this.createPotteryFraudGame()
@@ -400,6 +402,176 @@ export default class BazaarChallengePopup {
         }
       )
     }
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
+  }
+
+  private ensureDateQuizAssets(onReady: () => void) {
+    const assets = [
+      {
+        key: 'date_quiz_majdoul',
+        path: 'assets/minigames/date_quiz/ancient_date_on_papyrus_parchment.png',
+      },
+      {
+        key: 'date_quiz_coffee',
+        path: 'assets/minigames/date_quiz/antique_arabic_coffee_scene_on_parchment.png',
+      },
+      {
+        key: 'date_quiz_varieties_abc_1',
+        path: 'assets/minigames/date_quiz/egyptian_themed_date_comparison_chart.png',
+      },
+      {
+        key: 'date_quiz_stuffed_almond',
+        path: 'assets/minigames/date_quiz/ancient_egyptian_date_on_parchment.png',
+      },
+      {
+        key: 'date_quiz_sukkari',
+        path: 'assets/minigames/date_quiz/ancient_egypt_fruit_icon.png',
+      },
+      {
+        key: 'date_quiz_seed',
+        path: 'assets/minigames/date_quiz/ancient_scroll_with_dates_and_egyptian_motifs.png',
+      },
+      {
+        key: 'date_quiz_varieties_abc_2',
+        path: 'assets/minigames/date_quiz/ancient_egyptian_date_fruits_chart.png',
+      },
+      {
+        key: 'date_quiz_seedless',
+        path: 'assets/minigames/date_quiz/ancient_egyptian_date_fruit_illustration.png',
+      },
+      {
+        key: 'date_quiz_ajwa',
+        path: 'assets/minigames/date_quiz/ancient_egyptian_date_fruits_chart.png',
+      },
+      {
+        key: 'date_quiz_size_comparison',
+        path: 'assets/minigames/date_quiz/ancient_papyrus_with_dates_arrangement.png',
+      },
+    ]
+
+    const missingAssets = assets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingAssets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(440, this.panelWidth - 80),
+      110,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Unrolling the Date Merchant papyrus cards...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(390, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+
+    const handleLoadError = (
+      file: Phaser.Loader.File
+    ) => {
+      if (
+        missingAssets.some(
+          (asset) => asset.key === file.key
+        )
+      ) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off(
+        'loaderror',
+        handleLoadError
+      )
+
+      if (
+        !this.isVisible ||
+        session !== this.sessionId
+      ) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissing = missingAssets.filter(
+        (asset) =>
+          !this.scene.textures.exists(asset.key)
+      )
+
+      if (loadFailed || stillMissing.length > 0) {
+        const missingNames = stillMissing
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load the Date Quiz artwork.\n\n${missingNames}\n\nCopy the date_quiz folder into public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(15)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once(
+      'complete',
+      handleComplete
+    )
+    this.scene.load.on(
+      'loaderror',
+      handleLoadError
+    )
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off(
+        'complete',
+        handleComplete
+      )
+      this.scene.load.off(
+        'loaderror',
+        handleLoadError
+      )
+    })
+
+    missingAssets.forEach((asset) => {
+      this.scene.load.image(
+        asset.key,
+        asset.path
+      )
+    })
 
     if (!this.scene.load.isLoading()) {
       this.scene.load.start()
@@ -1456,207 +1628,633 @@ export default class BazaarChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle('4. Date Merchant — Market Order Rush')
-    this.addInstruction('Drag the requested dates into the customer bag. Wrong dates cost time and patience.')
+    this.addTitle('4. Date Merchant — Date Quiz')
+    this.addInstruction(
+      'Study the papyrus picture and choose the correct answer.',
+      top + 86
+    )
 
-    const dateTypes = [
-      { name: 'Majdoul', short: 'M', color: 0x6f341f },
-      { name: 'Sukkari', short: 'S', color: 0xc78c3b },
-      { name: 'Ajwa', short: 'A', color: 0x352522 },
-      { name: 'Stuffed', short: 'N', color: 0x8c4f2b },
+    type QuizState =
+      | 'ready'
+      | 'playing'
+      | 'feedback'
+      | 'finished'
+
+    type QuizQuestion = {
+      imageKey: string
+      prompt: string
+      options: [string, string, string]
+      answerIndex: number
+      explanation: string
+    }
+
+    const questions: QuizQuestion[] = [
+      {
+        imageKey: 'date_quiz_majdoul',
+        prompt: 'Which date variety is shown?',
+        options: ['Majdoul', 'Ajwa', 'Sukkari'],
+        answerIndex: 0,
+        explanation:
+          'Majdoul dates are usually large, elongated, soft, and deep brown.',
+      },
+      {
+        imageKey: 'date_quiz_coffee',
+        prompt: 'Which drink is traditionally served with dates?',
+        options: ['Arabic coffee', 'Tomato juice', 'Lemon soda'],
+        answerIndex: 0,
+        explanation:
+          'Dates and Arabic coffee are a classic hospitality pairing.',
+      },
+      {
+        imageKey: 'date_quiz_varieties_abc_1',
+        prompt: 'Which labelled date is Ajwa?',
+        options: ['A', 'B', 'C'],
+        answerIndex: 0,
+        explanation:
+          'Ajwa is the small, very dark date labelled A.',
+      },
+      {
+        imageKey: 'date_quiz_stuffed_almond',
+        prompt: 'What filling is shown inside this stuffed date?',
+        options: ['Almond', 'Olive', 'Pepper'],
+        answerIndex: 0,
+        explanation:
+          'A whole almond is a classic crunchy filling for stuffed dates.',
+      },
+      {
+        imageKey: 'date_quiz_sukkari',
+        prompt: 'Which golden date variety is shown?',
+        options: ['Sukkari', 'Safawi', 'Ajwa'],
+        answerIndex: 0,
+        explanation:
+          'Sukkari dates are known for their golden colour and sweet flavour.',
+      },
+      {
+        imageKey: 'date_quiz_seed',
+        prompt: 'What is naturally found inside a whole date?',
+        options: ['A seed', 'A pearl', 'A coffee bean'],
+        answerIndex: 0,
+        explanation:
+          'A whole date naturally contains one seed, also called a pit.',
+      },
+      {
+        imageKey: 'date_quiz_varieties_abc_2',
+        prompt: 'Which labelled date is Sukkari?',
+        options: ['A', 'B', 'C'],
+        answerIndex: 1,
+        explanation:
+          'Sukkari is the light golden date labelled B.',
+      },
+      {
+        imageKey: 'date_quiz_seedless',
+        prompt: 'What was removed to make this date seedless?',
+        options: ['The seed', 'The skin', 'The sweetness'],
+        answerIndex: 0,
+        explanation:
+          'Seedless dates are prepared by carefully removing the date pit.',
+      },
+      {
+        imageKey: 'date_quiz_ajwa',
+        prompt: 'Which labelled date is the small, very dark Ajwa?',
+        options: ['A', 'B', 'C'],
+        answerIndex: 2,
+        explanation:
+          'Ajwa is the small, very dark date labelled C.',
+      },
+      {
+        imageKey: 'date_quiz_size_comparison',
+        prompt: 'Which variety is usually the largest?',
+        options: ['Majdoul', 'Ajwa', 'Sukkari'],
+        answerIndex: 0,
+        explanation:
+          'Majdoul is commonly recognised as one of the largest date varieties.',
+      },
     ]
 
-    let timeLeft = 25
-    let completedOrders = 0
-    let mistakes = 0
-    let currentOrder: number[] = []
-    let packed: Record<number, number> = {}
-    let acceptingOrders = false
+    let state: QuizState = 'ready'
+    let currentQuestionIndex = 0
+    let correctAnswers = 0
+    let hearts = 3
+    let score = 0
 
-    const timerText = this.scene.add.text(this.getPanelRight() - 80, top + 126, '25.0s', {
-      fontFamily: 'Georgia',
-      fontSize: '25px',
-      color: '#ffd966',
-      stroke: '#000000',
-      strokeThickness: 5,
-      fontStyle: 'bold',
-    })
-    timerText.setOrigin(0.5)
+    let currentImage:
+      | Phaser.GameObjects.Image
+      | undefined
 
-    const scoreText = this.scene.add.text(this.getPanelLeft() + 115, top + 126, 'Orders 0/5', {
-      fontFamily: 'Georgia',
-      fontSize: '20px',
-      color: '#72ff9b',
-      stroke: '#000000',
-      strokeThickness: 4,
-      fontStyle: 'bold',
-    })
+    const answerButtons: ButtonHandle[] = []
+
+    // Match the boxed HUD used by the Eagle and Donkey games.
+    const hudY = top + 130
+    const hudHeight = 42
+    const sideHudWidth = 145
+    const centerHudWidth = 190
+
+    const leftHudX = this.getPanelLeft() + 98
+    const centerHudX = width / 2
+    const rightHudX = this.getPanelRight() - 98
+
+    const hudObjects: Phaser.GameObjects.GameObject[] = []
+
+    const createHudCard = (
+      x: number,
+      cardWidth: number,
+      bandColor: number
+    ) => {
+      const shadow = this.scene.add.rectangle(
+        x + 3,
+        hudY + 3,
+        cardWidth,
+        hudHeight,
+        0x000000,
+        0.3
+      )
+
+      const card = this.scene.add.rectangle(
+        x,
+        hudY,
+        cardWidth,
+        hudHeight,
+        0xf0dfb5,
+        1
+      )
+      card.setStrokeStyle(3, 0xb8862e, 1)
+
+      const band = this.scene.add.rectangle(
+        x,
+        hudY - hudHeight / 2 + 6,
+        cardWidth - 10,
+        8,
+        bandColor,
+        1
+      )
+
+      this.addObject(shadow)
+      this.addObject(card)
+      this.addObject(band)
+
+      hudObjects.push(shadow, card, band)
+    }
+
+    createHudCard(
+      leftHudX,
+      sideHudWidth,
+      0x8b5a2b
+    )
+    createHudCard(
+      centerHudX,
+      centerHudWidth,
+      0x245d78
+    )
+    createHudCard(
+      rightHudX,
+      sideHudWidth,
+      0x8f2d2d
+    )
+
+    const questionCounterText = this.scene.add.text(
+      leftHudX,
+      hudY + 4,
+      'QUESTION 0 / 10',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '14px',
+        color: '#74420d',
+        stroke: '#fff4cf',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
+    questionCounterText.setOrigin(0.5)
+
+    const scoreText = this.scene.add.text(
+      centerHudX,
+      hudY + 4,
+      'SCORE 0',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#245d78',
+        stroke: '#ffffff',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
     scoreText.setOrigin(0.5)
 
-    const orderCard = this.scene.add.rectangle(width / 2, top + 175, this.panelWidth - 120, 70, 0x2d1d0e, 1)
-    orderCard.setStrokeStyle(3, 0xd6a13b, 1)
-    const orderText = this.scene.add.text(width / 2, top + 175, '', {
-      fontFamily: 'Georgia',
-      fontSize: '18px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-      align: 'center',
-      wordWrap: { width: this.panelWidth - 150 },
-    })
-    orderText.setOrigin(0.5)
-
-    const bag = this.scene.add.rectangle(width / 2, top + 300, 210, 145, 0x8b653f, 1)
-    bag.setStrokeStyle(5, 0xffd966, 1)
-    const bagLabel = this.scene.add.text(width / 2, top + 300, 'CUSTOMER BAG\nDROP HERE', {
-      fontFamily: 'Georgia',
-      fontSize: '19px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-      align: 'center',
-    })
-    bagLabel.setOrigin(0.5)
-
-    const feedback = this.addStatusText('First customer is approaching...', top + 397)
-
-    this.addObject(timerText)
-    this.addObject(scoreText)
-    this.addObject(orderCard)
-    this.addObject(orderText)
-    this.addObject(bag)
-    this.addObject(bagLabel)
-
-    const orderSummary = () => {
-      const requirements = new Map<number, number>()
-      currentOrder.forEach((type) => requirements.set(type, (requirements.get(type) ?? 0) + 1))
-
-      const pieces = [...requirements.entries()].map(([type, required]) => {
-        const current = packed[type] ?? 0
-        return `${dateTypes[type].name} ${current}/${required}`
-      })
-      orderText.setText(`ORDER: ${pieces.join('   +   ')}`)
-    }
-
-    const makeOrder = () => {
-      acceptingOrders = true
-      const size = completedOrders >= 3 ? 3 : 2
-      currentOrder = Array.from({ length: size }, () => Phaser.Math.Between(0, dateTypes.length - 1))
-      packed = {}
-      orderSummary()
-      feedback.setText(`Customer ${completedOrders + 1}: “Please do not improvise.”`)
-    }
-
-    const orderComplete = () => {
-      acceptingOrders = false
-      completedOrders += 1
-      scoreText.setText(`Orders ${completedOrders}/5`)
-      feedback.setText('Order complete! The customer pays before checking the bag.')
-
-      this.addTween({ targets: bag, scaleX: 1.08, scaleY: 1.08, duration: 120, yoyo: true, repeat: 1 })
-
-      if (completedOrders >= 5) {
-        this.complete({
-          success: true,
-          goldDelta: 500 - mistakes * 25,
-          reputationDelta: Math.max(8, 24 - mistakes * 3),
-          response: `Five orders served with ${mistakes} mistake${mistakes === 1 ? '' : 's'}. The merchant offers you a management position and immediately takes it back.`,
-        }, 700)
-        return
-      }
-
-      this.schedule(650, makeOrder)
-    }
-
-    const processDrop = (typeIndex: number) => {
-      if (!acceptingOrders || this.resultLocked) return
-
-      const required = currentOrder.filter((type) => type === typeIndex).length
-      const current = packed[typeIndex] ?? 0
-
-      if (current >= required) {
-        mistakes += 1
-        timeLeft = Math.max(0, timeLeft - 2)
-        feedback.setText(`Wrong bag! No more ${dateTypes[typeIndex].name} needed. -2 seconds.`)
-        bag.setStrokeStyle(5, 0xff6b6b, 1)
-        this.scene.cameras.main.shake(130, 0.004)
-        this.schedule(350, () => bag.setStrokeStyle(5, 0xffd966, 1))
-        return
-      }
-
-      packed[typeIndex] = current + 1
-      orderSummary()
-      feedback.setText(`${dateTypes[typeIndex].name} packed correctly.`)
-      bag.setStrokeStyle(5, 0x72ff9b, 1)
-      this.schedule(250, () => bag.setStrokeStyle(5, 0xffd966, 1))
-
-      const packedCount = Object.values(packed).reduce((sum, value) => sum + value, 0)
-      if (packedCount >= currentOrder.length) orderComplete()
-    }
-
-    const sourceY = bottom - 95
-    const sourceX = [width / 2 - 240, width / 2 - 80, width / 2 + 80, width / 2 + 240]
-
-    dateTypes.forEach((dateType, typeIndex) => {
-      const homeX = sourceX[typeIndex]
-      const token = this.scene.add.ellipse(homeX, sourceY, 112, 66, dateType.color, 1)
-      token.setStrokeStyle(4, 0xffd966, 1)
-      token.setInteractive({ useHandCursor: true, draggable: true })
-
-      const label = this.scene.add.text(homeX, sourceY, `${dateType.short}\n${dateType.name}`, {
+    const heartsText = this.scene.add.text(
+      rightHudX,
+      hudY + 4,
+      '♥ ♥ ♥',
+      {
         fontFamily: 'Georgia',
-        fontSize: '15px',
-        color: '#ffffff',
+        fontSize: '20px',
+        color: '#9b2525',
+        stroke: '#3c160e',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    heartsText.setOrigin(0.5)
+
+    this.addObject(questionCounterText)
+    this.addObject(scoreText)
+    this.addObject(heartsText)
+
+    hudObjects.push(
+      questionCounterText,
+      scoreText,
+      heartsText
+    )
+
+    // Fixed layout:
+    // question above the image,
+    // image in the middle,
+    // MCQs always above the footer.
+    const answerY = bottom - 58
+    const questionY = hudY + hudHeight / 2 + 31
+    const imageTop = questionY + 34
+    const imageBottom = answerY - 38
+    const imageCenterY =
+      (imageTop + imageBottom) / 2
+
+    const questionText = this.scene.add.text(
+      width / 2,
+      questionY,
+      'Ten illustrated questions await.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
         stroke: '#000000',
         strokeThickness: 4,
+        fontStyle: 'bold',
         align: 'center',
+        lineSpacing: 2,
+        wordWrap: {
+          width: this.panelWidth - 90,
+          useAdvancedWrap: true,
+        },
+      }
+    )
+    questionText.setOrigin(0.5)
+
+    this.addObject(questionText)
+
+    const imageMaxWidth = Math.min(
+      465,
+      this.panelWidth - 110
+    )
+
+    const imageMaxHeight = Math.max(
+      130,
+      imageBottom - imageTop
+    )
+
+    const answerGap = 12
+    const answerWidth = Math.min(
+      205,
+      (
+        this.panelWidth -
+        88 -
+        answerGap * 2
+      ) / 3
+    )
+
+    const answerX = [
+      width / 2 - answerWidth - answerGap,
+      width / 2,
+      width / 2 + answerWidth + answerGap,
+    ]
+
+    const clearAnswerButtons = () => {
+      answerButtons.forEach((button) => {
+        if (button.bg.active) {
+          button.bg.destroy()
+        }
+
+        if (button.text.active) {
+          button.text.destroy()
+        }
       })
-      label.setOrigin(0.5)
 
-      this.scene.input.setDraggable(token)
-      token.on('drag', (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-        if (this.resultLocked) return
-        token.setPosition(dragX, dragY)
-        label.setPosition(dragX, dragY)
+      answerButtons.length = 0
+    }
+
+    const showImage = (imageKey: string) => {
+      if (currentImage?.active) {
+        currentImage.destroy()
+      }
+
+      const texture = this.scene.textures.get(
+        imageKey
+      )
+
+      const source = texture.getSourceImage() as {
+        width: number
+        height: number
+      }
+
+      const scale = Math.min(
+        imageMaxWidth / source.width,
+        imageMaxHeight / source.height
+      )
+
+      currentImage = this.scene.add.image(
+        width / 2,
+        imageCenterY,
+        imageKey
+      )
+
+      currentImage.setDisplaySize(
+        source.width * scale,
+        source.height * scale
+      )
+
+      this.addObject(currentImage)
+
+      // The generated picture already contains papyrus edges,
+      // so no extra frame, card, shadow, or border is added.
+      hudObjects.forEach((object) => {
+        this.container.bringToTop(object)
       })
+      this.container.bringToTop(questionText)
+    }
 
-      token.on('dragend', () => {
-        if (this.resultLocked) return
-        const insideBag = Phaser.Geom.Rectangle.Contains(bag.getBounds(), token.x, token.y)
-        if (insideBag) processDrop(typeIndex)
+    const updateHud = () => {
+      questionCounterText.setText(
+        state === 'ready'
+          ? 'QUESTION 0 / 10'
+          : `QUESTION ${Math.min(
+              currentQuestionIndex + 1,
+              questions.length
+            )} / ${questions.length}`
+      )
 
-        this.addTween({
-          targets: [token, label],
-          x: homeX,
-          y: sourceY,
-          duration: 220,
-          ease: 'Back.easeOut',
-        })
+      scoreText.setText(`SCORE ${score}`)
+
+      heartsText.setText(
+        Array.from(
+          { length: 3 },
+          (_value, index) =>
+            index < hearts ? '♥' : '♡'
+        ).join(' ')
+      )
+    }
+
+    const styleAnswerButtons = (
+      selectedIndex: number,
+      correctIndex: number
+    ) => {
+      answerButtons.forEach(
+        (button, index) => {
+          button.bg.disableInteractive()
+          button.text.setAlpha(1)
+
+          if (index === correctIndex) {
+            button.bg.setFillStyle(
+              0x27633a,
+              1
+            )
+            button.bg.setStrokeStyle(
+              4,
+              0x72ff9b,
+              1
+            )
+            return
+          }
+
+          if (index === selectedIndex) {
+            button.bg.setFillStyle(
+              0x7a2f2f,
+              1
+            )
+            button.bg.setStrokeStyle(
+              4,
+              0xff7c72,
+              1
+            )
+            return
+          }
+
+          button.bg.setFillStyle(
+            0x33271f,
+            0.92
+          )
+          button.bg.setStrokeStyle(
+            2,
+            0x6f6256,
+            0.8
+          )
+          button.text.setAlpha(0.5)
+        }
+      )
+    }
+
+    const finishQuiz = () => {
+      if (state === 'finished') return
+
+      state = 'finished'
+      clearAnswerButtons()
+
+      const perfect =
+        correctAnswers === questions.length
+
+      const success =
+        correctAnswers >= 6
+
+      const goldReward = Math.max(
+        50,
+        correctAnswers * 60 +
+          Math.floor(score / 20)
+      )
+
+      const reputationReward =
+        correctAnswers >= 9
+          ? 24
+          : correctAnswers >= 7
+            ? 17
+            : correctAnswers >= 6
+              ? 10
+              : correctAnswers >= 4
+                ? 2
+                : -2
+
+      const response = perfect
+        ? 'Perfect 10/10! The Date Merchant awards you the Golden Date and names you Grand Scholar of the Palm.'
+        : correctAnswers >= 8
+          ? `Excellent work: ${correctAnswers}/10 correct. The merchant is genuinely impressed.`
+          : correctAnswers >= 6
+            ? `You passed with ${correctAnswers}/10 correct. The merchant nods respectfully and offers you his finest dates.`
+            : `You scored ${correctAnswers}/10. The merchant gives you a practice basket and recommends more studying.`
+
+      this.complete(
+        {
+          success,
+          goldDelta: goldReward,
+          reputationDelta: reputationReward,
+          itemKey:
+            perfect
+              ? 'goldenDate'
+              : undefined,
+          response,
+        },
+        550
+      )
+    }
+
+    const showNextQuestion = () => {
+      if (
+        currentQuestionIndex >=
+        questions.length - 1
+      ) {
+        finishQuiz()
+        return
+      }
+
+      currentQuestionIndex += 1
+      renderQuestion()
+    }
+
+    const handleAnswer = (
+      selectedIndex: number
+    ) => {
+      if (
+        state !== 'playing' ||
+        this.resultLocked
+      ) {
+        return
+      }
+
+      state = 'feedback'
+
+      const question =
+        questions[currentQuestionIndex]
+
+      const correct =
+        selectedIndex ===
+        question.answerIndex
+
+      styleAnswerButtons(
+        selectedIndex,
+        question.answerIndex
+      )
+
+      if (correct) {
+        correctAnswers += 1
+        score += 100
+
+        questionText.setColor('#72ff9b')
+        questionText.setText(
+          `Correct! ${question.explanation}`
+        )
+      } else {
+        hearts = Math.max(
+          0,
+          hearts - 1
+        )
+
+        questionText.setColor('#ff9b8f')
+        questionText.setText(
+          `Answer: ${question.options[question.answerIndex]}. ${question.explanation}`
+        )
+
+        this.scene.cameras.main.shake(
+          95,
+          0.003
+        )
+      }
+
+      updateHud()
+
+      this.schedule(2500, () => {
+        showNextQuestion()
       })
+    }
 
-      this.addObject(token)
-      this.addObject(label)
-    })
+    const renderQuestion = () => {
+      state = 'playing'
+      clearAnswerButtons()
 
-    makeOrder()
-    this.addLoop(100, () => {
-      if (this.resultLocked) return
-      timeLeft = Math.max(0, timeLeft - 0.1)
-      timerText.setText(`${timeLeft.toFixed(1)}s`)
-      timerText.setColor(timeLeft <= 7 ? '#ff6b6b' : '#ffd966')
+      const question =
+        questions[currentQuestionIndex]
 
-      if (timeLeft > 0) return
+      questionText.setColor('#ffd966')
+      questionText.setText(
+        question.prompt
+      )
 
-      this.complete({
-        success: completedOrders >= 3,
-        goldDelta: completedOrders * 85 - mistakes * 20,
-        reputationDelta: completedOrders >= 3 ? completedOrders * 3 : -2,
-        response:
-          completedOrders >= 3
-            ? `Time! You completed ${completedOrders} orders. The queue applauds because nobody expected competence.`
-            : `Time! Only ${completedOrders} orders survived. The remaining customers form a small but organized complaint committee.`,
+      showImage(question.imageKey)
+
+      question.options.forEach(
+        (option, index) => {
+          const label =
+            `${String.fromCharCode(
+              65 + index
+            )}. ${option}`
+
+          const button = this.createButton(
+            answerX[index],
+            answerY,
+            answerWidth,
+            42,
+            label,
+            () => {
+              handleAnswer(index)
+            },
+            0x7b4b20,
+            label.length > 18
+              ? 12
+              : 14
+          )
+
+          answerButtons.push(button)
+        }
+      )
+
+      updateHud()
+
+      answerButtons.forEach((button) => {
+        this.container.bringToTop(button.bg)
+        this.container.bringToTop(button.text)
       })
-    })
+    }
+
+    let startButton: ButtonHandle
+
+    const startQuiz = () => {
+      if (state !== 'ready') return
+
+      startButton.bg.setVisible(false)
+      startButton.text.setVisible(false)
+      startButton.setEnabled(false)
+
+      currentQuestionIndex = 0
+      renderQuestion()
+    }
+
+    showImage(
+      'date_quiz_size_comparison'
+    )
+
+    startButton = this.createButton(
+      width / 2,
+      answerY,
+      255,
+      44,
+      'BEGIN DATE QUIZ',
+      startQuiz,
+      0x8b5a2b,
+      16
+    )
+
+    updateHud()
+
+    this.container.bringToTop(
+      startButton.bg
+    )
+    this.container.bringToTop(
+      startButton.text
+    )
   }
 
   // ---------------------------------------------------------------------------

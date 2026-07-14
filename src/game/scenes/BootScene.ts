@@ -254,6 +254,20 @@ export default class BootScene extends Phaser.Scene {
       'donkey_topview',
       'assets/minigames/donkey_topview.png'
     )
+
+    this.load.image(
+      'eagle_egypt_bg',
+      'assets/minigames/egypt_sky_background.png'
+    )
+    
+    this.load.spritesheet(
+      'eagle_fly',
+      'assets/minigames/eagle_fly_spritesheet.png',
+      {
+        frameWidth: 256,
+        frameHeight: 160,
+      }
+    )
   }
 
   create() {
