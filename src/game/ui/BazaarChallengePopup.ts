@@ -5192,8 +5192,8 @@ export default class BazaarChallengePopup {
 
     const flap = () => {
       if (state !== 'playing' || this.resultLocked) return
-
-      velocityY = -338
+    
+      velocityY = -270
 
       this.scene.tweens.killTweensOf(eagle)
 
@@ -5262,7 +5262,7 @@ export default class BazaarChallengePopup {
 
       invulnerable = true
       hearts -= 1
-      velocityY = -255
+      velocityY = -190
       refreshHud()
       status.setText(message)
       this.scene.cameras.main.shake(180, 0.007)
@@ -5322,7 +5322,7 @@ export default class BazaarChallengePopup {
       this.schedule(2150, () => {
         state = 'playing'
         eagle.anims.resume()
-        velocityY = -235
+        velocityY = -175
         status.setText('CLICK THE SKY OR PRESS SPACE TO FLAP')
       })
 
