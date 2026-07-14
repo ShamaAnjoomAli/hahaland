@@ -93,7 +93,9 @@ export default class BazaarChallengePopup {
         })
         break
       case 'pottery-fraud':
-        this.createPotteryFraudGame()
+        this.ensurePotteryCobraAssets(() => {
+          this.createPotteryFraudGame()
+        })
         break
       case 'donkey-race':
         this.ensureDonkeyRaceAssets(() => {
@@ -291,6 +293,144 @@ export default class BazaarChallengePopup {
 
         const errorText = this.addStatusText(
           `Could not load the Spice Reveal artwork.\n\n${missingNames}\n\nCopy the spice_reveal folder into public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(15)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingAssets.forEach((asset) => {
+      this.scene.load.image(asset.key, asset.path)
+    })
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
+  }
+
+  private ensurePotteryCobraAssets(onReady: () => void) {
+    const assets = [
+      {
+        key: 'pottery_cobra_bg',
+        path: 'assets/minigames/pottery_cobra/pottery_stall_bg.jpg',
+      },
+      {
+        key: 'pottery_closed_eye',
+        path: 'assets/minigames/pottery_cobra/pot_closed_eye.png',
+      },
+      {
+        key: 'pottery_closed_scarab',
+        path: 'assets/minigames/pottery_cobra/pot_closed_scarab.png',
+      },
+      {
+        key: 'pottery_closed_lotus',
+        path: 'assets/minigames/pottery_cobra/pot_closed_lotus.png',
+      },
+      {
+        key: 'pottery_closed_falcon',
+        path: 'assets/minigames/pottery_cobra/pot_closed_falcon.png',
+      },
+      {
+        key: 'pottery_closed_sun',
+        path: 'assets/minigames/pottery_cobra/pot_closed_sun.png',
+      },
+      {
+        key: 'pottery_reveal_cobra',
+        path: 'assets/minigames/pottery_cobra/pot_reveal_cobra.png',
+      },
+      {
+        key: 'pottery_reveal_treasure',
+        path: 'assets/minigames/pottery_cobra/pot_reveal_treasure.png',
+      },
+      {
+        key: 'pottery_reveal_empty',
+        path: 'assets/minigames/pottery_cobra/pot_reveal_empty.png',
+      },
+    ]
+
+    const missingAssets = assets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingAssets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(455, this.panelWidth - 80),
+      112,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Preparing the Cobra in the Clay challenge...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(400, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (missingAssets.some((asset) => asset.key === file.key)) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (!this.isVisible || session !== this.sessionId) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissing = missingAssets.filter(
+        (asset) => !this.scene.textures.exists(asset.key)
+      )
+
+      if (loadFailed || stillMissing.length > 0) {
+        const missingNames = stillMissing
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load the Pottery challenge artwork.\n\n${missingNames}\n\nCopy the pottery_cobra folder into public/assets/minigames/.`,
           this.scene.scale.height / 2,
           '#ffbd63'
         )
@@ -2976,150 +3116,979 @@ export default class BazaarChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle('5. Pottery Seller — Spot the Fake')
-    this.addInstruction('Select a pot and inspect it. You have five inspections before making an accusation.')
+    this.addTitle('5. Pottery Seller — Cobra in the Clay')
+    this.addInstruction(
+      'Inspect the sealed jars at your own pace. First seal the cobra, then open the treasure jar.',
+      top + 86
+    )
 
-    const fakeIndex = Phaser.Math.Between(0, 3)
-    let selectedIndex = -1
-    let inspections = 5
+    type PotContent = 'cobra' | 'treasure' | 'empty'
+    type PotStage =
+      | 'ready'
+      | 'cobra'
+      | 'treasure'
+      | 'transition'
+      | 'finished'
+    type InspectionTool = 'touch' | 'tap' | 'watch' | 'smell'
 
-    const inspectionText = this.addStatusText('Select a pot, then use Tap, Rotate, or Magnify.', top + 135, '#ffd966')
-    const tokensText = this.scene.add.text(this.getPanelRight() - 105, top + 135, 'Inspections: 5', {
-      fontFamily: 'Georgia',
-      fontSize: '17px',
-      color: '#72ff9b',
-      stroke: '#000000',
-      strokeThickness: 4,
-    })
-    tokensText.setOrigin(0.5)
-    this.addObject(tokensText)
-
-    const potX = [width / 2 - 240, width / 2 - 80, width / 2 + 80, width / 2 + 240]
-    const potY = top + 285
-    const pots: Array<{
-      body: Phaser.GameObjects.Ellipse
-      neck: Phaser.GameObjects.Rectangle
+    type PotView = {
+      container: Phaser.GameObjects.Container
+      glow: Phaser.GameObjects.Image
+      image: Phaser.GameObjects.Image
       label: Phaser.GameObjects.Text
-      crack: Phaser.GameObjects.Rectangle
-    }> = []
-
-    const refreshSelection = () => {
-      pots.forEach((pot, index) => {
-        pot.body.setStrokeStyle(5, index === selectedIndex ? 0x72ff9b : 0xffd966, 1)
-        pot.label.setColor(index === selectedIndex ? '#72ff9b' : '#ffffff')
-      })
+      closedKey: string
+      content: PotContent
+      locked: boolean
+      opened: boolean
+      ruledOutCobra: boolean
+      baseScale: number
     }
 
-    potX.forEach((x, index) => {
-      const neck = this.scene.add.rectangle(x, potY - 62, 50, 42, 0xa86331, 1)
-      neck.setStrokeStyle(3, 0x4a2714, 1)
-      const body = this.scene.add.ellipse(x, potY, 116, 142, 0xb87138, 1)
-      body.setStrokeStyle(5, 0xffd966, 1)
-      body.setInteractive({ useHandCursor: true })
-      const band = this.scene.add.rectangle(x, potY, 108, 18, 0x4f7c7a, 1)
-      const label = this.scene.add.text(x, potY + 93, `POT ${index + 1}`, {
+    const roundPotCounts = [3, 4, 5]
+    const roundInspectionLimits = [5, 5, 4]
+    const closedPotKeys = [
+      'pottery_closed_eye',
+      'pottery_closed_scarab',
+      'pottery_closed_lotus',
+      'pottery_closed_falcon',
+      'pottery_closed_sun',
+    ]
+
+    const hudY = top + 130
+    const hudHeight = 42
+
+    // Keep every interaction row inside the popup. The previous layout used
+    // the clue text as a loose vertical anchor, which caused the jar labels,
+    // inspection counter, tool buttons, and action buttons to overlap on
+    // scaled canvases.
+    const actionY = bottom - 34
+    const toolY = actionY - 49
+    const statusPanelHeight = 52
+    const statusPanelY = toolY - 49
+
+    const playTop = top + 166
+    const playBottom = statusPanelY - statusPanelHeight / 2 - 10
+    const playLeft = this.getPanelLeft() + 30
+    const playRight = this.getPanelRight() - 30
+    const playWidth = playRight - playLeft
+    const playHeight = playBottom - playTop
+    const playCenterY = (playTop + playBottom) / 2
+
+    let stage: PotStage = 'ready'
+    let roundIndex = 0
+    let hearts = 3
+    let score = 0
+    let inspectionsLeft = roundInspectionLimits[0]
+    let selectedIndex = -1
+    let solvedRounds = 0
+    let cobraIndex = -1
+    let treasureIndex = -1
+    let decoyIndex = -1
+    let decoyTool: InspectionTool = 'touch'
+    let potViews: PotView[] = []
+    let usedInspections = new Set<string>()
+
+    const backgroundSource = this.scene.textures
+      .get('pottery_cobra_bg')
+      .getSourceImage() as { width: number; height: number }
+
+    const backgroundScale = Math.max(
+      playWidth / backgroundSource.width,
+      playHeight / backgroundSource.height
+    )
+
+    const background = this.scene.add.image(
+      width / 2,
+      playCenterY - playHeight * 0.06,
+      'pottery_cobra_bg'
+    )
+    background.setScale(backgroundScale)
+
+    const backgroundMaskShape = this.scene.make.graphics({
+      x: 0,
+      y: 0,
+      add: false,
+    })
+    backgroundMaskShape.setScrollFactor(0)
+    backgroundMaskShape.fillStyle(0xffffff, 1)
+    backgroundMaskShape.fillRect(
+      playLeft,
+      playTop,
+      playWidth,
+      playHeight
+    )
+
+    const backgroundMask = backgroundMaskShape.createGeometryMask()
+    background.setMask(backgroundMask)
+    this.addObject(background)
+
+    this.runtimeCleanups.push(() => {
+      background.clearMask(false)
+      backgroundMask.destroy()
+      backgroundMaskShape.destroy()
+    })
+
+    const backgroundShade = this.scene.add.rectangle(
+      width / 2,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0x1b0d05,
+      0.08
+    )
+    this.addObject(backgroundShade)
+
+    const playBorder = this.scene.add.rectangle(
+      width / 2,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0x000000,
+      0
+    )
+    playBorder.setStrokeStyle(3, 0xd4af37, 1)
+    this.addObject(playBorder)
+
+    const leftHudX = this.getPanelLeft() + 98
+    const centerHudX = width / 2
+    const rightHudX = this.getPanelRight() - 98
+    const sideHudWidth = 145
+    const centerHudWidth = 190
+
+    const createHudCard = (
+      x: number,
+      cardWidth: number,
+      bandColor: number
+    ) => {
+      const shadow = this.scene.add.rectangle(
+        x + 3,
+        hudY + 3,
+        cardWidth,
+        hudHeight,
+        0x000000,
+        0.3
+      )
+
+      const card = this.scene.add.rectangle(
+        x,
+        hudY,
+        cardWidth,
+        hudHeight,
+        0xf0dfb5,
+        1
+      )
+      card.setStrokeStyle(3, 0xb8862e, 1)
+
+      const band = this.scene.add.rectangle(
+        x,
+        hudY - hudHeight / 2 + 6,
+        cardWidth - 10,
+        8,
+        bandColor,
+        1
+      )
+
+      this.addObject(shadow)
+      this.addObject(card)
+      this.addObject(band)
+    }
+
+    createHudCard(leftHudX, sideHudWidth, 0x8b5a2b)
+    createHudCard(centerHudX, centerHudWidth, 0x245d78)
+    createHudCard(rightHudX, sideHudWidth, 0x8f2d2d)
+
+    const roundText = this.scene.add.text(
+      leftHudX,
+      hudY + 4,
+      'ROUND 1 / 3',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '15px',
+        color: '#7a460f',
+        stroke: '#ffffff',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
+    roundText.setOrigin(0.5)
+
+    const scoreText = this.scene.add.text(
+      centerHudX,
+      hudY + 4,
+      'SCORE 0',
+      {
         fontFamily: 'Georgia',
         fontSize: '16px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 4,
+        color: '#245d78',
+        stroke: '#ffffff',
+        strokeThickness: 2,
         fontStyle: 'bold',
-      })
-      label.setOrigin(0.5)
-
-      const crack = this.scene.add.rectangle(x - 4, potY + 5, 4, 55, 0x2a140a, 1)
-      crack.setAngle(-28)
-      crack.setVisible(false)
-
-      body.on('pointerdown', () => {
-        if (this.resultLocked) return
-        selectedIndex = index
-        refreshSelection()
-        inspectionText.setText(`Pot ${index + 1} selected.`)
-      })
-
-      this.addObject(neck)
-      this.addObject(body)
-      this.addObject(band)
-      this.addObject(crack)
-      this.addObject(label)
-      pots.push({ body, neck, label, crack })
-    })
-
-    const inspect = (tool: 'tap' | 'rotate' | 'magnify') => {
-      if (selectedIndex < 0) {
-        inspectionText.setText('Select a pot first.')
-        return
       }
-      if (inspections <= 0) {
-        inspectionText.setText('No inspections left. Make your accusation.')
-        return
+    )
+    scoreText.setOrigin(0.5)
+
+    const heartsText = this.scene.add.text(
+      rightHudX,
+      hudY + 4,
+      '♥ ♥ ♥',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '20px',
+        color: '#9b2525',
+        stroke: '#3c160e',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    heartsText.setOrigin(0.5)
+
+    this.addObject(roundText)
+    this.addObject(scoreText)
+    this.addObject(heartsText)
+
+
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusPanelY,
+      this.panelWidth - 72,
+      statusPanelHeight,
+      0x241507,
+      0.97
+    )
+    statusPanel.setStrokeStyle(2, 0x9b682c, 1)
+
+    const inspectionsText = this.scene.add.text(
+      width / 2,
+      statusPanelY - 14,
+      'INSPECTIONS 5',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '12px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    inspectionsText.setOrigin(0.5)
+
+    const clueText = this.scene.add.text(
+      width / 2,
+      statusPanelY + 9,
+      'Choose a jar and use an inspection tool.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '13px',
+        color: '#f5ead7',
+        stroke: '#000000',
+        strokeThickness: 3,
+        align: 'center',
+        lineSpacing: 1,
+        wordWrap: {
+          width: this.panelWidth - 112,
+          useAdvancedWrap: true,
+        },
+      }
+    )
+    clueText.setOrigin(0.5)
+
+    this.addObject(statusPanel)
+    this.addObject(inspectionsText)
+    this.addObject(clueText)
+
+    let sealButton: ButtonHandle
+    let treasureButton: ButtonHandle
+    let startButton: ButtonHandle
+    const toolButtons: ButtonHandle[] = []
+
+    const setButtonVisible = (button: ButtonHandle, visible: boolean) => {
+      button.bg.setVisible(visible)
+      button.text.setVisible(visible)
+    }
+
+    const contentTexture = (content: PotContent) => {
+      if (content === 'cobra') return 'pottery_reveal_cobra'
+      if (content === 'treasure') return 'pottery_reveal_treasure'
+      return 'pottery_reveal_empty'
+    }
+
+    const fitPotTexture = (view: PotView, textureKey: string) => {
+      view.image.setTexture(textureKey)
+      view.glow.setTexture(textureKey)
+
+      const source = this.scene.textures
+        .get(textureKey)
+        .getSourceImage() as { width: number; height: number }
+
+      const count = roundPotCounts[roundIndex]
+      const maxWidth = count >= 5 ? 92 : count === 4 ? 104 : 118
+      const maxHeight = Math.min(136, playHeight * 0.56)
+      const scale = Math.min(
+        maxWidth / source.width,
+        maxHeight / source.height
+      )
+
+      view.baseScale = scale
+      view.image.setScale(scale)
+      view.glow.setScale(scale * 1.06)
+
+      // Keep the jar label inside the framed play area, even when the browser
+      // stretches the Phaser canvas with CSS.
+      const labelY = Math.min(
+        66,
+        Math.max(48, playBottom - view.container.y - 14)
+      )
+      view.label.setY(labelY)
+    }
+
+    const refreshPotVisuals = () => {
+      potViews.forEach((view, index) => {
+        view.image.clearTint()
+        view.glow.clearTint()
+        view.glow.setAlpha(0)
+        view.glow.setScale(view.baseScale * 1.06)
+        view.label.setColor('#ffffff')
+
+        if (view.locked) {
+          view.glow.setTint(0xff5f5f)
+          view.glow.setAlpha(0.52)
+          view.label.setColor('#ff8f8f')
+          return
+        }
+
+        if (view.opened && view.content === 'treasure') {
+          view.glow.setTint(0xffd966)
+          view.glow.setAlpha(0.58)
+          view.label.setColor('#ffd966')
+          return
+        }
+
+        if (view.opened) {
+          view.image.setAlpha(0.72)
+          view.glow.setTint(0x8f8f8f)
+          view.glow.setAlpha(0.25)
+          view.label.setColor('#aaaaaa')
+          return
+        }
+
+        view.image.setAlpha(1)
+
+        if (index === selectedIndex) {
+          const selectedColor =
+            stage === 'treasure' ? 0xffd966 : 0x4fdcff
+          view.glow.setTint(selectedColor)
+          view.glow.setAlpha(0.56)
+          view.glow.setScale(view.baseScale * 1.1)
+          view.label.setColor(
+            stage === 'treasure' ? '#ffd966' : '#72eaff'
+          )
+        } else if (view.ruledOutCobra && stage === 'cobra') {
+          view.glow.setTint(0x4fa4c7)
+          view.glow.setAlpha(0.22)
+          view.label.setColor('#9ed9ef')
+        }
+      })
+    }
+
+    const updateHud = () => {
+      roundText.setText(`ROUND ${roundIndex + 1} / 3`)
+      scoreText.setText(`SCORE ${score}`)
+      heartsText.setText(
+        Array.from(
+          { length: 3 },
+          (_value, index) => (index < hearts ? '♥' : '♡')
+        ).join(' ')
+      )
+
+      inspectionsText.setText(`INSPECTIONS ${inspectionsLeft}`)
+
+    }
+
+    const updateControls = () => {
+      const active = stage === 'cobra' || stage === 'treasure'
+      const selected = selectedIndex >= 0 ? potViews[selectedIndex] : undefined
+
+      toolButtons.forEach((button) => {
+        button.setEnabled(
+          active &&
+            inspectionsLeft > 0 &&
+            Boolean(selected) &&
+            !selected?.locked &&
+            !selected?.opened
+        )
+      })
+
+      sealButton.setEnabled(
+        stage === 'cobra' &&
+          Boolean(selected) &&
+          !selected?.locked &&
+          !selected?.opened &&
+          !selected?.ruledOutCobra
+      )
+
+      treasureButton.setEnabled(
+        stage === 'treasure' &&
+          Boolean(selected) &&
+          !selected?.locked &&
+          !selected?.opened
+      )
+    }
+
+    const setGameControlsVisible = (visible: boolean) => {
+      toolButtons.forEach((button) => setButtonVisible(button, visible))
+      setButtonVisible(sealButton, visible)
+      setButtonVisible(treasureButton, visible)
+    }
+
+    const selectPot = (index: number) => {
+      if (stage !== 'cobra' && stage !== 'treasure') return
+
+      const view = potViews[index]
+      if (view.locked || view.opened) return
+
+      selectedIndex = index
+      clueText.setText(
+        stage === 'cobra'
+          ? `Jar ${index + 1} selected. Inspect it or seal it as the cobra jar.`
+          : `Jar ${index + 1} selected. Inspect it or open it for treasure.`
+      )
+
+      refreshPotVisuals()
+      updateControls()
+    }
+
+    const destroyCurrentPots = () => {
+      potViews.forEach((view) => view.container.destroy(true))
+      potViews = []
+    }
+
+    const revealPot = (
+      index: number,
+      permanent: boolean,
+      forcedContent?: PotContent
+    ) => {
+      const view = potViews[index]
+      const revealContent = forcedContent ?? view.content
+      fitPotTexture(view, contentTexture(revealContent))
+
+      if (permanent) {
+        view.opened = revealContent !== 'cobra'
+        view.locked = revealContent === 'cobra'
       }
 
-      inspections -= 1
-      tokensText.setText(`Inspections: ${inspections}`)
-      const pot = pots[selectedIndex]
-      const fake = selectedIndex === fakeIndex
+      refreshPotVisuals()
+    }
+
+    const restoreClosedPot = (index: number) => {
+      const view = potViews[index]
+      if (!view || view.locked || view.opened || stage === 'finished') return
+      fitPotTexture(view, view.closedKey)
+      refreshPotVisuals()
+    }
+
+    const getClue = (
+      view: PotView,
+      tool: InspectionTool,
+      index: number
+    ) => {
+      const isDecoy = index === decoyIndex && tool === decoyTool
+
+      if (tool === 'touch') {
+        if (view.content === 'cobra') {
+          return 'The clay feels strangely warm. Something alive may be coiled inside.'
+        }
+        if (view.content === 'treasure') {
+          return 'The jar is cool but unusually heavy near the base.'
+        }
+        return isDecoy
+          ? 'The sun has warmed this empty jar, but the heat fades quickly.'
+          : 'Cool, dry clay. Nothing inside seems to be producing heat.'
+      }
 
       if (tool === 'tap') {
-        this.addTween({ targets: [pot.body, pot.neck], x: '+=5', duration: 55, yoyo: true, repeat: 3 })
-        inspectionText.setText(
-          fake
-            ? `Pot ${selectedIndex + 1}: THUD... something inside is packed with sand.`
-            : `Pot ${selectedIndex + 1}: RING... clear, solid ceramic.`
-        )
+        if (view.content === 'cobra') {
+          return 'A soft scrape answers the tap... followed by a tiny hiss.'
+        }
+        if (view.content === 'treasure') {
+          return 'A bright metallic clink rings from deep inside the jar.'
+        }
+        return isDecoy
+          ? 'A loose pottery chip rattles once, then the jar goes silent.'
+          : 'A clean hollow echo returns. The jar sounds empty.'
       }
 
-      if (tool === 'rotate') {
-        this.addTween({
-          targets: [pot.body, pot.neck],
-          angle: 360,
-          duration: 620,
-          ease: 'Sine.easeInOut',
-          onComplete: () => {
-            pot.body.setAngle(0)
-            pot.neck.setAngle(0)
-          },
+      if (tool === 'watch') {
+        if (view.content === 'cobra') {
+          return 'The lid shifts by itself and a line of dust trembles along the rim.'
+        }
+        if (view.content === 'treasure') {
+          return 'The jar stays completely still despite its heavy contents.'
+        }
+        return isDecoy
+          ? 'The lid twitches when a floorboard creaks nearby. Probably a false alarm.'
+          : 'No movement. Even the dust remains perfectly still.'
+      }
+
+      if (view.content === 'cobra') {
+        return 'A faint musky animal scent escapes from beneath the lid.'
+      }
+      if (view.content === 'treasure') {
+        return 'Incense, old leather, and metal drift from the sealed jar.'
+      }
+      return isDecoy
+        ? 'A trace of old incense lingers on the clay, but the jar itself smells empty.'
+        : 'Only dry clay and dust. There is no scent from inside.'
+    }
+
+    const finishGame = (forcedFailure = false) => {
+      if (stage === 'finished') return
+
+      stage = 'finished'
+      updateControls()
+
+      const success = !forcedFailure && solvedRounds >= 2 && hearts > 0
+      const gold = success
+        ? 280 + Math.floor(score / 6) + hearts * 75
+        : Math.max(50, Math.floor(score / 10))
+      const reputation = success
+        ? 10 + solvedRounds * 4 + hearts * 2
+        : Math.max(0, solvedRounds * 2)
+
+      this.complete(
+        {
+          success,
+          goldDelta: gold,
+          reputationDelta: reputation,
+          response: success
+            ? `You solved ${solvedRounds} of 3 pottery trials with ${hearts} heart${
+                hearts === 1 ? '' : 's'
+              } left and ${score} points. The merchant now stores every jar at arm's length.`
+            : `You solved ${solvedRounds} of 3 pottery trials and scored ${score}. The cobra is safely contained, but your pottery licence is under review.`,
+        },
+        850
+      )
+    }
+
+    const loseHeart = (message: string) => {
+      hearts -= 1
+      score = Math.max(0, score - 35)
+      clueText.setText(message)
+      this.scene.cameras.main.shake(170, 0.007)
+      updateHud()
+
+      if (hearts <= 0) {
+        finishGame(true)
+        return true
+      }
+
+      return false
+    }
+
+    const prepareRound = (nextRound: number, beginImmediately: boolean) => {
+      stage = beginImmediately ? 'cobra' : 'ready'
+      roundIndex = nextRound
+      selectedIndex = -1
+      usedInspections = new Set<string>()
+      inspectionsLeft = roundInspectionLimits[roundIndex]
+
+      destroyCurrentPots()
+
+      const potCount = roundPotCounts[roundIndex]
+      const shuffledKeys = Phaser.Utils.Array.Shuffle([...closedPotKeys])
+      cobraIndex = Phaser.Math.Between(0, potCount - 1)
+
+      do {
+        treasureIndex = Phaser.Math.Between(0, potCount - 1)
+      } while (treasureIndex === cobraIndex)
+
+      const emptyIndexes = Array.from(
+        { length: potCount },
+        (_value, index) => index
+      ).filter(
+        (index) => index !== cobraIndex && index !== treasureIndex
+      )
+
+      decoyIndex =
+        roundIndex === 0 || emptyIndexes.length === 0
+          ? -1
+          : Phaser.Utils.Array.GetRandom(emptyIndexes)
+      decoyTool = Phaser.Utils.Array.GetRandom([
+        'touch',
+        'tap',
+        'watch',
+        'smell',
+      ] as InspectionTool[])
+
+      const contents: PotContent[] = Array.from(
+        { length: potCount },
+        () => 'empty' as PotContent
+      )
+      contents[cobraIndex] = 'cobra'
+      contents[treasureIndex] = 'treasure'
+
+      const spacing =
+        potCount <= 1
+          ? 0
+          : Math.min(142, (playWidth - 118) / (potCount - 1))
+      const startX = width / 2 - (spacing * (potCount - 1)) / 2
+      // Lift the jars slightly so their labels never collide with the status
+      // panel below the play field.
+      const potY = playTop + playHeight * 0.5
+
+      for (let index = 0; index < potCount; index += 1) {
+        const x = startX + spacing * index
+        const closedKey = shuffledKeys[index]
+        const potContainer = this.scene.add.container(x, potY)
+
+        const glow = this.scene.add.image(0, 0, closedKey)
+        glow.setTint(0x4fdcff)
+        glow.setAlpha(0)
+
+        const potImage = this.scene.add.image(0, 0, closedKey)
+        potImage.setInteractive({ useHandCursor: true })
+
+        const label = this.scene.add.text(
+          0,
+          60,
+          `JAR ${index + 1}`,
+          {
+            fontFamily: 'Georgia',
+            fontSize: '13px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold',
+          }
+        )
+        label.setOrigin(0.5)
+
+        potContainer.add([glow, potImage, label])
+        this.addObject(potContainer)
+
+        const view: PotView = {
+          container: potContainer,
+          glow,
+          image: potImage,
+          label,
+          closedKey,
+          content: contents[index],
+          locked: false,
+          opened: false,
+          ruledOutCobra: false,
+          baseScale: 1,
+        }
+
+        potViews.push(view)
+        fitPotTexture(view, closedKey)
+
+        const handleSelect = () => selectPot(index)
+        potImage.on('pointerdown', handleSelect)
+        this.runtimeCleanups.push(() => {
+          potImage.off('pointerdown', handleSelect)
         })
-        inspectionText.setText(
-          fake
-            ? `Pot ${selectedIndex + 1}: the maker mark is wet paint over a copied stamp.`
-            : `Pot ${selectedIndex + 1}: old maker mark matches the genuine workshop.`
-        )
       }
 
-      if (tool === 'magnify') {
-        if (fake) pot.crack.setVisible(true)
-        this.addTween({ targets: pot.body, scaleX: 1.12, scaleY: 1.12, duration: 170, yoyo: true })
-        inspectionText.setText(
-          fake
-            ? `Pot ${selectedIndex + 1}: a hairline crack hides beneath the glaze.`
-            : `Pot ${selectedIndex + 1}: glaze is clean, aged, and annoyingly legitimate.`
+      clueText.setText(
+        beginImmediately
+          ? 'Find the cobra first. Select a jar and inspect it carefully.'
+          : 'The jars are sealed. There is no timer, so begin when you are ready.'
+      )
+
+      refreshPotVisuals()
+      updateHud()
+      updateControls()
+    }
+
+    const advanceRound = () => {
+      if (roundIndex >= roundPotCounts.length - 1) {
+        finishGame(false)
+        return
+      }
+
+      prepareRound(roundIndex + 1, true)
+      clueText.setText('A new set of jars arrives. Find the cobra first.')
+    }
+
+    const inspectSelected = (tool: InspectionTool) => {
+      if (stage !== 'cobra' && stage !== 'treasure') return
+
+      if (selectedIndex < 0) {
+        clueText.setText('Select a jar before using an inspection tool.')
+        return
+      }
+
+      const view = potViews[selectedIndex]
+      if (view.locked || view.opened) return
+
+      const inspectionKey = `${selectedIndex}:${tool}`
+      if (usedInspections.has(inspectionKey)) {
+        clueText.setText(
+          `You already used ${tool.toUpperCase()} on Jar ${selectedIndex + 1}. Try another clue.`
         )
+        return
+      }
+
+      if (inspectionsLeft <= 0) {
+        clueText.setText('No inspections remain. Trust your deductions.')
+        updateControls()
+        return
+      }
+
+      usedInspections.add(inspectionKey)
+      inspectionsLeft -= 1
+      score += 5
+
+      if (tool === 'touch') {
+        this.addTween({
+          targets: view.image,
+          scaleX: view.baseScale * 1.045,
+          scaleY: view.baseScale * 0.975,
+          duration: 110,
+          yoyo: true,
+        })
+      } else if (tool === 'tap') {
+        this.addTween({
+          targets: view.container,
+          x: '+=4',
+          duration: 55,
+          yoyo: true,
+          repeat: 3,
+        })
+      } else if (tool === 'watch') {
+        this.addTween({
+          targets: view.image,
+          angle: view.content === 'cobra' ? 3 : 1,
+          duration: 110,
+          yoyo: true,
+          repeat: view.content === 'cobra' ? 2 : 0,
+        })
+      } else {
+        this.addTween({
+          targets: view.image,
+          alpha: 0.68,
+          duration: 130,
+          yoyo: true,
+        })
+      }
+
+      clueText.setText(
+        `Jar ${selectedIndex + 1}: ${getClue(
+          view,
+          tool,
+          selectedIndex
+        )}`
+      )
+
+      updateHud()
+      updateControls()
+    }
+
+    const sealCobra = () => {
+      if (stage !== 'cobra' || selectedIndex < 0) return
+
+      const view = potViews[selectedIndex]
+      if (view.ruledOutCobra || view.locked || view.opened) return
+
+      if (view.content === 'cobra') {
+        stage = 'transition'
+        score +=
+          150 + roundIndex * 25 + inspectionsLeft * 15
+        revealPot(selectedIndex, true, 'cobra')
+        clueText.setText(
+          'Correct! The cobra rises from the jar, and the lid is sealed safely.'
+        )
+        updateHud()
+        updateControls()
+
+        this.schedule(3200, () => {
+          if (stage === 'finished') return
+
+          stage = 'treasure'
+          selectedIndex = -1
+          clueText.setText(
+            'Now select the jar containing the hidden treasure.'
+          )
+          refreshPotVisuals()
+          updateHud()
+          updateControls()
+        })
+        return
+      }
+
+      view.ruledOutCobra = true
+      revealPot(selectedIndex, false)
+      const ended = loseHeart(
+        view.content === 'treasure'
+          ? 'Wrong jar! You found the treasure early, but the cobra is still loose.'
+          : 'Wrong jar! It is empty, and the merchant charges one heart for the broken seal.'
+      )
+
+      if (ended) return
+
+      const wrongIndex = selectedIndex
+      selectedIndex = -1
+      updateControls()
+
+      this.schedule(2200, () => {
+        restoreClosedPot(wrongIndex)
+        clueText.setText('Keep searching. The cobra is still hidden.')
+        updateControls()
+      })
+    }
+
+    const openTreasure = () => {
+      if (stage !== 'treasure' || selectedIndex < 0) return
+
+      const view = potViews[selectedIndex]
+      if (view.locked || view.opened) return
+
+      if (view.content === 'treasure') {
+        stage = 'transition'
+        score +=
+          220 + roundIndex * 35 + inspectionsLeft * 12
+        solvedRounds += 1
+        revealPot(selectedIndex, true, 'treasure')
+        clueText.setText(
+          'Treasure found! Coins, jewels, and dates spill from the jar.'
+        )
+        updateHud()
+        updateControls()
+
+        this.schedule(4000, advanceRound)
+        return
+      }
+
+      revealPot(selectedIndex, true, 'empty')
+      const ended = loseHeart(
+        'Empty jar! The cobra is safe, but the treasure remains hidden.'
+      )
+
+      selectedIndex = -1
+      updateControls()
+
+      if (!ended) {
+        this.schedule(2200, () => {
+          clueText.setText('Choose another sealed jar for the treasure.')
+        })
       }
     }
 
-    const buttonY = bottom - 72
-    const spacing = Math.min(165, this.panelWidth / 4.55)
-    this.createButton(width / 2 - spacing * 1.5, buttonY, 145, 50, 'Tap pot', () => inspect('tap'))
-    this.createButton(width / 2 - spacing * 0.5, buttonY, 145, 50, 'Rotate pot', () => inspect('rotate'))
-    this.createButton(width / 2 + spacing * 0.5, buttonY, 145, 50, 'Magnify', () => inspect('magnify'))
-    this.createButton(width / 2 + spacing * 1.5, buttonY, 145, 50, 'Accuse', () => {
-      if (selectedIndex < 0) {
-        inspectionText.setText('Select the pot you want to accuse.')
-        return
-      }
+    const toolGap = 10
+    const toolButtonWidth = Math.min(
+      118,
+      (this.panelWidth - 76 - toolGap * 3) / 4
+    )
+    const toolStep = toolButtonWidth + toolGap
+    const toolX = [
+      width / 2 - toolStep * 1.5,
+      width / 2 - toolStep * 0.5,
+      width / 2 + toolStep * 0.5,
+      width / 2 + toolStep * 1.5,
+    ]
 
-      const correct = selectedIndex === fakeIndex
-      this.complete({
-        success: correct,
-        goldDelta: correct ? 420 : -90,
-        reputationDelta: correct ? 22 : -4,
-        response: correct
-          ? `Pot ${selectedIndex + 1} is fake. The wet decoration slides off before the seller finishes denying it.`
-          : `Pot ${selectedIndex + 1} is genuine. The seller hugs it and invoices you for emotional distress.`,
-      })
-    }, 0x27633a)
+    toolButtons.push(
+      this.createButton(
+        toolX[0],
+        toolY,
+        toolButtonWidth,
+        36,
+        'TOUCH',
+        () => inspectSelected('touch'),
+        0x245d78,
+        12
+      )
+    )
+    toolButtons.push(
+      this.createButton(
+        toolX[1],
+        toolY,
+        toolButtonWidth,
+        36,
+        'TAP',
+        () => inspectSelected('tap'),
+        0x245d78,
+        12
+      )
+    )
+    toolButtons.push(
+      this.createButton(
+        toolX[2],
+        toolY,
+        toolButtonWidth,
+        36,
+        'WATCH',
+        () => inspectSelected('watch'),
+        0x245d78,
+        12
+      )
+    )
+    toolButtons.push(
+      this.createButton(
+        toolX[3],
+        toolY,
+        toolButtonWidth,
+        36,
+        'SMELL',
+        () => inspectSelected('smell'),
+        0x245d78,
+        12
+      )
+    )
+
+    const actionGap = 16
+    const actionButtonWidth = Math.min(
+      235,
+      (this.panelWidth - 90 - actionGap) / 2
+    )
+    const actionOffset = actionButtonWidth / 2 + actionGap / 2
+
+    sealButton = this.createButton(
+      width / 2 - actionOffset,
+      actionY,
+      actionButtonWidth,
+      38,
+      'SEAL THE COBRA',
+      sealCobra,
+      0x7a3422,
+      13
+    )
+
+    treasureButton = this.createButton(
+      width / 2 + actionOffset,
+      actionY,
+      actionButtonWidth,
+      38,
+      'OPEN FOR TREASURE',
+      openTreasure,
+      0x8b5a2b,
+      13
+    )
+
+    startButton = this.createButton(
+      width / 2,
+      actionY,
+      250,
+      40,
+      'BEGIN COBRA HUNT',
+      () => {
+        if (stage !== 'ready') return
+
+        setButtonVisible(startButton, false)
+        setGameControlsVisible(true)
+        stage = 'cobra'
+        clueText.setText('Find the cobra first. Select a jar and inspect it carefully.')
+        updateControls()
+      },
+      0x8b5a2b,
+      15
+    )
+
+    setGameControlsVisible(false)
+    prepareRound(0, false)
+
+    updateHud()
+    this.container.bringToTop(startButton.bg)
+    this.container.bringToTop(startButton.text)
   }
 
   // ---------------------------------------------------------------------------
