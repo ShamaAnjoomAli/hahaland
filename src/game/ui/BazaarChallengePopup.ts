@@ -77,7 +77,9 @@ export default class BazaarChallengePopup {
 
     switch (config.gameId) {
       case 'map-bargain':
-        this.createMapBargainGame()
+        this.ensureReedMarshAssets(() => {
+          this.createMapBargainGame()
+        })
         break
       case 'scale-puzzle':
         this.createScalePuzzleGame()
@@ -173,6 +175,185 @@ export default class BazaarChallengePopup {
     scrollObject.setScrollFactor?.(0)
     this.container.add(object)
     return object
+  }
+
+  private ensureReedMarshAssets(onReady: () => void) {
+    const imageAssets = [
+      {
+        key: 'reed_marsh_bg',
+        path: 'assets/minigames/reed_marsh_trial/marsh_background.png',
+      },
+      {
+        key: 'reed_marsh_reeds',
+        path: 'assets/minigames/reed_marsh_trial/reeds_cluster.png',
+      },
+      {
+        key: 'reed_marsh_bow',
+        path: 'assets/minigames/reed_marsh_trial/wooden_bow.png',
+      },
+      {
+        key: 'reed_marsh_reticle',
+        path: 'assets/minigames/reed_marsh_trial/aiming_reticle.png',
+      },
+      {
+        key: 'reed_marsh_arrow',
+        path: 'assets/minigames/reed_marsh_trial/arrow.png',
+      },
+      {
+        key: 'reed_marsh_impact',
+        path: 'assets/minigames/reed_marsh_trial/impact_small.png',
+      },
+      {
+        key: 'reed_marsh_golden_burst',
+        path: 'assets/minigames/reed_marsh_trial/golden_burst.png',
+      },
+      {
+        key: 'reed_marsh_shadow',
+        path: 'assets/minigames/reed_marsh_trial/bird_shadow.png',
+      },
+    ]
+
+    const sheetAssets = [
+      {
+        key: 'reed_marsh_duck_sheet',
+        path: 'assets/minigames/reed_marsh_trial/bird_duck_normal_sheet.png',
+        frameWidth: 627,
+        frameHeight: 627,
+      },
+      {
+        key: 'reed_marsh_golden_sheet',
+        path: 'assets/minigames/reed_marsh_trial/bird_duck_golden_sheet.png',
+        frameWidth: 627,
+        frameHeight: 627,
+      },
+      {
+        key: 'reed_marsh_forbidden_sheet',
+        path: 'assets/minigames/reed_marsh_trial/bird_sacred_ibis_sheet.png',
+        frameWidth: 627,
+        frameHeight: 627,
+      },
+      {
+        key: 'reed_marsh_decoy_sheet',
+        path: 'assets/minigames/reed_marsh_trial/bird_wooden_decoy_sheet.png',
+        frameWidth: 627,
+        frameHeight: 627,
+      },
+    ]
+
+    const missingImages = imageAssets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+    const missingSheets = sheetAssets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingImages.length === 0 && missingSheets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(470, this.panelWidth - 80),
+      116,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Preparing the Reed Marsh Trial...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(410, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (
+        missingImages.some((asset) => asset.key === file.key) ||
+        missingSheets.some((asset) => asset.key === file.key)
+      ) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (!this.isVisible || session !== this.sessionId) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissingImages = missingImages.filter(
+        (asset) => !this.scene.textures.exists(asset.key)
+      )
+      const stillMissingSheets = missingSheets.filter(
+        (asset) => !this.scene.textures.exists(asset.key)
+      )
+      const stillMissing = [...stillMissingImages, ...stillMissingSheets]
+
+      if (loadFailed || stillMissing.length > 0) {
+        const missingNames = stillMissing
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load the Reed Marsh artwork.
+
+${missingNames}
+
+Copy the reed_marsh_trial folder into public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(14)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingImages.forEach((asset) => {
+      this.scene.load.image(asset.key, asset.path)
+    })
+    missingSheets.forEach((asset) => {
+      this.scene.load.spritesheet(asset.key, asset.path, {
+        frameWidth: asset.frameWidth,
+        frameHeight: asset.frameHeight,
+      })
+    })
+
+    this.scene.load.start()
   }
 
   private ensureSpiceRevealAssets(onReady: () => void) {
@@ -1391,7 +1572,7 @@ export default class BazaarChallengePopup {
   }
 
   // ---------------------------------------------------------------------------
-  // 1. MAP SELLER — NEGOTIATION DUEL
+  // 1. BOW MERCHANT — REED MARSH TRIAL
   // ---------------------------------------------------------------------------
 
   private createMapBargainGame() {
@@ -1399,201 +1580,901 @@ export default class BazaarChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle('1. Map Seller — Bargaining Duel')
+    this.addTitle('1. Bow Merchant — Reed Marsh Trial')
     this.addInstruction(
-      'Lower the price without emptying the seller’s patience. Repeating a tactic makes it weaker.'
+      'Watch the reeds. Hit the ducks. Avoid the bomb.',
+      top + 86
     )
 
-    let price = 300
-    let patience = 72
-    let confidence = 20
-    let turns = 0
-    const uses: Record<string, number> = {
-      compliment: 0,
-      damage: 0,
-      offer: 0,
+    type TrialState = 'ready' | 'round-intro' | 'playing' | 'round-pause' | 'finished'
+    type BirdKind = 'duck' | 'fastDuck' | 'goldenDuck' | 'forbiddenBird' | 'decoy'
+    type FlightPattern = 'left-right' | 'right-left' | 'diagonal-up' | 'curve' | 'foreground'
+
+    type BirdTarget = {
+      sprite: Phaser.GameObjects.Sprite
+      shadow?: Phaser.GameObjects.Image
+      kind: BirdKind
+      pattern: FlightPattern
+      x: number
+      y: number
+      startY: number
+      direction: -1 | 1
+      speed: number
+      verticalSpeed: number
+      curveAmount: number
+      phase: number
+      elapsed: number
+      hitRadius: number
+      points: number
     }
 
-    const merchantCard = this.scene.add.rectangle(width / 2, top + 142, this.panelWidth - 90, 62, 0x2d1c0c, 1)
-    merchantCard.setStrokeStyle(2, 0x9f6d2c, 1)
+    type RoundSettings = {
+      duration: number
+      warning: number
+      spawnMin: number
+      spawnMax: number
+      sizeScale: number
+      patterns: FlightPattern[]
+      birdPool: BirdKind[]
+      introText: string
+    }
 
-    const merchantSpeech = this.scene.add.text(
-      width / 2,
-      top + 142,
-      '“Royal secret map. Only 300 gold because I like your... wallet.”',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '17px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 3,
-        align: 'center',
-        wordWrap: { width: this.panelWidth - 120 },
+    type SpawnSpot = {
+      x: number
+      y: number
+      hintDirection: -1 | 1
+    }
+
+    const settings = {
+      arrows: 12,
+      targetScore: 120,
+      shotCooldown: 380,
+      comboThreshold: 3,
+      comboMultiplier: 1.25,
+    }
+
+    const soundKeys = {
+      bowRelease: 'reed_marsh_sfx_bow_release',
+      reedWarning: 'reed_marsh_sfx_reed_warning',
+      hit: 'reed_marsh_sfx_hit',
+      golden: 'reed_marsh_sfx_golden',
+      fail: 'reed_marsh_sfx_fail',
+    }
+
+    const playSound = (key: string) => {
+      if (!this.scene.cache.audio.exists(key)) return
+      this.scene.sound.play(key)
+    }
+
+    const readRegistryNumber = (keys: string[]) => {
+      for (const key of keys) {
+        const value = this.scene.registry.get(key)
+        const parsed = Number(value)
+        if (Number.isFinite(parsed)) return parsed
       }
-    )
-    merchantSpeech.setOrigin(0.5)
+      return 0
+    }
 
-    const priceText = this.scene.add.text(width / 2, top + 206, '300 GOLD', {
+    const perception = Phaser.Math.Clamp(readRegistryNumber(['perception', 'playerPerception']), 0, 5)
+    const dexterity = Phaser.Math.Clamp(readRegistryNumber(['dexterity', 'playerDexterity']), 0, 5)
+    const bowUpgrade = Phaser.Math.Clamp(readRegistryNumber(['bowUpgradeLevel', 'bowUpgrade']), 0, 5)
+    const shotCooldown = Math.max(220, settings.shotCooldown - bowUpgrade * 28)
+
+    const rounds: RoundSettings[] = [
+      {
+        duration: 15000,
+        warning: 980,
+        spawnMin: 1350,
+        spawnMax: 1800,
+        sizeScale: 1.06,
+        patterns: ['left-right', 'right-left'],
+        birdPool: ['duck', 'duck', 'duck', 'duck'],
+        introText: 'Slow ducks. Watch for the rustle.',
+      },
+      {
+        duration: 15000,
+        warning: 720,
+        spawnMin: 1000,
+        spawnMax: 1450,
+        sizeScale: 1,
+        patterns: ['left-right', 'right-left', 'diagonal-up', 'curve'],
+        birdPool: ['duck', 'duck', 'fastDuck', 'fastDuck', 'forbiddenBird'],
+        introText: 'Faster ducks. Bombs begin appearing.',
+      },
+      {
+        duration: 15000,
+        warning: 520,
+        spawnMin: 860,
+        spawnMax: 1220,
+        sizeScale: 0.94,
+        patterns: ['left-right', 'right-left', 'diagonal-up', 'curve', 'foreground'],
+        birdPool: ['duck', 'fastDuck', 'fastDuck', 'goldenDuck', 'forbiddenBird', 'forbiddenBird'],
+        introText: 'Bonus ducks are rare. Avoid the bomb.',
+      },
+    ]
+
+    const playLeft = this.getPanelLeft() + 34
+    const playRight = this.getPanelRight() - 34
+    const hudY = top + 128
+    const hudHeight = 44
+    const playTop = top + 170
+    const statusY = bottom - 60
+    const playBottom = statusY - 24
+    const playWidth = playRight - playLeft
+    const playHeight = playBottom - playTop
+    const playCenterX = (playLeft + playRight) / 2
+    const playCenterY = (playTop + playBottom) / 2
+
+    let state: TrialState = 'ready'
+    let roundIndex = -1
+    let roundToken = 0
+    let roundTime = 0
+    let nextSpawnTime = 0
+    let score = 0
+    let arrows = settings.arrows
+    let combo = 0
+    let shotLocked = false
+    let activeFailureObjects: Phaser.GameObjects.GameObject[] = []
+    let activeRoundObjects: Phaser.GameObjects.GameObject[] = []
+
+    const birds: BirdTarget[] = []
+    const spawnSpots: SpawnSpot[] = [
+      { x: playLeft + playWidth * 0.18, y: playBottom - 140, hintDirection: 1 },
+      { x: playLeft + playWidth * 0.34, y: playBottom - 155, hintDirection: 1 },
+      { x: playLeft + playWidth * 0.52, y: playBottom - 148, hintDirection: 1 },
+      { x: playLeft + playWidth * 0.69, y: playBottom - 152, hintDirection: -1 },
+      { x: playLeft + playWidth * 0.84, y: playBottom - 138, hintDirection: -1 },
+    ]
+
+    const background = this.scene.add.image(playCenterX, playCenterY, 'reed_marsh_bg')
+    background.setDisplaySize(playWidth, playHeight)
+    this.addObject(background)
+
+    const reedClusters = spawnSpots.map((spot, index) => {
+      const reeds = this.scene.add.image(
+        spot.x,
+        playBottom - 7 - (index % 2) * 5,
+        'reed_marsh_reeds'
+      )
+      reeds.setOrigin(0.5, 1)
+      reeds.setDisplaySize(58, 86)
+      reeds.setAlpha(0.88)
+      this.addObject(reeds)
+      return { spot, reeds }
+    })
+
+    const playBorder = this.scene.add.rectangle(playCenterX, playCenterY, playWidth, playHeight, 0x000000, 0)
+    playBorder.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(playBorder)
+
+    const createHudCard = (x: number, cardWidth: number, bandColor: number) => {
+      const shadow = this.scene.add.rectangle(x + 3, hudY + 3, cardWidth, hudHeight, 0x000000, 0.3)
+      const card = this.scene.add.rectangle(x, hudY, cardWidth, hudHeight, 0xf0dfb5, 1)
+      card.setStrokeStyle(3, 0xb8862e, 1)
+      const band = this.scene.add.rectangle(x, hudY - hudHeight / 2 + 6, cardWidth - 10, 8, bandColor, 1)
+      this.addObject(shadow)
+      this.addObject(card)
+      this.addObject(band)
+    }
+
+    const hudGap = 12
+    const hudCardWidth = (playWidth - hudGap) / 2
+    const leftHudX = playLeft + hudCardWidth / 2
+    const rightHudX = playRight - hudCardWidth / 2
+    createHudCard(leftHudX, hudCardWidth, 0x245d78)
+    createHudCard(rightHudX, hudCardWidth, 0x8f2d2d)
+
+    const createHudText = (x: number, text: string, color = '#3b2b1a') => {
+      const value = this.scene.add.text(x, hudY + 4, text, {
+        fontFamily: 'Georgia',
+        fontSize: `${Phaser.Math.Clamp(hudCardWidth / 20, 13, 16)}px`,
+        color,
+        stroke: '#fff6d8',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+        align: 'center',
+      })
+      value.setOrigin(0.5)
+      this.addObject(value)
+      return value
+    }
+
+    const roundScoreText = createHudText(leftHudX, 'ROUND 1/3  •  SCORE 0/120')
+    const arrowsTimerText = createHudText(rightHudX, `ARROWS ${arrows}  •  15.0s`)
+
+    const comboBadge = this.scene.add.text(playRight - 14, playTop + 14, '', {
       fontFamily: 'Georgia',
-      fontSize: '34px',
+      fontSize: '18px',
       color: '#ffd966',
       stroke: '#000000',
-      strokeThickness: 6,
+      strokeThickness: 4,
       fontStyle: 'bold',
+      align: 'right',
     })
-    priceText.setOrigin(0.5)
+    comboBadge.setOrigin(1, 0)
+    comboBadge.setVisible(false)
+    this.addObject(comboBadge)
 
-    this.addObject(merchantCard)
-    this.addObject(merchantSpeech)
-    this.addObject(priceText)
+    const statusPanel = this.scene.add.rectangle(width / 2, statusY, this.panelWidth - 120, 30, 0xead8aa, 0.98)
+    statusPanel.setStrokeStyle(2, 0xb8862e, 1)
+    const statusText = this.scene.add.text(width / 2, statusY, 'The bow merchant waits for you to begin.', {
+      fontFamily: 'Georgia',
+      fontSize: '14px',
+      color: '#245d78',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: this.panelWidth - 150 },
+    })
+    statusText.setOrigin(0.5)
+    this.addObject(statusPanel)
+    this.addObject(statusText)
 
-    const patienceMeter = this.createMeter(width / 2 - 180, top + 268, 260, 'Seller patience', patience, 100, 0xe07a35)
-    const confidenceMeter = this.createMeter(width / 2 + 180, top + 268, 260, 'Walk-away power', confidence, 100, 0x4ab7e8)
-    const turnText = this.addStatusText('Turn 0/6 — Build leverage, then accept or walk away.', top + 302, '#f5ead7')
+    const bow = this.scene.add.image(playCenterX, playBottom - 3, 'reed_marsh_bow')
+    bow.setOrigin(0.5, 1)
+    bow.setDisplaySize(Math.min(142, playWidth * 0.2), Math.min(108, playHeight * 0.31))
+    this.addObject(bow)
 
-    const updateUI = () => {
-      priceText.setText(`${price} GOLD`)
-      patienceMeter.update(patience)
-      confidenceMeter.update(confidence)
-      turnText.setText(`Turn ${turns}/6 — ${confidence >= 55 ? 'The seller looks nervous.' : 'The seller still thinks you are trapped.'}`)
-    }
+    const reticle = this.scene.add.image(playCenterX, playCenterY - 25, 'reed_marsh_reticle')
+    reticle.setDisplaySize(40, 40)
+    this.addObject(reticle)
 
-    const checkPatience = () => {
-      if (patience > 0) return false
+    const inputZone = this.scene.add.rectangle(playCenterX, playCenterY, playWidth, playHeight, 0xffffff, 0.001)
+    inputZone.setInteractive({ useHandCursor: true })
+    this.addObject(inputZone)
 
-      this.complete({
-        success: false,
-        goldDelta: 0,
-        reputationDelta: -3,
-        response: 'You pushed too hard. The seller rolls up the map and bans your entire bloodline from the stall.',
+    const ensureAnimation = (key: string, texture: string, frameRate: number) => {
+      if (this.scene.anims.exists(key)) return
+      this.scene.anims.create({
+        key,
+        frames: this.scene.anims.generateFrameNumbers(texture, { start: 0, end: 3 }),
+        frameRate,
+        repeat: -1,
       })
-      return true
     }
 
-    const afterTactic = (message: string) => {
-      turns += 1
-      merchantSpeech.setText(message)
-      updateUI()
-      this.addTween({ targets: merchantCard, scaleX: 1.015, duration: 110, yoyo: true })
-      if (checkPatience()) return
+    ensureAnimation('reed_marsh_duck_fly', 'reed_marsh_duck_sheet', 10)
+    ensureAnimation('reed_marsh_fast_duck_fly', 'reed_marsh_duck_sheet', 14)
+    ensureAnimation('reed_marsh_golden_duck_fly', 'reed_marsh_golden_sheet', 12)
+    ensureAnimation('reed_marsh_forbidden_fly', 'reed_marsh_forbidden_sheet', 10)
+    ensureAnimation('reed_marsh_decoy_fly', 'reed_marsh_decoy_sheet', 8)
 
-      if (turns >= 6) {
-        merchantSpeech.setText('“Final offer. Decide before I remember another tourist.”')
+    const updateHud = () => {
+      roundScoreText.setText(`ROUND ${Math.max(1, roundIndex + 1)}/3  •  SCORE ${score}/${settings.targetScore}`)
+      arrowsTimerText.setText(`ARROWS ${arrows}  •  ${Math.max(0, roundTime / 1000).toFixed(1)}s`)
+      arrowsTimerText.setColor(roundTime <= 3500 ? '#a92f2f' : '#3b2b1a')
+      if (combo >= 2) {
+        comboBadge.setVisible(true)
+        comboBadge.setText(combo >= settings.comboThreshold ? `COMBO ${combo}  ×${settings.comboMultiplier}` : `COMBO ${combo}`)
+      } else {
+        comboBadge.setVisible(false)
       }
     }
 
-    const columns = [width / 2 - 225, width / 2, width / 2 + 225]
-    const row1 = bottom - 155
-    const row2 = bottom - 88
-    const buttonWidth = Math.min(205, (this.panelWidth - 95) / 3)
+    const removeBirdReference = (bird: BirdTarget) => {
+      const index = birds.indexOf(bird)
+      if (index >= 0) birds.splice(index, 1)
+    }
 
-    this.createButton(columns[0], row1, buttonWidth, 54, 'Compliment the map', () => {
-      uses.compliment += 1
-      const firstUse = uses.compliment === 1
-      patience = Math.min(100, patience + (firstUse ? 18 : 5))
-      confidence = Math.min(100, confidence + (firstUse ? 12 : 3))
-      afterTactic(
-        firstUse
-          ? '“Finally, a customer with taste. The papyrus is only slightly stolen.”'
-          : '“Yes, yes. You already praised it. Compliments now require payment.”'
+    const destroyBird = (bird: BirdTarget) => {
+      removeBirdReference(bird)
+      bird.sprite.destroy()
+      bird.shadow?.destroy()
+    }
+
+    const clearBirds = () => {
+      [...birds].forEach(destroyBird)
+    }
+
+    const resetCombo = () => {
+      combo = 0
+      updateHud()
+    }
+
+    const birdTexture = (kind: BirdKind) => {
+      switch (kind) {
+        case 'goldenDuck':
+          return 'reed_marsh_golden_sheet'
+        case 'forbiddenBird':
+          return 'reed_marsh_forbidden_sheet'
+        case 'decoy':
+          return 'reed_marsh_decoy_sheet'
+        case 'fastDuck':
+        case 'duck':
+        default:
+          return 'reed_marsh_duck_sheet'
+      }
+    }
+
+    const birdAnimation = (kind: BirdKind) => {
+      switch (kind) {
+        case 'goldenDuck':
+          return 'reed_marsh_golden_duck_fly'
+        case 'forbiddenBird':
+          return 'reed_marsh_forbidden_fly'
+        case 'decoy':
+          return 'reed_marsh_decoy_fly'
+        case 'fastDuck':
+          return 'reed_marsh_fast_duck_fly'
+        case 'duck':
+        default:
+          return 'reed_marsh_duck_fly'
+      }
+    }
+
+    const birdPoints = (kind: BirdKind) => {
+      switch (kind) {
+        case 'fastDuck':
+          return 20
+        case 'goldenDuck':
+          return 50
+        case 'forbiddenBird':
+          return -30
+        case 'decoy':
+          return 0
+        case 'duck':
+        default:
+          return 10
+      }
+    }
+
+    const birdDimensions = (kind: BirdKind, scale: number, pattern: FlightPattern) => {
+      let birdWidth = 82
+      let birdHeight = 50
+      if (kind === 'fastDuck') {
+        birdWidth = 76
+        birdHeight = 46
+      }
+      if (kind === 'goldenDuck') {
+        birdWidth = 80
+        birdHeight = 48
+      }
+      if (kind === 'forbiddenBird') {
+        birdWidth = 56
+        birdHeight = 56
+      }
+      if (kind === 'decoy') {
+        birdWidth = 56
+        birdHeight = 56
+      }
+      if (pattern === 'foreground') {
+        birdWidth *= 1.15
+        birdHeight *= 1.15
+      }
+      return { width: birdWidth * scale, height: birdHeight * scale }
+    }
+
+    const chooseSpotForPattern = (pattern: FlightPattern) => {
+      if (pattern === 'left-right') return Phaser.Utils.Array.GetRandom(spawnSpots.slice(0, 3))
+      if (pattern === 'right-left') return Phaser.Utils.Array.GetRandom(spawnSpots.slice(2))
+      return Phaser.Utils.Array.GetRandom(spawnSpots)
+    }
+
+    const spawnBird = (spot: SpawnSpot, kind: BirdKind, pattern: FlightPattern, roundSettings: RoundSettings, token: number) => {
+      if (state !== 'playing' || token !== roundToken) return
+
+      let direction: -1 | 1 = spot.hintDirection
+      if (pattern === 'left-right') direction = 1
+      if (pattern === 'right-left') direction = -1
+
+      const spawnInsetX = 42
+      const spawnInsetY = 34
+      const startX = pattern === 'foreground'
+        ? (direction > 0 ? playLeft + spawnInsetX : playRight - spawnInsetX)
+        : Phaser.Math.Clamp(spot.x, playLeft + spawnInsetX, playRight - spawnInsetX)
+      const startY = pattern === 'foreground'
+        ? Phaser.Math.Clamp(playBottom - Phaser.Math.Between(120, 170), playTop + spawnInsetY, playBottom - spawnInsetY)
+        : Phaser.Math.Clamp(spot.y - Phaser.Math.Between(28, 60), playTop + spawnInsetY, playBottom - spawnInsetY)
+
+      const shadow = this.scene.add.image(startX, Math.min(playBottom - 24, startY + 40), 'reed_marsh_shadow')
+      shadow.setDisplaySize(60, 18)
+      shadow.setAlpha(0.32)
+      this.addObject(shadow)
+
+      const sprite = this.scene.add.sprite(startX, startY, birdTexture(kind), 0)
+      const size = birdDimensions(kind, roundSettings.sizeScale, pattern)
+      sprite.setDisplaySize(size.width, size.height)
+      sprite.setFlipX(direction > 0)
+      sprite.play(birdAnimation(kind), true)
+      this.addObject(sprite)
+
+      const baseSpeed = kind === 'fastDuck' ? 238 : kind === 'goldenDuck' ? 214 : kind === 'forbiddenBird' ? 188 : kind === 'decoy' ? 188 : 165
+      const patternMultiplier = pattern === 'foreground' ? 1.28 : pattern === 'diagonal-up' ? 1.1 : pattern === 'curve' ? 1.05 : 1
+
+      birds.push({
+        sprite,
+        shadow,
+        kind,
+        pattern,
+        x: startX,
+        y: startY,
+        startY,
+        direction,
+        speed: baseSpeed * patternMultiplier,
+        verticalSpeed: pattern === 'diagonal-up' ? (kind === 'fastDuck' ? 96 : 78) : 0,
+        curveAmount: Phaser.Math.Between(22, 48),
+        phase: Phaser.Math.FloatBetween(0, Math.PI * 2),
+        elapsed: 0,
+        hitRadius: Math.max(25, size.width * 0.38),
+        points: birdPoints(kind),
+      })
+
+      this.container.bringToTop(bow)
+      this.container.bringToTop(reticle)
+    }
+
+    const showWarning = (spot: SpawnSpot, roundSettings: RoundSettings, token: number) => {
+      if (state !== 'playing' || token !== roundToken) return
+      const warningDuration = Math.round(roundSettings.warning * (1 + perception * 0.08))
+      playSound(soundKeys.reedWarning)
+
+      const reedEntry = reedClusters.find((entry) => entry.spot === spot)
+      if (!reedEntry) return
+
+      const reeds = reedEntry.reeds
+      this.scene.tweens.killTweensOf(reeds)
+      reeds.setPosition(
+        spot.x,
+        playBottom - 7 - (spawnSpots.indexOf(spot) % 2) * 5
       )
-    })
+      reeds.setAngle(0)
 
-    this.createButton(columns[1], row1, buttonWidth, 54, 'Point out damage', () => {
-      uses.damage += 1
-      const reduction = uses.damage === 1 ? 50 : uses.damage === 2 ? 25 : 10
-      price = Math.max(25, price - reduction)
-      patience -= uses.damage === 1 ? 10 : 16
-      confidence = Math.min(100, confidence + 14)
-      afterTactic(
-        uses.damage === 1
-          ? '“That is not a tear. It is a historic ventilation feature.”'
-          : '“Stop inspecting the history so closely.”'
-      )
-    })
+      this.addTween({
+        targets: reeds,
+        x: spot.x + 4,
+        angle: spot.hintDirection > 0 ? 4 : -4,
+        duration: Math.max(80, Math.round(warningDuration * 0.16)),
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: 3,
+        onComplete: () => {
+          reeds.setPosition(
+            spot.x,
+            playBottom - 7 - (spawnSpots.indexOf(spot) % 2) * 5
+          )
+          reeds.setAngle(0)
+        },
+      })
+    }
 
-    this.createButton(columns[2], row1, buttonWidth, 54, 'Make a low offer', () => {
-      uses.offer += 1
-      const reduction = uses.offer === 1 ? 65 : uses.offer === 2 ? 35 : 15
-      price = Math.max(25, price - reduction)
-      patience -= uses.offer === 1 ? 17 : 24
-      confidence = Math.min(100, confidence + 18)
-      afterTactic(
-        uses.offer === 1
-          ? '“That offer has insulted me, my ancestors, and one nearby camel.”'
-          : '“You bargain like a tax collector with no hobbies.”'
-      )
-    })
+    const warnAndSpawn = (token: number, roundSettings: RoundSettings) => {
+      if (state !== 'playing' || token !== roundToken) return
+      const pattern = Phaser.Utils.Array.GetRandom(roundSettings.patterns)
+      const spot = chooseSpotForPattern(pattern)
+      const kind = Phaser.Utils.Array.GetRandom(roundSettings.birdPool)
+      const warningDuration = Math.round(roundSettings.warning * (1 + perception * 0.08))
+      showWarning(spot, roundSettings, token)
+      this.schedule(warningDuration, () => {
+        spawnBird(spot, kind, pattern, roundSettings, token)
+      })
+    }
 
-    this.createButton(columns[0], row2, buttonWidth, 54, 'Walk away slowly', () => {
-      if (confidence < 55 && price > 150) {
-        merchantSpeech.setText('“Goodbye! There are twelve tourists behind you.”')
+    const spawnImpact = (x: number, y: number, golden = false) => {
+      const key = golden ? 'reed_marsh_golden_burst' : 'reed_marsh_impact'
+      const effect = this.scene.add.image(x, y, key)
+      effect.setDisplaySize(golden ? 92 : 48, golden ? 92 : 48)
+      this.addObject(effect)
+      this.container.bringToTop(effect)
+      this.addTween({
+        targets: effect,
+        alpha: 0,
+        scaleX: 1.35,
+        scaleY: 1.35,
+        duration: golden ? 480 : 210,
+        onComplete: () => effect.destroy(),
+      })
+    }
+
+    const finishSuccess = () => {
+      if (state === 'finished') return
+      state = 'finished'
+      roundToken += 1
+      clearBirds()
+      statusText.setText('The bow merchant lowers his hood and nods with approval.')
+      const rewardKey = 'reedMarshTrialRewardGranted'
+      const alreadyRewarded = Boolean(this.scene.registry.get(rewardKey))
+      if (!alreadyRewarded) this.scene.registry.set(rewardKey, true)
+      this.complete({
+        success: true,
+        goldDelta: alreadyRewarded ? 0 : 180,
+        reputationDelta: alreadyRewarded ? 0 : 18,
+        itemKey: alreadyRewarded ? undefined : 'featheredArrow',
+        response: `“Your eyes are sharp and your hand is steady. Take these arrows—you have earned them.” Final score: ${score}/${settings.targetScore}.`,
+      }, 850)
+    }
+
+    const hideFailurePanel = () => {
+      activeFailureObjects.forEach((object) => object.destroy())
+      activeFailureObjects = []
+    }
+
+    const resetTrialValues = () => {
+      roundToken += 1
+      clearBirds()
+      hideFailurePanel()
+      activeRoundObjects.forEach((object) => object.destroy())
+      activeRoundObjects = []
+      score = 0
+      arrows = settings.arrows
+      combo = 0
+      roundIndex = -1
+      roundTime = 0
+      nextSpawnTime = 0
+      shotLocked = false
+      state = 'ready'
+      reticle.setPosition(playCenterX, playCenterY - 25)
+      updateHud()
+    }
+
+    const showFailurePanel = () => {
+      if (state === 'finished') return
+      state = 'finished'
+      roundToken += 1
+      clearBirds()
+      resetCombo()
+      const panel = this.scene.add.rectangle(playCenterX, playCenterY, Math.min(520, playWidth - 70), 190, 0xead8aa, 0.98)
+      panel.setStrokeStyle(4, 0xc08e34, 1)
+      const title = this.scene.add.text(playCenterX, playCenterY - 58, 'THE MARSH REMAINS PATIENT', {
+        fontFamily: 'Georgia',
+        fontSize: '21px',
+        color: '#8d3926',
+        stroke: '#fff7df',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+        align: 'center',
+      })
+      title.setOrigin(0.5)
+      const dialogue = this.scene.add.text(playCenterX, playCenterY - 10, `“The marsh is patient, hunter. Steady your hand and try again.”
+Score: ${score}/${settings.targetScore}`, {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#3b2917',
+        align: 'center',
+        wordWrap: { width: Math.min(460, playWidth - 105) },
+      })
+      dialogue.setOrigin(0.5)
+      this.addObject(panel)
+      this.addObject(title)
+      this.addObject(dialogue)
+      const retryButton = this.createButton(playCenterX - 125, playCenterY + 63, 210, 48, 'RETRY TRIAL', () => {
+        resetTrialValues()
+        startTrial()
+      }, 0x27633a, 16)
+      const exitButton = this.createButton(playCenterX + 125, playCenterY + 63, 210, 48, 'LEAVE MARSH', () => {
         this.complete({
           success: false,
           goldDelta: 0,
-          reputationDelta: -1,
-          response: 'You walked away before building leverage. The seller actually let you leave, which feels strangely insulting.',
-        }, 700)
+          reputationDelta: 0,
+          response: `“The marsh is patient, hunter. Steady your hand and try again.” Final score: ${score}/${settings.targetScore}.`,
+        }, 100)
+      }, 0x8b3a27, 16)
+      activeFailureObjects = [panel, title, dialogue, retryButton.bg, retryButton.text, exitButton.bg, exitButton.text]
+      this.container.bringToTop(panel)
+      this.container.bringToTop(title)
+      this.container.bringToTop(dialogue)
+      this.container.bringToTop(retryButton.bg)
+      this.container.bringToTop(retryButton.text)
+      this.container.bringToTop(exitButton.bg)
+      this.container.bringToTop(exitButton.text)
+    }
+
+    const endRound = () => {
+      if (state !== 'playing') return
+      state = 'round-pause'
+      roundToken += 1
+      clearBirds()
+      if (score >= settings.targetScore) {
+        finishSuccess()
         return
       }
+      if (roundIndex >= rounds.length - 1) {
+        showFailurePanel()
+        return
+      }
+      statusText.setText(`Round ${roundIndex + 1} complete. Take a breath and prepare for the next flight.`)
+      this.schedule(1450, () => beginNextRound())
+    }
 
-      this.resultLocked = true
-      const prices = [price, Math.max(90, price - 45), Math.max(50, price - 90), 25]
-      const lines = [
-        '“Fine. Walk. I enjoy losing customers.”',
-        '“Wait. Special afternoon price!”',
-        '“Stop walking so confidently!”',
-        '“Twenty-five gold! Final! My children will study accounting!”',
-      ]
-
-      prices.forEach((nextPrice, index) => {
-        this.schedule(index * 1100, () => {
-          price = nextPrice
-          priceText.setText(`${price} GOLD`)
-          merchantSpeech.setText(lines[index])
-          this.scene.cameras.main.shake(80, 0.002)
-        })
+    const beginNextRound = () => {
+      if (state === 'finished') return
+      roundIndex += 1
+      if (roundIndex >= rounds.length) {
+        showFailurePanel()
+        return
+      }
+      state = 'round-intro'
+      roundToken += 1
+      const token = roundToken
+      const roundSettings = rounds[roundIndex]
+      roundTime = roundSettings.duration
+      nextSpawnTime = 420
+      updateHud()
+      const bannerPanel = this.scene.add.rectangle(playCenterX, playCenterY - 6, 336, 96, 0xead8aa, 0.98)
+      bannerPanel.setStrokeStyle(4, 0xc08e34, 1)
+      const bannerText = this.scene.add.text(playCenterX, playCenterY - 6, `ROUND ${roundIndex + 1}
+${roundSettings.introText}`, {
+        fontFamily: 'Georgia',
+        fontSize: '20px',
+        color: '#6f4512',
+        stroke: '#fff7df',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: 280 },
       })
-
-      this.schedule(4700, () => {
-        this.showResult({
-          success: true,
-          goldDelta: -25,
-          reputationDelta: 18,
-          itemKey: 'suspiciousMap',
-          response: 'Perfect walk-away. The seller chases you through half the stall and sells the “royal” map for 25 gold.',
-        })
+      bannerText.setOrigin(0.5)
+      this.addObject(bannerPanel)
+      this.addObject(bannerText)
+      activeRoundObjects.push(bannerPanel, bannerText)
+      this.container.bringToTop(bannerPanel)
+      this.container.bringToTop(bannerText)
+      this.schedule(1250, () => {
+        if (token !== roundToken || state === 'finished') return
+        bannerPanel.destroy()
+        bannerText.destroy()
+        activeRoundObjects = activeRoundObjects.filter((object) => object !== bannerPanel && object !== bannerText)
+        state = 'playing'
+        statusText.setText(`Round ${roundIndex + 1}: hit ducks and avoid the bomb.`)
       })
-    }, 0x6d3c0d)
+    }
 
-    this.createButton(columns[1], row2, buttonWidth, 54, 'Accept current deal', () => {
-      const strongDeal = price <= 90
-      const fairDeal = price <= 170
+    const startTrial = () => {
+      state = 'ready'
+      beginNextRound()
+    }
 
-      this.complete({
-        success: fairDeal,
-        goldDelta: -price,
-        reputationDelta: strongDeal ? 14 : fairDeal ? 7 : -2,
-        itemKey: strongDeal ? 'suspiciousMap' : undefined,
-        response: strongDeal
-          ? `You close at ${price} gold. The seller respects you and immediately pretends he planned this.`
-          : fairDeal
-            ? `You settle at ${price} gold. Not legendary, but your wallet survives.`
-            : `You accept ${price} gold. The seller rings a tiny bell labeled “easy customer.”`,
+    const introPanel = this.scene.add.rectangle(playCenterX, playCenterY, Math.min(520, playWidth - 70), 190, 0xead8aa, 0.98)
+    introPanel.setStrokeStyle(4, 0xc08e34, 1)
+    const introTitle = this.scene.add.text(playCenterX, playCenterY - 58, 'REED MARSH TRIAL', {
+      fontFamily: 'Georgia',
+      fontSize: '26px',
+      color: '#6f4512',
+      stroke: '#fff7df',
+      strokeThickness: 2,
+      fontStyle: 'bold',
+    })
+    introTitle.setOrigin(0.5)
+    const introText = this.scene.add.text(playCenterX, playCenterY - 6, 'Watch the reeds. Aim carefully.\nHit the ducks. Avoid the bomb.\n12 arrows • 3 rounds • Target score 120', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#3b2917',
+      align: 'center',
+      wordWrap: { width: Math.min(450, playWidth - 110) },
+    })
+    introText.setOrigin(0.5)
+    this.addObject(introPanel)
+    this.addObject(introTitle)
+    this.addObject(introText)
+    const startButton = this.createButton(playCenterX, playCenterY + 62, 235, 50, 'START TRIAL', () => {
+      introPanel.destroy()
+      introTitle.destroy()
+      introText.destroy()
+      startButton.bg.destroy()
+      startButton.text.destroy()
+      startTrial()
+    }, 0x8b5a2b, 17)
+
+    const bounds = new Phaser.Geom.Rectangle(playLeft, playTop, playWidth, playHeight)
+
+    const moveReticle = (pointer: Phaser.Input.Pointer) => {
+      if (!Phaser.Geom.Rectangle.Contains(bounds, pointer.x, pointer.y)) return
+      reticle.setPosition(Phaser.Math.Clamp(pointer.x, playLeft + 24, playRight - 24), Phaser.Math.Clamp(pointer.y, playTop + 24, playBottom - 24))
+    }
+
+    const hitTargetAt = (x: number, y: number) => {
+      let selected: BirdTarget | undefined
+      let closestDistance = Number.MAX_SAFE_INTEGER
+      birds.forEach((bird) => {
+        const distance = Phaser.Math.Distance.Between(x, y, bird.x, bird.y)
+        if (distance <= bird.hitRadius && distance < closestDistance) {
+          selected = bird
+          closestDistance = distance
+        }
       })
-    }, 0x27633a)
+      return selected
+    }
 
-    this.createButton(columns[2], row2, buttonWidth, 54, 'Reset negotiation', () => {
-      price = 300
-      patience = 72
-      confidence = 20
-      turns = 0
-      uses.compliment = 0
-      uses.damage = 0
-      uses.offer = 0
-      merchantSpeech.setText('“Royal secret map. Only 300 gold because I like your... wallet.”')
-      updateUI()
-    }, 0x3c4657)
+    const animateBirdHit = (bird: BirdTarget) => {
+      removeBirdReference(bird)
+      bird.shadow?.destroy()
+      this.addTween({
+        targets: bird.sprite,
+        y: bird.y + 105,
+        angle: bird.direction > 0 ? 68 : -68,
+        alpha: 0.2,
+        duration: 390,
+        ease: 'Quad.easeIn',
+        onComplete: () => bird.sprite.destroy(),
+      })
+    }
+
+    const animateBirdEscape = (bird: BirdTarget, forbidden = false) => {
+      removeBirdReference(bird)
+      bird.shadow?.destroy()
+      this.addTween({
+        targets: bird.sprite,
+        x: bird.x + bird.direction * 145,
+        y: bird.y - 82,
+        angle: bird.direction > 0 ? -20 : 20,
+        alpha: forbidden ? 1 : 0.4,
+        duration: 430,
+        ease: 'Sine.easeOut',
+        onComplete: () => bird.sprite.destroy(),
+      })
+    }
+
+    const resolveShot = (targetX: number, targetY: number) => {
+      const bird = hitTargetAt(targetX, targetY)
+      if (!bird) {
+        playSound(soundKeys.fail)
+        resetCombo()
+        spawnImpact(targetX, targetY)
+        statusText.setText('Missed. Lead the duck instead of chasing it.')
+      } else if (bird.kind === 'forbiddenBird') {
+        playSound(soundKeys.fail)
+        score = Math.max(0, score - 30)
+        resetCombo()
+        spawnImpact(targetX, targetY)
+        statusText.setText('That was a bomb! Avoid it. −30')
+        animateBirdEscape(bird, true)
+      } else if (bird.kind === 'decoy') {
+        playSound(soundKeys.fail)
+        resetCombo()
+        spawnImpact(targetX, targetY)
+        statusText.setText('Bomb! One arrow wasted.')
+        animateBirdEscape(bird)
+      } else {
+        playSound(bird.kind === 'goldenDuck' ? soundKeys.golden : soundKeys.hit)
+        combo += 1
+        const multiplier = combo >= settings.comboThreshold ? settings.comboMultiplier : 1
+        const gained = Math.round(bird.points * multiplier)
+        score += gained
+        spawnImpact(targetX, targetY, bird.kind === 'goldenDuck')
+        statusText.setText(bird.kind === 'goldenDuck' ? `Golden duck! +${gained}` : multiplier > 1 ? `Combo hit! +${gained}` : `Clean hit! +${gained}`)
+        animateBirdHit(bird)
+      }
+      updateHud()
+      if (score >= settings.targetScore) {
+        finishSuccess()
+        return
+      }
+      if (arrows <= 0 && state !== 'finished') {
+        this.schedule(450, () => showFailurePanel())
+      }
+    }
+
+    const fireArrow = () => {
+      if (state !== 'playing' || shotLocked || arrows <= 0 || this.resultLocked) return
+      shotLocked = true
+      playSound(soundKeys.bowRelease)
+      arrows -= 1
+      updateHud()
+      this.addTween({
+        targets: bow,
+        y: bow.y - 9,
+        angle: -3,
+        duration: 70,
+        yoyo: true,
+        onComplete: () => bow.setAngle(0),
+      })
+      const arrow = this.scene.add.image(playCenterX, playBottom - 44, 'reed_marsh_arrow')
+      arrow.setDisplaySize(68, 14)
+      arrow.setRotation(Phaser.Math.Angle.Between(playCenterX, playBottom - 44, reticle.x, reticle.y))
+      this.addObject(arrow)
+      this.container.bringToTop(arrow)
+      this.container.bringToTop(reticle)
+      this.container.bringToTop(comboBadge)
+      const targetX = reticle.x
+      const targetY = reticle.y
+      const distance = Phaser.Math.Distance.Between(arrow.x, arrow.y, targetX, targetY)
+      const travelDuration = Phaser.Math.Clamp(Math.round(distance * 0.5), 95, 220)
+      this.addTween({
+        targets: arrow,
+        x: targetX,
+        y: targetY,
+        duration: travelDuration,
+        ease: 'Linear',
+        onComplete: () => {
+          if (arrow.active) arrow.destroy()
+          if (state === 'finished') return
+          resolveShot(targetX, targetY)
+        },
+      })
+      this.schedule(shotCooldown, () => {
+        shotLocked = false
+      })
+    }
+
+    const pointerMove = (pointer: Phaser.Input.Pointer) => {
+      moveReticle(pointer)
+    }
+
+    const pointerDown = (pointer: Phaser.Input.Pointer) => {
+      if (!Phaser.Geom.Rectangle.Contains(bounds, pointer.x, pointer.y)) return
+      moveReticle(pointer)
+      fireArrow()
+    }
+
+    this.scene.input.on('pointermove', pointerMove)
+    this.scene.input.on('pointerdown', pointerDown)
+    this.runtimeCleanups.push(() => {
+      this.scene.input.off('pointermove', pointerMove)
+      this.scene.input.off('pointerdown', pointerDown)
+    })
+
+    const updateTrial = (_time: number, delta: number) => {
+      if (state !== 'playing') return
+      const dt = Math.min(delta, 34) / 1000
+      roundTime = Math.max(0, roundTime - delta)
+      nextSpawnTime -= delta
+      if (nextSpawnTime <= 0) {
+        const roundSettings = rounds[roundIndex]
+        const token = roundToken
+        warnAndSpawn(token, roundSettings)
+        nextSpawnTime = Phaser.Math.Between(roundSettings.spawnMin, roundSettings.spawnMax)
+      }
+      for (let index = birds.length - 1; index >= 0; index -= 1) {
+        const bird = birds[index]
+        bird.elapsed += dt
+        const reticleDistance = Phaser.Math.Distance.Between(reticle.x, reticle.y, bird.x, bird.y)
+        const dexteritySlow = reticleDistance <= 88 ? Math.max(0.82, 1 - dexterity * 0.035) : 1
+        const currentSpeed = bird.speed * dexteritySlow
+        if (bird.pattern === 'left-right' || bird.pattern === 'right-left') {
+          bird.x += bird.direction * currentSpeed * dt
+          bird.y += Math.sin(bird.elapsed * 8 + bird.phase) * 0.6
+        } else if (bird.pattern === 'diagonal-up') {
+          bird.x += bird.direction * currentSpeed * dt
+          bird.y -= bird.verticalSpeed * dexteritySlow * dt
+        } else if (bird.pattern === 'curve') {
+          bird.x += bird.direction * currentSpeed * dt
+          bird.y = bird.startY - Math.sin(bird.elapsed * 2.7 + bird.phase) * bird.curveAmount - bird.elapsed * 15
+        } else {
+          bird.x += bird.direction * currentSpeed * 1.12 * dt
+          bird.y = bird.startY + Math.sin(bird.elapsed * 10 + bird.phase) * 5
+        }
+
+        const halfW = Math.max(14, bird.sprite.displayWidth * 0.5 - 2)
+        const halfH = Math.max(14, bird.sprite.displayHeight * 0.5 - 2)
+        const minX = playLeft + halfW
+        const maxX = playRight - halfW
+        const minY = playTop + halfH
+        const maxY = playBottom - halfH
+
+        const wouldLeaveX = bird.x < minX || bird.x > maxX
+        const wouldLeaveY = bird.y < minY || bird.y > maxY
+
+        bird.x = Phaser.Math.Clamp(bird.x, minX, maxX)
+        bird.y = Phaser.Math.Clamp(bird.y, minY, maxY)
+
+        bird.sprite.setPosition(bird.x, bird.y)
+        bird.sprite.setAngle(Math.sin(bird.elapsed * 10 + bird.phase) * 3 * bird.direction)
+        bird.shadow?.setPosition(bird.x, Math.min(playBottom - 24, bird.startY + 40))
+
+        const shouldRemove =
+          ((bird.pattern === 'left-right' || bird.pattern === 'right-left' || bird.pattern === 'foreground') && wouldLeaveX) ||
+          (bird.pattern === 'diagonal-up' && (wouldLeaveX || wouldLeaveY)) ||
+          (bird.pattern === 'curve' && (wouldLeaveX || wouldLeaveY))
+
+        if (shouldRemove) destroyBird(bird)
+      }
+      updateHud()
+      if (roundTime <= 0) endRound()
+    }
+
+    this.scene.events.on('update', updateTrial)
+    this.runtimeCleanups.push(() => {
+      this.scene.events.off('update', updateTrial)
+      clearBirds()
+    })
+
+    updateHud()
+    this.container.bringToTop(bow)
+    this.container.bringToTop(reticle)
+    this.container.bringToTop(comboBadge)
+    this.container.bringToTop(introPanel)
+    this.container.bringToTop(introTitle)
+    this.container.bringToTop(introText)
+    this.container.bringToTop(startButton.bg)
+    this.container.bringToTop(startButton.text)
   }
 
   // ---------------------------------------------------------------------------
