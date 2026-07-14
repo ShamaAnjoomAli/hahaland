@@ -328,6 +328,30 @@ export default class BazaarChallengePopup {
         key: 'donkey_topview',
         path: 'assets/minigames/donkey_topview.png',
       },
+      {
+        key: 'race_cart_img',
+        path: 'assets/minigames/wooden_market_cart_with_blue_canopy.png',
+      },
+      {
+        key: 'race_dates_img',
+        path: 'assets/minigames/wicker_basket_filled_with_dates.png',
+      },
+      {
+        key: 'race_watermelon_img',
+        path: 'assets/minigames/polished_top_down_watermelon_illustration.png',
+      },
+      {
+        key: 'race_chicken_img',
+        path: 'assets/minigames/surprised_chicken_from_above.png',
+      },
+      {
+        key: 'race_chocolate_dates_img',
+        path: 'assets/minigames/chocolate_coated_dates_cluster.png',
+      },
+      {
+        key: 'race_golden_date_img',
+        path: 'assets/minigames/golden_confection_with_magical_glow.png',
+      },
     ]
 
     const missingAssets = assets.filter(
@@ -406,7 +430,7 @@ export default class BazaarChallengePopup {
           .join('\n')
 
         const errorText = this.addStatusText(
-          `Could not load:\n${missingNames}\n\nCheck that both PNG files are inside public/assets/minigames/.`,
+          `Could not load:\n${missingNames}\n\nCopy every donkey-race PNG from the ZIP into public/assets/minigames/.`,
           this.scene.scale.height / 2,
           '#ffbd63'
         )
@@ -3109,18 +3133,17 @@ export default class BazaarChallengePopup {
 
     this.addTitle('6. Donkey Master — Royal Thunder Rally')
     this.addInstruction(
-      'Switch lanes, jump market hazards, collect dates, and race to the temple gate.',
+      'Switch lanes, dodge market hazards, and collect dates, chocolate dates, and golden dates.',
       top + 86
     )
 
     type RaceState = 'ready' | 'countdown' | 'playing' | 'finished'
     type EntityKind =
       | 'cart'
-      | 'pottery'
-      | 'date-basket'
       | 'watermelon'
       | 'chicken'
       | 'dates'
+      | 'chocolate-dates'
       | 'golden-date'
 
     type RaceEntity = {
@@ -3179,6 +3202,7 @@ export default class BazaarChallengePopup {
     let jumping = false
     let royalRush = false
     let royalRushTime = 0
+    let nextRoyalRushAt = 5
     let finishGateVisible = false
 
     const raceBackgroundKey = 'bazaar_race_bg'
@@ -3457,7 +3481,7 @@ export default class BazaarChallengePopup {
     const datesText = this.scene.add.text(
       rightHudX,
       hudY + 4,
-      'DATES 0',
+      'REWARDS 0',
       {
         fontFamily: 'Georgia',
         fontSize: '16px',
@@ -3509,7 +3533,7 @@ export default class BazaarChallengePopup {
     const status = this.scene.add.text(
       width / 2,
       statusY,
-      'Use LEFT / RIGHT or A / D. Press SPACE to jump.',
+      'Use LEFT / RIGHT or A / D. Press SPACE to jump and collect rewards.',
       {
         fontFamily: 'Georgia',
         fontSize: '14px',
@@ -3726,38 +3750,6 @@ export default class BazaarChallengePopup {
       entity.container.destroy(true)
     }
 
-    const createDateShape = (
-      parent: Phaser.GameObjects.Container,
-      x: number,
-      y: number,
-      golden = false
-    ) => {
-      const date = this.scene.add.ellipse(
-        x,
-        y,
-        13,
-        21,
-        golden ? 0xffd45c : 0x6d321f,
-        1
-      )
-      date.setStrokeStyle(
-        2,
-        golden ? 0xfff0a1 : 0x32170e,
-        1
-      )
-
-      const shine = this.scene.add.ellipse(
-        x - 2,
-        y - 3,
-        3,
-        8,
-        golden ? 0xffffff : 0xa96945,
-        0.7
-      )
-
-      parent.add([date, shine])
-    }
-
     const createEntity = (
       kind: EntityKind,
       lane: number,
@@ -3772,165 +3764,73 @@ export default class BazaarChallengePopup {
       let hitWidth = laneWidth * 0.58
       let hitHeight = 40
 
+      const addRaceImage = (
+        textureKey: string,
+        displayWidth: number,
+        displayHeight: number,
+        shadowWidthRatio = 0.72,
+        shadowYOffset = 0.2
+      ) => {
+        const shadow = this.scene.add.ellipse(
+          0,
+          displayHeight * shadowYOffset,
+          displayWidth * shadowWidthRatio,
+          Math.max(8, displayHeight * 0.16),
+          0x000000,
+          0.24
+        )
+
+        const image = this.scene.add.image(0, 0, textureKey)
+        image.setDisplaySize(displayWidth, displayHeight)
+
+        entityContainer.add([shadow, image])
+        return image
+      }
+
       if (kind === 'cart') {
-        const cart = this.scene.add.rectangle(
-          0,
-          0,
-          laneWidth * 0.62,
-          42,
-          0x8b5a2b,
-          1
-        )
-        cart.setStrokeStyle(3, 0x3a2415, 1)
+        const cartWidth = Math.min(82, laneWidth * 0.56)
+        const cartHeight = cartWidth * 1.62
 
-        const canopy = this.scene.add.rectangle(
-          0,
-          -17,
-          laneWidth * 0.55,
-          12,
-          0x245d78,
-          1
-        )
-        canopy.setStrokeStyle(2, 0xd4af37, 1)
-
-        const wheelLeft = this.scene.add.circle(
-          -laneWidth * 0.2,
-          20,
-          7,
-          0x2b211a,
-          1
-        )
-        const wheelRight = this.scene.add.circle(
-          laneWidth * 0.2,
-          20,
-          7,
-          0x2b211a,
-          1
+        addRaceImage(
+          'race_cart_img',
+          cartWidth,
+          cartHeight,
+          0.78,
+          0.29
         )
 
-        entityContainer.add([cart, canopy, wheelLeft, wheelRight])
-        hitHeight = 48
-      }
-
-      if (kind === 'pottery') {
-        jumpable = true
-
-        for (let index = 0; index < 3; index += 1) {
-          const pot = this.scene.add.ellipse(
-            (index - 1) * 17,
-            index === 1 ? -3 : 5,
-            24,
-            35,
-            index === 1 ? 0xb56935 : 0x9f532d,
-            1
-          )
-          pot.setStrokeStyle(2, 0x4a2813, 1)
-          entityContainer.add(pot)
-        }
-
-        hitWidth = laneWidth * 0.48
-        hitHeight = 34
-      }
-
-      if (kind === 'date-basket') {
-        jumpable = true
-
-        const basket = this.scene.add.rectangle(
-          0,
-          5,
-          laneWidth * 0.52,
-          29,
-          0x9a6a3e,
-          1
-        )
-        basket.setStrokeStyle(3, 0x4a2a16, 1)
-
-        for (let index = 0; index < 5; index += 1) {
-          createDateShape(
-            entityContainer,
-            (index - 2) * 11,
-            -7 + Math.abs(index - 2) * 2
-          )
-        }
-
-        entityContainer.addAt(basket, 0)
-        hitWidth = laneWidth * 0.54
-        hitHeight = 33
+        hitWidth = cartWidth * 0.72
+        hitHeight = cartHeight * 0.72
       }
 
       if (kind === 'watermelon') {
         jumpable = true
 
-        const melon = this.scene.add.circle(
-          0,
-          0,
-          17,
-          0x4e8a43,
-          1
+        addRaceImage(
+          'race_watermelon_img',
+          46,
+          48,
+          0.72,
+          0.25
         )
-        melon.setStrokeStyle(3, 0x214e27, 1)
 
-        const stripe = this.scene.add.rectangle(
-          0,
-          0,
-          5,
-          31,
-          0x87b45c,
-          1
-        )
-        stripe.setAngle(20)
-
-        entityContainer.add([melon, stripe])
-        hitWidth = 34
-        hitHeight = 34
+        hitWidth = 36
+        hitHeight = 36
       }
 
       if (kind === 'chicken') {
         jumpable = true
 
-        const body = this.scene.add.ellipse(
-          0,
-          3,
-          28,
-          21,
-          0xf4e7cd,
-          1
-        )
-        body.setStrokeStyle(2, 0x473529, 1)
-
-        const head = this.scene.add.circle(
-          10,
-          -7,
-          8,
-          0xffffff,
-          1
-        )
-        head.setStrokeStyle(2, 0x473529, 1)
-
-        const beak = this.scene.add.triangle(
-          20,
-          -6,
-          0,
-          -4,
-          8,
-          0,
-          0,
-          4,
-          0xf0ad36,
-          1
+        addRaceImage(
+          'race_chicken_img',
+          46,
+          62,
+          0.68,
+          0.26
         )
 
-        const comb = this.scene.add.circle(
-          10,
-          -16,
-          3,
-          0xd24734,
-          1
-        )
-
-        entityContainer.add([body, head, beak, comb])
-        hitWidth = 34
-        hitHeight = 28
+        hitWidth = 32
+        hitHeight = 42
       }
 
       if (kind === 'dates') {
@@ -3938,12 +3838,33 @@ export default class BazaarChallengePopup {
         dangerous = false
         jumpable = false
 
-        createDateShape(entityContainer, -14, 2)
-        createDateShape(entityContainer, 0, -5)
-        createDateShape(entityContainer, 14, 2)
+        addRaceImage(
+          'race_dates_img',
+          48,
+          48,
+          0.66,
+          0.25
+        )
 
-        hitWidth = 44
-        hitHeight = 32
+        hitWidth = 36
+        hitHeight = 34
+      }
+
+      if (kind === 'chocolate-dates') {
+        collectible = true
+        dangerous = false
+        jumpable = false
+
+        addRaceImage(
+          'race_chocolate_dates_img',
+          46,
+          47,
+          0.62,
+          0.25
+        )
+
+        hitWidth = 34
+        hitHeight = 33
       }
 
       if (kind === 'golden-date') {
@@ -3951,25 +3872,21 @@ export default class BazaarChallengePopup {
         dangerous = false
         jumpable = false
 
-        const glow = this.scene.add.circle(
-          0,
-          0,
-          24,
-          0xffd966,
-          0.18
+        addRaceImage(
+          'race_golden_date_img',
+          40,
+          58,
+          0.62,
+          0.28
         )
-        glow.setStrokeStyle(2, 0xffe88a, 0.8)
-        entityContainer.add(glow)
 
-        createDateShape(entityContainer, 0, 0, true)
-
-        hitWidth = 34
+        hitWidth = 29
         hitHeight = 42
 
         this.addTween({
           targets: entityContainer,
-          scaleX: 1.13,
-          scaleY: 1.13,
+          scaleX: 1.1,
+          scaleY: 1.1,
           duration: 360,
           yoyo: true,
           repeat: -1,
@@ -4006,48 +3923,48 @@ export default class BazaarChallengePopup {
       }>
     > = [
       [{ kind: 'dates', lane: 1 }],
-      [{ kind: 'date-basket', lane: 0 }],
       [{ kind: 'cart', lane: 2 }],
       [
-        { kind: 'pottery', lane: 0 },
-        { kind: 'dates', lane: 2, offsetY: -72 },
+        { kind: 'chocolate-dates', lane: 0 },
+        { kind: 'cart', lane: 2, offsetY: -82 },
       ],
       [{ kind: 'chicken', lane: 1, laneVelocity: 48 }],
       [
         { kind: 'cart', lane: 0 },
-        { kind: 'dates', lane: 1, offsetY: -80 },
+        { kind: 'dates', lane: 2, offsetY: -78 },
       ],
       [{ kind: 'watermelon', lane: 2, laneVelocity: -58 }],
       [
-        { kind: 'date-basket', lane: 1 },
-        { kind: 'dates', lane: 0, offsetY: -76 },
-      ],
-      [
-        { kind: 'pottery', lane: 0 },
-        { kind: 'cart', lane: 2 },
+        { kind: 'chocolate-dates', lane: 1 },
+        { kind: 'chicken', lane: 0, offsetY: -82, laneVelocity: 52 },
       ],
       [{ kind: 'golden-date', lane: 1 }],
       [
         { kind: 'cart', lane: 0 },
-        { kind: 'date-basket', lane: 1 },
+        { kind: 'watermelon', lane: 2, laneVelocity: -55 },
       ],
       [
         { kind: 'dates', lane: 2 },
-        { kind: 'chicken', lane: 0, offsetY: -82, laneVelocity: 52 },
+        { kind: 'cart', lane: 0, offsetY: -82 },
       ],
       [
-        { kind: 'pottery', lane: 1 },
-        { kind: 'dates', lane: 0, offsetY: -72 },
+        { kind: 'chocolate-dates', lane: 0 },
+        { kind: 'watermelon', lane: 2, offsetY: -76, laneVelocity: -62 },
+      ],
+      [{ kind: 'chicken', lane: 2, laneVelocity: -50 }],
+      [
+        { kind: 'cart', lane: 1 },
+        { kind: 'dates', lane: 0, offsetY: -80 },
       ],
       [
         { kind: 'watermelon', lane: 0, laneVelocity: 62 },
-        { kind: 'dates', lane: 2, offsetY: -72 },
-      ],
-      [
-        { kind: 'date-basket', lane: 0 },
-        { kind: 'pottery', lane: 2 },
+        { kind: 'chocolate-dates', lane: 2, offsetY: -72 },
       ],
       [{ kind: 'golden-date', lane: 2 }],
+      [
+        { kind: 'cart', lane: 2 },
+        { kind: 'dates', lane: 1, offsetY: -78 },
+      ],
     ]
 
     const spawnPattern = () => {
@@ -4084,7 +4001,7 @@ export default class BazaarChallengePopup {
         royalRush ? `ROYAL RUSH  ${progress}%` : `RACE ${progress}%`
       )
 
-      datesText.setText(`DATES ${datesCollected}`)
+      datesText.setText(`REWARDS ${datesCollected}`)
 
       const speedRatio = Phaser.Math.Clamp(
         (speed - 140) / 100,
@@ -4154,7 +4071,7 @@ export default class BazaarChallengePopup {
             status.setText(
               royalRush
                 ? 'ROYAL RUSH! Small hazards cannot stop you.'
-                : 'Switch lanes, jump hazards, and collect dates.'
+                : 'Switch lanes, jump hazards, and collect date rewards.'
             )
           }
         },
@@ -4203,21 +4120,33 @@ export default class BazaarChallengePopup {
         status.setText(
           royalRush
             ? 'Date combo! Royal Rush score doubled.'
-            : 'Fresh bazaar dates collected!'
+            : 'Fresh bazaar dates collected! +90'
+        )
+      }
+
+      if (entity.kind === 'chocolate-dates') {
+        datesCollected += 2
+        score += royalRush ? 280 : 140
+
+        status.setText(
+          royalRush
+            ? 'Chocolate-date combo! Royal Rush score doubled.'
+            : 'Chocolate dates collected! +140'
         )
       }
 
       if (entity.kind === 'golden-date') {
-        datesCollected += 2
-        score += 250
+        datesCollected += 3
+        score += 300
         hearts = Math.min(3, hearts + 1)
 
         status.setText(
-          'Golden date! One heart restored and the crowd cheers.'
+          'Golden date! +300, three reward points, and one heart restored.'
         )
       }
 
-      if (datesCollected > 0 && datesCollected % 5 === 0) {
+      if (datesCollected >= nextRoyalRushAt) {
+        nextRoyalRushAt += 5
         startRoyalRush()
       }
 
@@ -4275,13 +4204,11 @@ export default class BazaarChallengePopup {
 
       updateHud()
       status.setText(
-        entity.kind === 'date-basket'
-          ? 'Crash! Dates scatter across the road.'
-          : entity.kind === 'pottery'
-            ? 'Crash! A pottery merchant begins calculating damages.'
-            : entity.kind === 'chicken'
-              ? 'Chicken chaos! Royal Thunder loses a heart.'
-              : 'Market collision! Royal Thunder loses a heart.'
+        entity.kind === 'chicken'
+          ? 'Chicken chaos! Royal Thunder loses a heart.'
+          : entity.kind === 'watermelon'
+            ? 'Watermelon crash! Royal Thunder loses a heart.'
+            : 'Market-cart collision! Royal Thunder loses a heart.'
       )
 
       this.scene.cameras.main.shake(190, 0.008)
@@ -4312,7 +4239,7 @@ export default class BazaarChallengePopup {
             ),
             response: `Royal Thunder reached ${Math.floor(
               distance / finishDistance * 100
-            )}% of the rally and collected ${datesCollected} date${
+            )}% of the rally and earned ${datesCollected} reward point${
               datesCollected === 1 ? '' : 's'
             }. Three market crashes ended the race.`,
           },
@@ -4361,9 +4288,9 @@ export default class BazaarChallengePopup {
           reputationDelta: finalReputation,
           response: `Rally complete with ${hearts} heart${
             hearts === 1 ? '' : 's'
-          }, ${datesCollected} date${
+          }, ${datesCollected} reward point${
             datesCollected === 1 ? '' : 's'
-          }, and ${score} points. Royal Thunder immediately demands a royal stable.`,
+          }, and ${score} race score. Royal Thunder immediately demands a royal stable.`,
         },
         900
       )
@@ -4401,7 +4328,7 @@ export default class BazaarChallengePopup {
       this.schedule(2000, () => {
         state = 'playing'
         status.setText(
-          'Switch lanes, jump hazards, and collect dates.'
+          'Switch lanes, jump hazards, and collect date rewards.'
         )
         spawnPattern()
       })
@@ -5192,7 +5119,7 @@ export default class BazaarChallengePopup {
 
     const flap = () => {
       if (state !== 'playing' || this.resultLocked) return
-    
+
       velocityY = -270
 
       this.scene.tweens.killTweensOf(eagle)
