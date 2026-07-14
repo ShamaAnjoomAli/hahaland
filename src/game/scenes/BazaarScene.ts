@@ -4,23 +4,29 @@ import DialogueBox from '../ui/DialogueBox'
 import ObjectiveBox from '../ui/ObjectiveBox'
 import GameHUD from '../ui/GameHUD'
 import BazaarChallengePopup, {
-    type BazaarGameId,
-    type BazaarMinigameResult,
-  } from '../ui/BazaarChallengePopup'
-  import {
-    startOrResumeSharedCountdown,
-  } from '../utils/utility'
-  
-  type MinigameChoice = {
-    label: string
-    value: string
-    response: string
-    success?: boolean
-    goldDelta?: number
-    reputationDelta?: number
-    setFlags?: string[]
-    setItems?: string[]
-  }
+  type BazaarGameId,
+  type BazaarMinigameResult,
+} from '../ui/BazaarChallengePopup'
+import { startOrResumeSharedCountdown } from '../utils/utility'
+
+type MinigameChoice = {
+  label: string
+  value: string
+  response: string
+  success?: boolean
+  goldDelta?: number
+  reputationDelta?: number
+  setFlags?: string[]
+  setItems?: string[]
+}
+
+type MerchantHighlightHandle = {
+  npc: NPC
+  outerGlow: Phaser.GameObjects.Sprite
+  glow: Phaser.GameObjects.Sprite
+  marker: Phaser.GameObjects.Text
+  tweens: Phaser.Tweens.Tween[]
+}
 
 export default class BazaarScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite
@@ -31,7 +37,7 @@ export default class BazaarScene extends Phaser.Scene {
   private dialogue!: DialogueBox
   private objectiveBox!: ObjectiveBox
   private hud!: GameHUD
-private minigame!: BazaarChallengePopup
+  private minigame!: BazaarChallengePopup
 
   private npcs: NPC[] = []
   private interactPrompt!: Phaser.GameObjects.Container
@@ -40,36 +46,40 @@ private minigame!: BazaarChallengePopup
   private reputation = 0
 
   private completedMarkets = new Set<string>()
+  private readonly completedMarketsRegistryKey =
+    'hahaland.bazaar.completedMarkets'
+
+  private merchantHighlights = new Map<string, MerchantHighlightHandle>()
 
   private worldObjects: Phaser.GameObjects.GameObject[] = []
-private uiCamera!: Phaser.Cameras.Scene2D.Camera
+  private uiCamera!: Phaser.Cameras.Scene2D.Camera
 
-private minimapConfig = {
-  x: 0,
-  y: 0,
-  width: 180,
-  height: 120,
-}
+  private minimapConfig = {
+    x: 0,
+    y: 0,
+    width: 180,
+    height: 120,
+  }
 
-private minimapBackground?: Phaser.GameObjects.Image
-private minimapBorder?: Phaser.GameObjects.Rectangle
-private minimapPlayerDot?: Phaser.GameObjects.Arc
-private minimapNpcDots: Phaser.GameObjects.Arc[] = []
+  private minimapBackground?: Phaser.GameObjects.Image
+  private minimapBorder?: Phaser.GameObjects.Rectangle
+  private minimapPlayerDot?: Phaser.GameObjects.Arc
+  private minimapNpcDots: Phaser.GameObjects.Arc[] = []
 
-private mapPixelWidth = 0
-private mapPixelHeight = 0
+  private mapPixelWidth = 0
+  private mapPixelHeight = 0
 
-private bazaarExitPoint?: {
+  private bazaarExitPoint?: {
     x: number
     y: number
   }
-  
+
   private bazaarExitGlow?: Phaser.GameObjects.Arc
   private bazaarExitRing?: Phaser.GameObjects.Arc
   private bazaarExitArrow?: Phaser.GameObjects.Text
   private bazaarExitLabel?: Phaser.GameObjects.Container
   private bazaarExitLabelText?: Phaser.GameObjects.Text
-  
+
   private bazaarExitRadius = 90
   private minimapExitDot?: Phaser.GameObjects.Arc
 
@@ -80,10 +90,7 @@ private bazaarExitPoint?: {
     super('BazaarScene')
   }
 
-  init(data?: {
-    coins?: number
-    reputation?: number
-  }) {
+  init(data?: { coins?: number; reputation?: number }) {
     if (typeof data?.coins === 'number') {
       this.coins = data.coins
     }
@@ -91,91 +98,89 @@ private bazaarExitPoint?: {
     if (typeof data?.reputation === 'number') {
       this.reputation = data.reputation
     }
+
+    const savedCompletedMarkets = this.registry.get(
+      this.completedMarketsRegistryKey,
+    )
+
+    this.completedMarkets = new Set(
+      Array.isArray(savedCompletedMarkets)
+        ? savedCompletedMarkets.filter(
+            (value): value is string => typeof value === 'string',
+          )
+        : [],
+    )
   }
 
   create() {
+    this.npcs = []
+    this.worldObjects = []
+    this.merchantHighlights.clear()
+    this.minimapNpcDots = []
+
     const map = this.make.tilemap({
       key: 'egypt_bazaar',
     })
-  
-    const background = this.add.image(
-      0,
-      0,
-      'bazaar-background'
-    )
-  
+
+    const background = this.add.image(0, 0, 'bazaar-background')
+
     background.setOrigin(0, 0)
     background.setDepth(0)
-  
+
     this.worldObjects.push(background)
-  
-    this.gateForeground = this.add.image(
-        639.5,
-        870,
-        'bazaar-gate-foreground'
-      )
-      
-      this.gateForeground.setOrigin(0, 0)
-      this.gateForeground.setDepth(9000)
-      
-      this.worldObjects.push(this.gateForeground)
 
+    this.gateForeground = this.add.image(639.5, 870, 'bazaar-gate-foreground')
 
-    const mapWidth =
-      map.widthInPixels || background.width
-  
-    const mapHeight =
-      map.heightInPixels || background.height
-  
-    this.physics.world.setBounds(
-      0,
-      0,
-      mapWidth,
-      mapHeight
-    )
-  
-    this.cameras.main.setBounds(
-      0,
-      0,
-      mapWidth,
-      mapHeight
-    )
-  
+    this.gateForeground.setOrigin(0, 0)
+    this.gateForeground.setDepth(9000)
+
+    this.worldObjects.push(this.gateForeground)
+
+    const mapWidth = map.widthInPixels || background.width
+
+    const mapHeight = map.heightInPixels || background.height
+
+    this.physics.world.setBounds(0, 0, mapWidth, mapHeight)
+
+    this.cameras.main.setBounds(0, 0, mapWidth, mapHeight)
+
     this.dialogue = new DialogueBox(this)
     this.objectiveBox = new ObjectiveBox(this)
     this.minigame = new BazaarChallengePopup(this)
 
-    this.objectiveBox.setText(
-      'Objective: Explore the bazaar markets.'
-    )
-  
+    if (this.completedMarkets.size >= 7) {
+      this.objectiveBox.setText(
+        'Objective: Exit the bazaar through the entrance gate.',
+      )
+    } else if (this.completedMarkets.size > 0) {
+      this.objectiveBox.setText(
+        `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`,
+      )
+    } else {
+      this.objectiveBox.setText('Objective: Explore the bazaar markets.')
+    }
+
     this.createPlayer(map)
     this.worldObjects.push(this.player)
-  
+
     this.createNPCsFromMap(map)
     this.createCollisionObjects(map)
     this.createBazaarExitMarker(map)
     this.createInteractPrompt()
-  
-    this.cameras.main.startFollow(
-      this.player,
-      true,
-      0.15,
-      0.15
-    )
-  
+
+    this.cameras.main.startFollow(this.player, true, 0.15, 0.15)
+
     this.cameras.main.setZoom(0.7)
-  
+
     this.createBazaarMinimap(mapWidth, mapHeight)
-  
+
     this.hud = new GameHUD(
       this,
       this.minimapConfig.x,
       this.minimapConfig.y + this.minimapConfig.height + 8,
-      this.minimapConfig.width
+      this.minimapConfig.width,
     )
-  
-    this.hud.setCoins(this.coins)
+
     this.hud.setCoins(this.coins)
 
     const timerController = startOrResumeSharedCountdown(
@@ -185,27 +190,27 @@ private bazaarExitPoint?: {
       },
       {
         totalSeconds: 600,
-      }
+      },
     )
-    
+
     this.stopGameTimer = timerController.stop
     this.createUICamera()
-  
+
     this.keys = this.input.keyboard!.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
     })
-  
+
     this.interactKey = this.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.E
+      Phaser.Input.Keyboard.KeyCodes.E,
     )
-  
+
     this.spaceKey = this.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
     )
-  
+
     this.dialogue.show(
       [
         {
@@ -218,7 +223,7 @@ private bazaarExitPoint?: {
         },
       ],
       undefined,
-      'player'
+      'player',
     )
   }
 
@@ -226,30 +231,26 @@ private bazaarExitPoint?: {
     this.updateBazaarMinimap()
 
     if (this.minigame.open()) {
-        this.player.setVelocity(0)
-        this.player.stop()
-        return
+      this.player.setVelocity(0)
+      this.player.stop()
+      return
+    }
+
+    if (this.dialogue.isOpen()) {
+      this.player.setVelocity(0)
+
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        this.dialogue.next()
       }
-    
-      if (this.dialogue.isOpen()) {
-        this.player.setVelocity(0)
-    
-        if (
-          Phaser.Input.Keyboard.JustDown(
-            this.spaceKey
-          )
-        ) {
-          this.dialogue.next()
-        }
-    
-        return
-      }
-    
-      this.updateInteractPrompt()
-    
-      if (this.handleBazaarExit()) {
-        return
-      }
+
+      return
+    }
+
+    this.updateInteractPrompt()
+
+    if (this.handleBazaarExit()) {
+      return
+    }
     const speed = 115
 
     this.player.setVelocity(0)
@@ -276,28 +277,17 @@ private bazaarExitPoint?: {
       npc.setDepth(npc.y)
     })
 
-    if (
-      Phaser.Input.Keyboard.JustDown(
-        this.interactKey
-      )
-    ) {
+    this.updateMerchantHighlights()
+
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.interact()
     }
   }
 
-  private createPlayer(
-    map: Phaser.Tilemaps.Tilemap
-  ) {
-    const spawn = this.getSpawnPoint(
-      map,
-      'BazaarPlayerSpawn'
-    )
+  private createPlayer(map: Phaser.Tilemaps.Tilemap) {
+    const spawn = this.getSpawnPoint(map, 'BazaarPlayerSpawn')
 
-    this.player = this.physics.add.sprite(
-      spawn.x,
-      spawn.y,
-      'player'
-    )
+    this.player = this.physics.add.sprite(spawn.x, spawn.y, 'player')
 
     this.player.setData('animKey', 'player')
     this.player.setScale(1)
@@ -305,9 +295,7 @@ private bazaarExitPoint?: {
     this.player.setCollideWorldBounds(true)
   }
 
-  private createNPCsFromMap(
-    map: Phaser.Tilemaps.Tilemap
-  ) {
+  private createNPCsFromMap(map: Phaser.Tilemaps.Tilemap) {
     const spawnLayer = map.getObjectLayer('Spawns')
 
     if (!spawnLayer) {
@@ -315,31 +303,21 @@ private bazaarExitPoint?: {
       return
     }
 
-    const npcObjects = spawnLayer.objects.filter(
-      (obj) => {
-        const name = obj.name ?? ''
-        const type = obj.type ?? ''
-        const objectClass = (obj as any).class ?? ''
+    const npcObjects = spawnLayer.objects.filter((obj) => {
+      const name = obj.name ?? ''
+      const type = obj.type ?? ''
+      const objectClass = (obj as any).class ?? ''
 
-        return (
-          type === 'npc' ||
-          objectClass === 'npc' ||
-          name.startsWith('NPC_')
-        )
-      }
-    )
+      return type === 'npc' || objectClass === 'npc' || name.startsWith('NPC_')
+    })
 
     npcObjects.forEach((obj) => {
       const npcName = obj.name ?? 'NPC'
       const spriteKey = this.getNPCSpriteKey(npcName)
 
-      const npc = new NPC(
-        this,
-        obj.x ?? 100,
-        obj.y ?? 100,
-        spriteKey,
-        ['Welcome to the bazaar.']
-      )
+      const npc = new NPC(this, obj.x ?? 100, obj.y ?? 100, spriteKey, [
+        'Welcome to the bazaar.',
+      ])
 
       npc.setData('npcName', npcName)
       npc.setData('animKey', spriteKey)
@@ -348,20 +326,18 @@ private bazaarExitPoint?: {
       npc.setDepth(npc.y)
 
       this.npcs.push(npc)
-this.worldObjects.push(npc)
-      this.physics.add.collider(
-        this.player,
-        npc
-      )
+      this.worldObjects.push(npc)
+
+      if (this.getBazaarGameId(npcName)) {
+        this.createMerchantHighlight(npc, npcName)
+      }
+
+      this.physics.add.collider(this.player, npc)
     })
   }
 
-  private createCollisionObjects(
-    map: Phaser.Tilemaps.Tilemap
-  ) {
-    const collisionLayer = map.getObjectLayer(
-      'CollisionObjects'
-    )
+  private createCollisionObjects(map: Phaser.Tilemaps.Tilemap) {
+    const collisionLayer = map.getObjectLayer('CollisionObjects')
 
     if (!collisionLayer) {
       console.warn('No CollisionObjects layer found.')
@@ -375,47 +351,31 @@ this.worldObjects.push(npc)
         obj.width!,
         obj.height!,
         0xff0000,
-        0
+        0,
       )
 
       this.physics.add.existing(wall, true)
 
       this.physics.add.collider(
         this.player,
-        wall as Phaser.GameObjects.Rectangle
+        wall as Phaser.GameObjects.Rectangle,
       )
     })
   }
 
   private createInteractPrompt() {
-    const bg = this.add.rectangle(
-      0,
-      0,
-      90,
-      28,
-      0x000000,
-      0.75
-    )
+    const bg = this.add.rectangle(0, 0, 90, 28, 0x000000, 0.75)
 
     bg.setStrokeStyle(2, 0xffffff)
 
-    const text = this.add.text(
-      0,
-      0,
-      'E Talk',
-      {
-        fontSize: '14px',
-        color: '#ffffff',
-      }
-    )
+    const text = this.add.text(0, 0, 'E Talk', {
+      fontSize: '14px',
+      color: '#ffffff',
+    })
 
     text.setOrigin(0.5)
 
-    this.interactPrompt = this.add.container(
-      0,
-      0,
-      [bg, text]
-    )
+    this.interactPrompt = this.add.container(0, 0, [bg, text])
 
     this.interactPrompt.setDepth(20000)
     this.interactPrompt.setVisible(false)
@@ -431,10 +391,7 @@ this.worldObjects.push(npc)
     }
 
     this.interactPrompt.setVisible(true)
-    this.interactPrompt.setPosition(
-      nearest.x,
-      nearest.y - 45
-    )
+    this.interactPrompt.setPosition(nearest.x, nearest.y - 45)
   }
 
   private getNearestNPC(maxDistance: number) {
@@ -442,13 +399,12 @@ this.worldObjects.push(npc)
     let nearestDistance = maxDistance
 
     this.npcs.forEach((npc) => {
-      const distance =
-        Phaser.Math.Distance.Between(
-          this.player.x,
-          this.player.y,
-          npc.x,
-          npc.y
-        )
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        npc.x,
+        npc.y,
+      )
 
       if (distance < nearestDistance) {
         nearestDistance = distance
@@ -464,9 +420,7 @@ this.worldObjects.push(npc)
 
     if (!nearest) return
 
-    const npcName = nearest.getData(
-      'npcName'
-    ) as string
+    const npcName = nearest.getData('npcName') as string
 
     const config = this.getMarketConfig(npcName)
 
@@ -483,7 +437,7 @@ this.worldObjects.push(npc)
           },
         ],
         undefined,
-        nearest.texture.key
+        nearest.texture.key,
       )
 
       return
@@ -502,108 +456,302 @@ this.worldObjects.push(npc)
           },
         ],
         undefined,
-        nearest.texture.key
+        nearest.texture.key,
       )
 
       return
     }
 
-    this.startMarketMinigame(
-      npcName,
-      nearest.texture.key,
-      config
-    )
+    this.startMarketMinigame(npcName, nearest.texture.key, config)
   }
 
- private startMarketMinigame(
-  npcName: string,
-  portraitKey: string,
-  config: {
-    title: string
-    description: string[]
-    choices: MinigameChoice[]
-  }
-) {
-  const gameId = this.getBazaarGameId(npcName)
+  private startMarketMinigame(
+    npcName: string,
+    portraitKey: string,
+    config: {
+      title: string
+      description: string[]
+      choices: MinigameChoice[]
+    },
+  ) {
+    const gameId = this.getBazaarGameId(npcName)
 
-  if (!gameId) {
+    if (!gameId) {
+      this.dialogue.show(
+        [
+          {
+            text: 'This market is not ready yet.',
+            portraitKey,
+          },
+        ],
+        undefined,
+        portraitKey,
+      )
+
+      return
+    }
+
     this.dialogue.show(
       [
         {
-          text: 'This market is not ready yet.',
+          text: config.description[0],
+          portraitKey,
+        },
+        {
+          text: config.description[1],
           portraitKey,
         },
       ],
-      undefined,
-      portraitKey
-    )
+      () => {
+        this.minigame.show({
+          gameId,
+          portraitKey,
+          onComplete: (result) => {
+            this.applyMinigameReward(result)
+            this.completedMarkets.add(npcName)
+            this.saveCompletedMarkets()
+            this.refreshMerchantHighlight(npcName)
+            this.refreshMinimapNpcDot(npcName)
 
-    return
+            this.objectiveBox.setText(
+              `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`,
+            )
+
+            if (this.completedMarkets.size >= 7) {
+              this.dialogue.show(
+                [
+                  {
+                    text: 'You survived the bazaar.',
+                    portraitKey: 'player',
+                  },
+                  {
+                    text: 'Your wallet is lighter, but your bargaining soul is stronger.',
+                    portraitKey: 'player',
+                  },
+                  {
+                    text: 'You are no longer just a tourist.',
+                    portraitKey: 'player',
+                  },
+                  {
+                    text: 'You are a certified bazaar survivor.',
+                    portraitKey: 'player',
+                  },
+                  {
+                    text: 'Find the bazaar entrance and return to the city.',
+                    portraitKey: 'player',
+                  },
+                ],
+                () => {
+                  this.objectiveBox.setText(
+                    'Objective: Exit the bazaar through the entrance gate.',
+                  )
+                },
+                'player',
+              )
+            }
+          },
+        })
+      },
+      portraitKey,
+    )
   }
 
-  this.dialogue.show(
-    [
+  private createMerchantHighlight(npc: NPC, npcName: string) {
+    if (this.merchantHighlights.has(npcName)) {
+      return
+    }
+
+    const color = this.getNpcStatusColor(npcName)
+
+    // Two lightly enlarged copies of the NPC create a restrained aura around the sprite.
+    // This avoids the ground circle and keeps the highlight attached to the
+    // merchant's silhouette as their animation frame changes.
+    const outerGlow = this.add.sprite(
+      npc.x,
+      npc.y,
+      npc.texture.key,
+      npc.frame.name,
+    )
+    outerGlow.setOrigin(npc.originX, npc.originY)
+    outerGlow.setScale(npc.scaleX * 1.34, npc.scaleY * 1.34)
+    outerGlow.setTintFill(color)
+    outerGlow.setAlpha(0.12)
+    outerGlow.setBlendMode(Phaser.BlendModes.ADD)
+
+    const glow = this.add.sprite(
+      npc.x,
+      npc.y,
+      npc.texture.key,
+      npc.frame.name,
+    )
+    glow.setOrigin(npc.originX, npc.originY)
+    glow.setScale(npc.scaleX * 1.12, npc.scaleY * 1.12)
+    glow.setTintFill(color)
+    glow.setAlpha(0.3)
+    glow.setBlendMode(Phaser.BlendModes.ADD)
+
+    const marker = this.add.text(
+      npc.x,
+      npc.y - Math.max(34, npc.displayHeight * 0.62),
+      '!',
       {
-        text: config.description[0],
-        portraitKey,
+        fontFamily: 'Georgia',
+        fontSize: '23px',
+        color: '#67ecff',
+        stroke: '#000000',
+        strokeThickness: 5,
+        fontStyle: 'bold',
       },
-      {
-        text: config.description[1],
-        portraitKey,
-      },
-    ],
-    () => {
-      this.minigame.show({
-        gameId,
-        portraitKey,
-        onComplete: (result) => {
-          this.applyMinigameReward(result)
-          this.completedMarkets.add(npcName)
+    )
+    marker.setOrigin(0.5)
 
-          this.objectiveBox.setText(
-            `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`
-          )
+    this.worldObjects.push(outerGlow, glow, marker)
 
-          if (this.completedMarkets.size >= 7) {
-            this.dialogue.show(
-              [
-                {
-                  text: 'You survived the bazaar.',
-                  portraitKey: 'player',
-                },
-                {
-                  text: 'Your wallet is lighter, but your bargaining soul is stronger.',
-                  portraitKey: 'player',
-                },
-                {
-                  text: 'You are no longer just a tourist.',
-                  portraitKey: 'player',
-                },
-                {
-                  text: 'You are a certified bazaar survivor.',
-                  portraitKey: 'player',
-                },
-                {
-                  text: 'Find the bazaar entrance and return to the city.',
-                  portraitKey: 'player',
-                },
-              ],
-              () => {
-                this.objectiveBox.setText(
-                  'Objective: Exit the bazaar through the entrance gate.'
-                )
-              },
-              'player'
-            )
-          }
-        },
-      })
-    },
-    portraitKey
-  )
-}
+    this.merchantHighlights.set(npcName, {
+      npc,
+      outerGlow,
+      glow,
+      marker,
+      tweens: [],
+    })
 
-private getBazaarGameId(npcName: string): BazaarGameId | null {
+    this.refreshMerchantHighlight(npcName)
+    this.updateMerchantHighlightPosition(this.merchantHighlights.get(npcName)!)
+  }
+
+  private refreshMerchantHighlight(npcName: string) {
+    const highlight = this.merchantHighlights.get(npcName)
+
+    if (!highlight) return
+
+    highlight.tweens.forEach((tween) => {
+      tween.remove()
+    })
+    highlight.tweens = []
+
+    const completed = this.completedMarkets.has(npcName)
+
+    // Bright cyan is intentionally used for merchants that are still
+    // available. It stands out clearly against the warm sand and gold
+    // colours of the Bazaar. Completed merchants use emerald green.
+    const color = completed ? 0x39ff88 : 0x2de2ff
+
+    highlight.outerGlow.setTintFill(color)
+    highlight.glow.setTintFill(color)
+
+    // Soft silhouette-only aura. There is deliberately no ellipse or
+    // ground ring anywhere in this highlight system.
+    highlight.outerGlow.setAlpha(completed ? 0.13 : 0.12)
+    highlight.glow.setAlpha(completed ? 0.32 : 0.3)
+
+    highlight.marker.setText(completed ? '✓' : '!')
+    highlight.marker.setColor(completed ? '#72ff9b' : '#67ecff')
+    highlight.marker.setScale(1)
+    highlight.marker.setAlpha(1)
+
+    const glowTween = this.tweens.add({
+      targets: highlight.glow,
+      alpha: completed ? 0.44 : 0.5,
+      scaleX: highlight.npc.scaleX * (completed ? 1.15 : 1.17),
+      scaleY: highlight.npc.scaleY * (completed ? 1.15 : 1.17),
+      duration: completed ? 1500 : 1050,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    const outerGlowTween = this.tweens.add({
+      targets: highlight.outerGlow,
+      alpha: completed ? 0.22 : 0.25,
+      scaleX: highlight.npc.scaleX * (completed ? 1.38 : 1.4),
+      scaleY: highlight.npc.scaleY * (completed ? 1.38 : 1.4),
+      duration: completed ? 1850 : 1350,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    const markerTween = this.tweens.add({
+      targets: highlight.marker,
+      y: highlight.marker.y - 6,
+      scaleX: completed ? 1.06 : 1.1,
+      scaleY: completed ? 1.06 : 1.1,
+      duration: completed ? 1100 : 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    highlight.tweens.push(glowTween, outerGlowTween, markerTween)
+  }
+
+  private updateMerchantHighlights() {
+    this.merchantHighlights.forEach((highlight) => {
+      this.updateMerchantHighlightPosition(highlight)
+    })
+  }
+
+  private updateMerchantHighlightPosition(highlight: MerchantHighlightHandle) {
+    const { npc, outerGlow, glow, marker } = highlight
+
+    outerGlow.setPosition(npc.x, npc.y)
+    outerGlow.setFrame(npc.frame.name)
+    outerGlow.setFlip(npc.flipX, npc.flipY)
+
+    glow.setPosition(npc.x, npc.y)
+    glow.setFrame(npc.frame.name)
+    glow.setFlip(npc.flipX, npc.flipY)
+
+    // Do not reset scale while a highlight tween is active. The tween keeps
+    // the aura breathing around the NPC; only copy the base scale when no
+    // tween currently owns the object.
+    if (!this.tweens.isTweening(outerGlow)) {
+      outerGlow.setScale(npc.scaleX * 1.34, npc.scaleY * 1.34)
+    }
+
+    if (!this.tweens.isTweening(glow)) {
+      glow.setScale(npc.scaleX * 1.12, npc.scaleY * 1.12)
+    }
+
+    const markerBaseY = npc.y - Math.max(34, npc.displayHeight * 0.62)
+    if (!this.tweens.isTweening(marker)) {
+      marker.setPosition(npc.x, markerBaseY)
+    } else {
+      marker.x = npc.x
+    }
+
+    outerGlow.setDepth(npc.y - 2)
+    glow.setDepth(npc.y - 1)
+    marker.setDepth(npc.y + 2)
+  }
+
+  private getNpcStatusColor(npcName: string) {
+    if (!this.getBazaarGameId(npcName)) {
+      return 0x66ccff
+    }
+
+    return this.completedMarkets.has(npcName) ? 0x39ff88 : 0x2de2ff
+  }
+
+  private refreshMinimapNpcDot(npcName: string) {
+    const npcIndex = this.npcs.findIndex(
+      (npc) => npc.getData('npcName') === npcName,
+    )
+
+    const dot = this.minimapNpcDots[npcIndex]
+
+    if (!dot) return
+
+    dot.setFillStyle(this.getNpcStatusColor(npcName), 1)
+  }
+
+  private saveCompletedMarkets() {
+    this.registry.set(this.completedMarketsRegistryKey, [
+      ...this.completedMarkets,
+    ])
+  }
+
+  private getBazaarGameId(npcName: string): BazaarGameId | null {
     const games: Record<string, BazaarGameId> = {
       NPC_3: 'map-bargain',
       NPC_4: 'scale-puzzle',
@@ -613,17 +761,15 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
       NPC_11: 'donkey-race',
       NPC_15: 'eagle-delivery',
     }
-  
+
     return games[npcName] ?? null
   }
 
-  private applyMinigameReward(
-    result: BazaarMinigameResult
-  ) {
+  private applyMinigameReward(result: BazaarMinigameResult) {
     if (typeof result.goldDelta === 'number') {
       this.changeCoins(result.goldDelta)
     }
-  
+
     if (typeof result.reputationDelta === 'number') {
       this.changeReputation(result.reputationDelta)
     }
@@ -635,45 +781,34 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
   }
 
   private changeReputation(amount: number) {
-    this.reputation = Phaser.Math.Clamp(
-      this.reputation + amount,
-      0,
-      100
-    )
+    this.reputation = Phaser.Math.Clamp(this.reputation + amount, 0, 100)
 
     console.log('Bazaar reputation:', this.reputation)
   }
 
   private handleBazaarExit() {
     if (!this.bazaarExitPoint) return false
-  
+
     const distance = Phaser.Math.Distance.Between(
       this.player.x,
       this.player.y,
       this.bazaarExitPoint.x,
-      this.bazaarExitPoint.y
+      this.bazaarExitPoint.y,
     )
-  
-    const playerIsNear =
-      distance <= this.bazaarExitRadius
-  
+
+    const playerIsNear = distance <= this.bazaarExitRadius
+
     this.bazaarExitLabelText?.setText(
-      playerIsNear ? 'E Return to City' : 'Return to City'
+      playerIsNear ? 'E Return to City' : 'Return to City',
     )
-  
-    this.bazaarExitGlow?.setFillStyle(
-      playerIsNear ? 0x00ff66 : 0x00aa44,
-      0.25
-    )
-  
-    if (
-      playerIsNear &&
-      Phaser.Input.Keyboard.JustDown(this.interactKey)
-    ) {
+
+    this.bazaarExitGlow?.setFillStyle(playerIsNear ? 0x00ff66 : 0x00aa44, 0.25)
+
+    if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.startReturnToVillage()
       return true
     }
-  
+
     return false
   }
 
@@ -732,8 +867,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
             value: 'wrong',
             goldDelta: -50,
             reputationDelta: -2,
-            response:
-              'Wrong. The merchant charges you an inspection fee.',
+            response: 'Wrong. The merchant charges you an inspection fee.',
           },
           {
             label: 'The cracked stone weight',
@@ -766,8 +900,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
             value: 'correct',
             goldDelta: 220,
             reputationDelta: 10,
-            response:
-              'Correct. Your nose has earned citizenship.',
+            response: 'Correct. Your nose has earned citizenship.',
           },
           {
             label: 'Sand, regret, and heat',
@@ -782,8 +915,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
             value: 'wrong',
             goldDelta: -40,
             reputationDelta: -1,
-            response:
-              'The seller charges you for insulting the dust.',
+            response: 'The seller charges you for insulting the dust.',
           },
         ],
       },
@@ -808,8 +940,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
             value: 'eat',
             goldDelta: -30,
             reputationDelta: 2,
-            response:
-              'Delicious. Financially terrible, but delicious.',
+            response: 'Delicious. Financially terrible, but delicious.',
           },
           {
             label: 'Sell the merchant his own dates',
@@ -842,8 +973,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
             value: 'wrong',
             goldDelta: -60,
             reputationDelta: -2,
-            response:
-              'That one was actually ancient. You pay a staring fee.',
+            response: 'That one was actually ancient. You pay a staring fee.',
           },
           {
             label: 'All pots are emotionally fake',
@@ -928,10 +1058,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
     return configs[npcName]
   }
 
-  private getSpawnPoint(
-    map: Phaser.Tilemaps.Tilemap,
-    name: string
-  ) {
+  private getSpawnPoint(map: Phaser.Tilemaps.Tilemap, name: string) {
     const spawnLayer = map.getObjectLayer('Spawns')
 
     if (!spawnLayer) {
@@ -939,9 +1066,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
       return { x: 100, y: 100 }
     }
 
-    const spawn = spawnLayer.objects.find(
-      (obj) => obj.name === name
-    )
+    const spawn = spawnLayer.objects.find((obj) => obj.name === name)
 
     if (!spawn) {
       console.warn(`Spawn not found: ${name}`)
@@ -963,9 +1088,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
 
     if (!spawnLayer) return null
 
-    const spawn = spawnLayer.objects.find(
-      (obj) => obj.name === name
-    )
+    const spawn = spawnLayer.objects.find((obj) => obj.name === name)
 
     if (!spawn) return null
 
@@ -989,248 +1112,177 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
     return sprites[name] ?? 'npc1'
   }
 
-  private createBazaarMinimap(
-    mapWidth: number,
-    mapHeight: number
-  ) {
+  private createBazaarMinimap(mapWidth: number, mapHeight: number) {
     this.mapPixelWidth = mapWidth
     this.mapPixelHeight = mapHeight
-  
+
     const minimapWidth = 180
     const minimapHeight = 120
     const padding = 4
-    
+
     const x = this.scale.width - minimapWidth - padding
     const y = 18
-  
+
     this.minimapConfig = {
       x,
       y,
       width: minimapWidth,
       height: minimapHeight,
     }
-  
-    this.minimapBackground = this.add.image(
-      x,
-      y,
-      'bazaar-background'
-    )
-  
+
+    this.minimapBackground = this.add.image(x, y, 'bazaar-background')
+
     this.minimapBackground.setOrigin(0, 0)
-    this.minimapBackground.setDisplaySize(
-      minimapWidth,
-      minimapHeight
-    )
+    this.minimapBackground.setDisplaySize(minimapWidth, minimapHeight)
     this.minimapBackground.setScrollFactor(0)
     this.minimapBackground.setDepth(20000)
     this.minimapBackground.setAlpha(0.92)
-  
+
     this.minimapBorder = this.add.rectangle(
       x,
       y,
       minimapWidth,
       minimapHeight,
       0x000000,
-      0
+      0,
     )
-  
+
     this.minimapBorder.setOrigin(0)
     this.minimapBorder.setScrollFactor(0)
     this.minimapBorder.setDepth(20001)
     this.minimapBorder.setStrokeStyle(2, 0xffffff, 0.9)
-  
-    this.minimapPlayerDot = this.add.circle(
-      x,
-      y,
-      4,
-      0xff0000
-    )
-  
+
+    this.minimapPlayerDot = this.add.circle(x, y, 4, 0xff0000)
+
     this.minimapPlayerDot.setScrollFactor(0)
     this.minimapPlayerDot.setDepth(20003)
-  
-    this.minimapExitDot = this.add.circle(
-        x,
-        y,
-        6,
-        0x00ff66
-      )
-      
-      this.minimapExitDot.setScrollFactor(0)
-      this.minimapExitDot.setDepth(20006)
-      this.minimapExitDot.setStrokeStyle(2, 0x000000)
 
-    this.minimapNpcDots = this.npcs.map(() => {
-      const dot = this.add.circle(
-        x,
-        y,
-        3,
-        0x66ccff
-      )
-  
+    this.minimapExitDot = this.add.circle(x, y, 6, 0x00ff66)
+
+    this.minimapExitDot.setScrollFactor(0)
+    this.minimapExitDot.setDepth(20006)
+    this.minimapExitDot.setStrokeStyle(2, 0x000000)
+
+    this.minimapNpcDots = this.npcs.map((npc) => {
+      const npcName = npc.getData('npcName') as string
+
+      const dot = this.add.circle(x, y, 3, this.getNpcStatusColor(npcName))
+
       dot.setScrollFactor(0)
       dot.setDepth(20002)
       dot.setStrokeStyle(1, 0x000000)
-  
+
       return dot
     })
   }
 
   private updateBazaarMinimap() {
     if (
-        !this.minimapPlayerDot ||
-        !this.minimapBackground ||
-        !this.minimapBorder
-      ) {
-        return
-      }  
-    const px = Phaser.Math.Clamp(
-      this.player.x / this.mapPixelWidth,
-      0,
-      1
-    )
-  
-    const py = Phaser.Math.Clamp(
-      this.player.y / this.mapPixelHeight,
-      0,
-      1
-    )
-  
+      !this.minimapPlayerDot ||
+      !this.minimapBackground ||
+      !this.minimapBorder
+    ) {
+      return
+    }
+    const px = Phaser.Math.Clamp(this.player.x / this.mapPixelWidth, 0, 1)
+
+    const py = Phaser.Math.Clamp(this.player.y / this.mapPixelHeight, 0, 1)
+
     this.minimapPlayerDot.setPosition(
       this.minimapConfig.x + px * this.minimapConfig.width,
-      this.minimapConfig.y + py * this.minimapConfig.height
+      this.minimapConfig.y + py * this.minimapConfig.height,
     )
-  
+
     this.npcs.forEach((npc, index) => {
       const dot = this.minimapNpcDots[index]
-  
+
       if (!dot) return
-  
-      const nx = Phaser.Math.Clamp(
-        npc.x / this.mapPixelWidth,
-        0,
-        1
-      )
-  
-      const ny = Phaser.Math.Clamp(
-        npc.y / this.mapPixelHeight,
-        0,
-        1
-      )
-  
+
+      const nx = Phaser.Math.Clamp(npc.x / this.mapPixelWidth, 0, 1)
+
+      const ny = Phaser.Math.Clamp(npc.y / this.mapPixelHeight, 0, 1)
+
       dot.setPosition(
         this.minimapConfig.x + nx * this.minimapConfig.width,
-        this.minimapConfig.y + ny * this.minimapConfig.height
+        this.minimapConfig.y + ny * this.minimapConfig.height,
       )
     })
 
     if (this.minimapExitDot && this.bazaarExitPoint) {
-        const ex = Phaser.Math.Clamp(
-          this.bazaarExitPoint.x / this.mapPixelWidth,
-          0,
-          1
-        )
-      
-        const ey = Phaser.Math.Clamp(
-          this.bazaarExitPoint.y / this.mapPixelHeight,
-          0,
-          1
-        )
-      
-        this.minimapExitDot.setPosition(
-          this.minimapConfig.x + ex * this.minimapConfig.width,
-          this.minimapConfig.y + ey * this.minimapConfig.height
-        )
-      }
+      const ex = Phaser.Math.Clamp(
+        this.bazaarExitPoint.x / this.mapPixelWidth,
+        0,
+        1,
+      )
+
+      const ey = Phaser.Math.Clamp(
+        this.bazaarExitPoint.y / this.mapPixelHeight,
+        0,
+        1,
+      )
+
+      this.minimapExitDot.setPosition(
+        this.minimapConfig.x + ex * this.minimapConfig.width,
+        this.minimapConfig.y + ey * this.minimapConfig.height,
+      )
+    }
   }
 
-  private createBazaarExitMarker(
-    map: Phaser.Tilemaps.Tilemap
-  ) {
+  private createBazaarExitMarker(map: Phaser.Tilemaps.Tilemap) {
     const point = this.getSpawnPoint(map, 'BazaarExit')
-  
+
     this.bazaarExitPoint = point
-  
-    this.bazaarExitGlow = this.add.circle(
-      point.x,
-      point.y,
-      26,
-      0x00aa44,
-      0.25
-    )
-  
-    this.bazaarExitRing = this.add.circle(
-      point.x,
-      point.y,
-      22,
-      0x00aa44,
-      0
-    )
-  
+
+    this.bazaarExitGlow = this.add.circle(point.x, point.y, 26, 0x00aa44, 0.25)
+
+    this.bazaarExitRing = this.add.circle(point.x, point.y, 22, 0x00aa44, 0)
+
     this.bazaarExitRing.setStrokeStyle(4, 0xffdd66, 1)
-  
-    this.bazaarExitArrow = this.add.text(
-      point.x,
-      point.y - 5,
-      '↑',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '22px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 5,
-        fontStyle: 'bold',
-      }
-    )
-  
+
+    this.bazaarExitArrow = this.add.text(point.x, point.y - 5, '↑', {
+      fontFamily: 'Georgia',
+      fontSize: '22px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 5,
+      fontStyle: 'bold',
+    })
+
     this.bazaarExitArrow.setOrigin(0.5)
-  
-    const labelBg = this.add.rectangle(
-      0,
-      0,
-      210,
-      34,
-      0x000000,
-      0.78
-    )
-  
+
+    const labelBg = this.add.rectangle(0, 0, 210, 34, 0x000000, 0.78)
+
     labelBg.setStrokeStyle(2, 0xffdd66, 1)
-  
-    this.bazaarExitLabelText = this.add.text(
-      0,
-      0,
-      'Return to City',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '16px',
-        color: '#ffdd66',
-        stroke: '#000000',
-        strokeThickness: 4,
-        fontStyle: 'bold',
-      }
-    )
-  
+
+    this.bazaarExitLabelText = this.add.text(0, 0, 'Return to City', {
+      fontFamily: 'Georgia',
+      fontSize: '16px',
+      color: '#ffdd66',
+      stroke: '#000000',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
+
     this.bazaarExitLabelText.setOrigin(0.5)
-  
-    this.bazaarExitLabel = this.add.container(
-      point.x,
-      point.y - 58,
-      [labelBg, this.bazaarExitLabelText]
-    )
-  
+
+    this.bazaarExitLabel = this.add.container(point.x, point.y - 58, [
+      labelBg,
+      this.bazaarExitLabelText,
+    ])
+
     const objects = [
       this.bazaarExitGlow,
       this.bazaarExitRing,
       this.bazaarExitArrow,
       this.bazaarExitLabel,
     ]
-  
+
     objects.forEach((obj) => {
       obj.setDepth(9500)
     })
-  
+
     this.worldObjects.push(...objects)
-  
+
     this.tweens.add({
       targets: this.bazaarExitGlow,
       scaleX: 1.55,
@@ -1241,7 +1293,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
-  
+
     this.tweens.add({
       targets: this.bazaarExitRing,
       scaleX: 1.18,
@@ -1251,7 +1303,7 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
-  
+
     this.tweens.add({
       targets: this.bazaarExitArrow,
       y: point.y - 10,
@@ -1265,19 +1317,19 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
   private startReturnToVillage() {
     const width = this.scale.width
     const height = this.scale.height
-  
+
     const overlay = this.add.rectangle(
       width / 2,
       height / 2,
       width,
       height,
       0x050505,
-      1
+      1,
     )
-  
+
     overlay.setScrollFactor(0)
     overlay.setDepth(90000)
-  
+
     const title = this.add.text(
       width / 2,
       height / 2 - 30,
@@ -1289,15 +1341,15 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
         stroke: '#000000',
         strokeThickness: 6,
         fontStyle: 'bold',
-      }
+      },
     )
-  
+
     title.setOrigin(0.5)
     title.setScrollFactor(0)
     title.setDepth(90001)
-  
+
     this.cameras.main.fadeOut(650, 0, 0, 0)
-  
+
     this.time.delayedCall(850, () => {
       this.scene.start('VillageScene', {
         fromBazaar: true,
@@ -1310,20 +1362,18 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
 
   private createUICamera() {
     const uiObjects: Phaser.GameObjects.GameObject[] = []
-  
-    const addUIObject = (
-      obj?: Phaser.GameObjects.GameObject | null
-    ) => {
+
+    const addUIObject = (obj?: Phaser.GameObjects.GameObject | null) => {
       if (obj) {
         uiObjects.push(obj)
       }
     }
-  
+
     addUIObject(this.dialogue?.container)
     addUIObject(this.objectiveBox?.container)
     addUIObject(this.hud?.container)
     addUIObject(this.minigame?.container)
-  
+
     addUIObject(this.minimapBackground)
     addUIObject(this.minimapBorder)
     addUIObject(this.minimapPlayerDot)
@@ -1331,29 +1381,23 @@ private getBazaarGameId(npcName: string): BazaarGameId | null {
     this.minimapNpcDots.forEach((dot) => {
       addUIObject(dot)
     })
-  
+
     if (uiObjects.length > 0) {
       this.cameras.main.ignore(uiObjects)
     }
-  
-    this.uiCamera = this.cameras.add(
-      0,
-      0,
-      this.scale.width,
-      this.scale.height
-    )
-  
+
+    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+
     this.uiCamera.setName('BazaarUICamera')
     this.uiCamera.setScroll(0, 0)
     this.uiCamera.setZoom(1)
-  
+
     const cleanWorldObjects = this.worldObjects.filter(Boolean)
-  
+
     if (cleanWorldObjects.length > 0) {
       this.uiCamera.ignore(cleanWorldObjects)
     }
 
     this.worldObjects.push(this.gateForeground)
   }
-
 }
