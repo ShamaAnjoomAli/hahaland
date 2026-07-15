@@ -200,7 +200,7 @@
                  "y":860
                 }, 
                 {
-                 "height":116,
+                 "height":100,
                  "id":16,
                  "name":"NorthGateLeftPillar",
                  "opacity":1,
@@ -405,18 +405,6 @@
                  "y":359.833333333333
                 }, 
                 {
-                 "height":29,
-                 "id":60,
-                 "name":"CenterFountainCore",
-                 "opacity":1,
-                 "rotation":0,
-                 "type":"collision",
-                 "visible":true,
-                 "width":4.66666666666663,
-                 "x":711.333333333333,
-                 "y":205.166666666667
-                }, 
-                {
                  "height":57.6666666666667,
                  "id":66,
                  "name":"CenterFountainCore",
@@ -437,8 +425,8 @@
                  "type":"collision",
                  "visible":true,
                  "width":25.9999966666668,
-                 "x":619.666668333333,
-                 "y":227.5
+                 "x":618.666668333333,
+                 "y":241.5
                 }, 
                 {
                  "height":95.3333,

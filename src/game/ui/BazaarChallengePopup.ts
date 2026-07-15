@@ -39,7 +39,8 @@ type MeterHandle = {
 
 export default class BazaarChallengePopup {
   public container: Phaser.GameObjects.Container
-
+  private lives = 3
+  private livesText?: Phaser.GameObjects.Text
   private scene: Phaser.Scene
   private isVisible = false
   private currentOnComplete?: (result: BazaarMinigameResult) => void
@@ -71,6 +72,8 @@ export default class BazaarChallengePopup {
     this.isVisible = true
     this.resultLocked = false
     this.currentOnComplete = config.onComplete
+    this.lives = 3
+    this.livesText = undefined
 
     this.container.removeAll(true)
     this.container.setVisible(true)
@@ -140,6 +143,46 @@ switch (config.gameId) {
 
     this.runtimeCleanups.forEach((cleanup) => cleanup())
     this.runtimeCleanups = []
+  }
+
+  private createLivesMeter(x: number, y: number, lives = 3) {
+    this.lives = lives
+  
+    this.livesText = this.scene.add.text(
+      x,
+      y,
+      this.getLivesLabel(),
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+  
+    this.livesText.setOrigin(0.5)
+    this.livesText.setScrollFactor(0)
+  
+    this.container.add(this.livesText)
+  }
+  
+  private getLivesLabel() {
+    return `LIVES ${'♥'.repeat(this.lives)}${'♡'.repeat(3 - this.lives)}`
+  }
+  
+  private loseLife(onGameOver: () => void) {
+    if (this.resultLocked) return
+  
+    this.lives = Math.max(0, this.lives - 1)
+    this.livesText?.setText(this.getLivesLabel())
+  
+    this.scene.cameras.main.shake(120, 0.003)
+  
+    if (this.lives <= 0) {
+      onGameOver()
+    }
   }
 
   private schedule(delay: number, callback: () => void) {
@@ -3576,6 +3619,7 @@ ${roundSettings.introText}`, {
           'Majdoul is commonly recognised as one of the largest date varieties.',
       },
     ]
+    
 
     let state: QuizState = 'ready'
     let currentQuestionIndex = 0
@@ -3847,6 +3891,31 @@ ${roundSettings.introText}`, {
       )
     }
 
+    const loseHeart = () => {
+      hearts = Math.max(0, hearts - 1)
+      updateHud()
+
+      this.scene.cameras.main.shake(
+        95,
+        0.003
+      )
+
+      if (hearts <= 0) {
+        questionText.setColor('#ff7770')
+        questionText.setText(
+          'No hearts left. The Date Merchant closes the papyrus and starts judging quietly.'
+        )
+
+        this.schedule(1700, () => {
+          finishQuiz()
+        })
+
+        return true
+      }
+
+      return false
+    }
+
     const styleAnswerButtons = (
       selectedIndex: number,
       correctIndex: number
@@ -3994,20 +4063,16 @@ ${roundSettings.introText}`, {
           `Correct! ${question.explanation}`
         )
       } else {
-        hearts = Math.max(
-          0,
-          hearts - 1
-        )
-
         questionText.setColor('#ff9b8f')
         questionText.setText(
           `Answer: ${question.options[question.answerIndex]}. ${question.explanation}`
         )
 
-        this.scene.cameras.main.shake(
-          95,
-          0.003
-        )
+        const gameEnded = loseHeart()
+
+        if (gameEnded) {
+          return
+        }
       }
 
       updateHud()
