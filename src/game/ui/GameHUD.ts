@@ -11,41 +11,40 @@ export default class GameHUD {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    width = 220
+    width = 150
   ) {
-    const height = 34
-    const dividerX = Math.round(width * 0.48)
-    const clockX = dividerX + 18
+    const height = 28
+    const dividerX = Math.round(width * 0.46)
+    const clockX = dividerX + 14
 
     this.container = scene.add.container(x, y)
 
     this.bg = scene.add.graphics()
 
     this.bg.fillStyle(0x000000, 0.72)
-    this.bg.fillRoundedRect(0, 0, width, height, 8)
+    this.bg.fillRoundedRect(0, 0, width, height, 7)
 
-    this.bg.lineStyle(2, 0xffffff, 0.35)
-    this.bg.strokeRoundedRect(0, 0, width, height, 8)
+    this.bg.lineStyle(2, 0xffffff, 0.32)
+    this.bg.strokeRoundedRect(0, 0, width, height, 7)
 
-    // Divider between coins and timer.
-    this.bg.lineStyle(1, 0xffffff, 0.22)
-    this.bg.lineBetween(dividerX, 6, dividerX, height - 6)
+    this.bg.lineStyle(1, 0xffffff, 0.2)
+    this.bg.lineBetween(dividerX, 5, dividerX, height - 5)
 
     const coinIcon = scene.add.circle(
-      18,
+      14,
       height / 2,
-      8,
+      6,
       0xffd966
     )
-    coinIcon.setStrokeStyle(2, 0x9b7a3f)
+    coinIcon.setStrokeStyle(1.5, 0x9b7a3f)
 
     this.coinText = scene.add.text(
-      34,
+      27,
       height / 2,
       '0',
       {
         fontFamily: 'Arial',
-        fontSize: '16px',
+        fontSize: '14px',
         color: '#ffffff',
       }
     )
@@ -54,10 +53,10 @@ export default class GameHUD {
     const clockIcon = scene.add.circle(
       clockX,
       height / 2,
-      8,
+      6,
       0x222222
     )
-    clockIcon.setStrokeStyle(2, 0xffffff)
+    clockIcon.setStrokeStyle(1.5, 0xffffff)
 
     const clockHandA = scene.add.line(
       0,
@@ -65,29 +64,29 @@ export default class GameHUD {
       clockX,
       height / 2,
       clockX,
-      height / 2 - 5,
+      height / 2 - 4,
       0xffffff
     )
-    clockHandA.setLineWidth(2)
+    clockHandA.setLineWidth(1.5)
 
     const clockHandB = scene.add.line(
       0,
       0,
       clockX,
       height / 2,
-      clockX + 4,
+      clockX + 3,
       height / 2,
       0xffffff
     )
-    clockHandB.setLineWidth(2)
+    clockHandB.setLineWidth(1.5)
 
     this.timerText = scene.add.text(
-      clockX + 16,
+      clockX + 13,
       height / 2,
       '00:00',
       {
         fontFamily: 'Arial',
-        fontSize: '16px',
+        fontSize: '14px',
         color: '#ffffff',
       }
     )

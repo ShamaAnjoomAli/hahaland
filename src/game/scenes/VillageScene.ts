@@ -451,12 +451,14 @@ const gameplaySpawn = this.getSpawnPoint(
 
     this.createMinimap(map)
 
-    this.hud = new GameHUD(
-      this,
-      this.minimapConfig.x,
-      this.minimapConfig.y + this.minimapConfig.height + 8,
-      this.minimapConfig.width,
-    )
+    const hudWidth = 150
+
+this.hud = new GameHUD(
+  this,
+  this.minimapConfig.x + this.minimapConfig.width - hudWidth,
+  this.minimapConfig.y + this.minimapConfig.height + 6,
+  hudWidth,
+)
 
     this.hud.setCoins(this.coins)
 
@@ -2049,12 +2051,12 @@ const gameplaySpawn = this.getSpawnPoint(
     this.mapPixelWidth = map.widthInPixels
     this.mapPixelHeight = map.heightInPixels
 
-    const minimapWidth = 160
+    const minimapWidth = 150
 const minimapHeight = Math.round(
   minimapWidth * (map.heightInPixels / map.widthInPixels)
 )
 
-const padding = 16
+const padding = 12
 
 const x = this.scale.width - minimapWidth - padding
 const y = padding

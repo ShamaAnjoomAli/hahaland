@@ -231,11 +231,13 @@ export default class BazaarScene extends Phaser.Scene {
 
     this.createBazaarMinimap(mapWidth, mapHeight)
 
+    const hudWidth = 150
+
     this.hud = new GameHUD(
       this,
-      this.minimapConfig.x,
-      this.minimapConfig.y + this.minimapConfig.height + 8,
-      this.minimapConfig.width,
+      this.minimapConfig.x + this.minimapConfig.width - hudWidth,
+      this.minimapConfig.y + this.minimapConfig.height + 6,
+      hudWidth,
     )
 
     this.hud.setCoins(this.coins)
@@ -1173,12 +1175,15 @@ export default class BazaarScene extends Phaser.Scene {
     this.mapPixelWidth = mapWidth
     this.mapPixelHeight = mapHeight
 
-    const minimapWidth = 180
-    const minimapHeight = 120
-    const padding = 4
+    const minimapWidth = 150
+const minimapHeight = Math.round(
+  minimapWidth * (mapHeight / mapWidth)
+)
 
-    const x = this.scale.width - minimapWidth - padding
-    const y = 18
+const padding = 12
+
+const x = this.scale.width - minimapWidth - padding
+const y = padding
 
     this.minimapConfig = {
       x,
