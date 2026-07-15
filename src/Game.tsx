@@ -5,12 +5,21 @@ import BootScene from './game/scenes/BootScene'
 import VillageScene from './game/scenes/VillageScene'
 import BazaarScene from './game/scenes/BazaarScene'
 
+import {
+  clearGameProgress,
+  loadGameProgress,
+} from './game/utils/progressSave'
+
 import './Game.css'
 
 type Screen = 'menu' | 'howToPlay' | 'game'
 
 export default function Game() {
   const [screen, setScreen] = useState<Screen>('menu')
+  const [savedProgress, setSavedProgress] = useState(() =>
+    loadGameProgress()
+  )
+
   const gameRef = useRef<Phaser.Game | null>(null)
 
   const menuMusicRef = useRef<HTMLAudioElement | null>(null)
@@ -24,6 +33,12 @@ export default function Game() {
   }, [screen])
 
   useEffect(() => {
+    if (screen === 'menu') {
+      setSavedProgress(loadGameProgress())
+    }
+  }, [screen])
+
+  useEffect(() => {
     const audio = new Audio('/assets/audio/music/main_menu.mpeg')
     audio.loop = true
     audio.volume = 0.45
@@ -32,7 +47,7 @@ export default function Game() {
 
     const tryStart = () => {
       if (menuMusicStartedRef.current) return
-      if (screenRef.current !== 'menu') return // don't start if we've already left the menu
+      if (screenRef.current !== 'menu') return
       audio
         .play()
         .then(() => {
@@ -41,10 +56,8 @@ export default function Game() {
         .catch(() => {})
     }
 
-    // try right away — works if the browser already trusts this page
     tryStart()
 
-    // fallback: arm it to fire on the very first interaction anywhere on the page
     window.addEventListener('pointerdown', tryStart, { once: true })
     window.addEventListener('keydown', tryStart, { once: true })
 
@@ -77,6 +90,23 @@ export default function Game() {
     audio.pause()
     audio.currentTime = 0
     menuMusicStartedRef.current = false
+  }
+
+  const startNewGame = () => {
+    clearGameProgress()
+    setSavedProgress(null)
+
+    ;(window as any).__HAHALAND_START_MODE__ = 'new'
+
+    stopMenuMusic()
+    setScreen('game')
+  }
+
+  const continueGame = () => {
+    ;(window as any).__HAHALAND_START_MODE__ = 'resume'
+
+    stopMenuMusic()
+    setScreen('game')
   }
 
   useEffect(() => {
@@ -173,12 +203,9 @@ export default function Game() {
 
             <button
               className="primary-button"
-              onClick={() => {
-                stopMenuMusic()
-                setScreen('game')
-              }}
+              onClick={savedProgress ? continueGame : startNewGame}
             >
-              Play
+              {savedProgress ? 'Continue' : 'Play'}
             </button>
           </div>
         </section>
@@ -198,12 +225,9 @@ export default function Game() {
 
         <button
           className="nav-button"
-          onClick={() => {
-            stopMenuMusic()
-            setScreen('game')
-          }}
+          onClick={savedProgress ? continueGame : startNewGame}
         >
-          Join
+          {savedProgress ? 'Continue' : 'Join'}
         </button>
       </nav>
 
@@ -221,16 +245,30 @@ export default function Game() {
           You arrive with <strong>1,000,000 gold</strong>. How you spend it decides who you become.
         </p>
 
+        {savedProgress && (
+          <p className="hero-copy">
+            Saved progress: <strong>{savedProgress.coins} gold</strong> •{' '}
+            <strong>{savedProgress.reputation} rep</strong> •{' '}
+            <strong>{savedProgress.completedMarkets.length}/7 markets</strong>
+          </p>
+        )}
+
         <div className="menu-actions">
           <button
-            className="primary-button"
-            onClick={() => {
-              stopMenuMusic()
-              setScreen('game')
-            }}
+            className={savedProgress ? 'secondary-button' : 'primary-button'}
+            onClick={startNewGame}
           >
-            Play
+            New Game
           </button>
+
+          {savedProgress && (
+            <button
+              className="primary-button"
+              onClick={continueGame}
+            >
+              Continue
+            </button>
+          )}
 
           <button
             className="secondary-button"

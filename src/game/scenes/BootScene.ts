@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { loadGameProgress } from '../utils/progressSave'
 
 type ImageAsset = {
   key: string
@@ -76,7 +77,7 @@ const SPRITESHEETS: SpriteSheetAsset[] = [
     frameHeight: 64,
   },
 
-  // NPCs
+    // NPCs
   {
     key: 'npc1',
     path: 'assets/sprites/npc/npc1.png',
@@ -210,7 +211,7 @@ const SPRITESHEETS: SpriteSheetAsset[] = [
  * Loads all shared assets, creates player walk animations, then hands off to VillageScene.
  */
 export default class BootScene extends Phaser.Scene {
-  /** Registers this scene with Phaser under the key "BootScene". */
+    /** Registers this scene with Phaser under the key "BootScene". */
   constructor() {
     super('BootScene')
   }
@@ -234,7 +235,7 @@ export default class BootScene extends Phaser.Scene {
       'bazaar-background',
       'assets/maps/bazaar_background.png'
     )
-    
+
     this.load.tilemapTiledJSON(
       'egypt_bazaar',
       'assets/maps/egypt_bazaar_map.json'
@@ -249,7 +250,7 @@ export default class BootScene extends Phaser.Scene {
       'bazaar_race_bg',
       'assets/minigames/bazaar_race_bg.png'
     )
-    
+
     this.load.image(
       'donkey_topview',
       'assets/minigames/donkey_topview.png'
@@ -259,7 +260,7 @@ export default class BootScene extends Phaser.Scene {
       'eagle_egypt_bg',
       'assets/minigames/egypt_sky_background.png'
     )
-    
+
     this.load.spritesheet(
       'eagle_fly',
       'assets/minigames/eagle_fly_spritesheet.png',
@@ -273,7 +274,21 @@ export default class BootScene extends Phaser.Scene {
   create() {
     this.createAnimations()
 
-    this.scene.start('VillageScene')
+    const startMode = (window as any).__HAHALAND_START_MODE__
+    const savedProgress = loadGameProgress()
+
+    if (startMode === 'resume' && savedProgress) {
+      this.scene.start(savedProgress.currentScene, {
+        resume: true,
+      })
+      return
+    }
+
+    this.scene.start('VillageScene', {
+      resume: false,
+      coins: 1000,
+      reputation: 0,
+    })
   }
 
   private loadTilemaps() {

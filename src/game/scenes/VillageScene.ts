@@ -9,6 +9,11 @@ import MinigamePopup, { type MinigameChoice } from '../ui/MinigamePopup'
 import {
   startOrResumeSharedCountdown,
 } from '../utils/utility'
+import {
+  loadGameProgress,
+  saveGameProgress,
+} from '../utils/progressSave'
+
 
 type ObjectiveStep = {
   objectiveText: string
@@ -103,6 +108,7 @@ export default class VillageScene extends Phaser.Scene {
   private hud!: GameHUD
   private coins = 1000
   private remainingTime = 3600 // in seconds
+  private remainingSeconds = 3600
   private timerEvent!: Phaser.Time.TimerEvent
   private isTimeUp = false
 
@@ -286,9 +292,21 @@ private stopGameTimer?: () => void
     spawnName?: string
     coins?: number
     reputation?: number
+    resume?: boolean
   }) {
+    const savedProgress = data?.resume
+      ? loadGameProgress()
+      : null
+  
     this.returnFromBazaar = Boolean(data?.fromBazaar)
     this.villageSpawnName = data?.spawnName ?? 'PlayerSpawn'
+  
+    if (savedProgress) {
+      this.coins = savedProgress.coins
+      this.reputation = savedProgress.reputation
+      this.remainingSeconds = savedProgress.remainingSeconds
+      return
+    }
   
     if (typeof data?.coins === 'number') {
       this.coins = data.coins
@@ -462,15 +480,17 @@ this.hud = new GameHUD(
 
     this.hud.setCoins(this.coins)
 this.hud.setReputation(this.reputation)
+this.saveProgress()
 
     const timerController = startOrResumeSharedCountdown(
       this,
       (remainingSeconds) => {
-        this.hud.setTime(remainingSeconds)
+        this.remainingSeconds = remainingSeconds
+this.hud.setTime(remainingSeconds)
+this.saveProgress()
       },
       {
-        totalSeconds: 3600,
-      }
+        totalSeconds: this.remainingSeconds,      }
     )
     
     this.stopGameTimer = timerController.stop
@@ -555,6 +575,18 @@ this.hud.setReputation(this.reputation)
 
     this.input.keyboard?.once('keydown', () => {
       this.startBackgroundMusic()
+    })
+  }
+
+  private saveProgress() {
+    const existingSave = loadGameProgress()
+  
+    saveGameProgress({
+      currentScene: 'VillageScene',
+      coins: this.coins,
+      reputation: this.reputation,
+      remainingSeconds: this.remainingSeconds,
+      completedMarkets: existingSave?.completedMarkets ?? [],
     })
   }
 
@@ -1606,6 +1638,7 @@ this.hud.setReputation(this.reputation)
       hudAny.updateCoins(this.coins)
       return
     }
+    this.saveProgress()
 
     console.warn('HUD coin update method not found.')
   }
@@ -2357,39 +2390,6 @@ const y = padding
     return step
   }
 
-  private addCoins(amount: number) {
-    this.coins += amount
-    this.hud.setCoins(this.coins)
-this.hud.setReputation(this.reputation)
-  }
-
-  private removeCoins(amount: number) {
-    this.coins -= amount
-    this.hud.setCoins(this.coins)
-this.hud.setReputation(this.reputation)
-  }
-
-  private endGameDueToTime() {
-    this.isTimeUp = true
-
-    if (this.timerEvent) {
-      this.timerEvent.remove(false)
-    }
-
-    this.player.setVelocity(0)
-    this.player.stop()
-
-    this.interactPrompt.setVisible(false)
-
-    this.objectiveBox.setText("Time's up! Your run has ended.")
-
-    this.dialogue.show([
-      "Time's up!",
-      'Your play session has ended.',
-      'We can add restart or score screen next.',
-    ])
-  }
-
   private getMerchantPrice(offer: MerchantOffer) {
     // First merchant the player talks to becomes the cheap merchant
     if (!this.firstInteractedMerchantName) {
@@ -2843,6 +2843,16 @@ this.hud.setReputation(this.reputation)
   
     this.cameras.main.fadeOut(650, 0, 0, 0)
   
+    const existingSave = loadGameProgress()
+
+saveGameProgress({
+  currentScene: 'BazaarScene',
+  coins: this.coins,
+  reputation: this.reputation,
+  remainingSeconds: this.remainingSeconds,
+  completedMarkets: existingSave?.completedMarkets ?? [],
+})
+
     this.time.delayedCall(950, () => {
       this.scene.start('BazaarScene', {
         coins: this.coins,

@@ -8,6 +8,10 @@ import BazaarChallengePopup, {
   type BazaarMinigameResult,
 } from '../ui/BazaarChallengePopup'
 import { startOrResumeSharedCountdown } from '../utils/utility'
+import {
+  loadGameProgress,
+  saveGameProgress,
+} from '../utils/progressSave'
 
 type MinigameChoice = {
   label: string
@@ -60,7 +64,7 @@ export default class BazaarScene extends Phaser.Scene {
     width: 180,
     height: 120,
   }
-
+  private remainingSeconds = 3600
   private minimapBackground?: Phaser.GameObjects.Image
   private minimapBorder?: Phaser.GameObjects.Rectangle
   private minimapPlayerDot?: Phaser.GameObjects.Arc
@@ -90,25 +94,41 @@ export default class BazaarScene extends Phaser.Scene {
     super('BazaarScene')
   }
 
-  init(data?: { coins?: number; reputation?: number }) {
-    if (typeof data?.coins === 'number') {
-      this.coins = data.coins
+  init(data?: {
+    coins?: number
+    reputation?: number
+    resume?: boolean
+  }) {
+    const savedProgress = loadGameProgress()
+  
+    if (data?.resume && savedProgress) {
+      this.coins = savedProgress.coins
+      this.reputation = savedProgress.reputation
+      this.remainingSeconds = savedProgress.remainingSeconds
+    } else {
+      if (typeof data?.coins === 'number') {
+        this.coins = data.coins
+      }
+  
+      if (typeof data?.reputation === 'number') {
+        this.reputation = data.reputation
+      }
+  
+      if (savedProgress) {
+        this.remainingSeconds = savedProgress.remainingSeconds
+      }
     }
-
-    if (typeof data?.reputation === 'number') {
-      this.reputation = data.reputation
-    }
-
-    const savedCompletedMarkets = this.registry.get(
-      this.completedMarketsRegistryKey,
-    )
-
+  
+    const savedCompletedMarkets =
+      savedProgress?.completedMarkets ??
+      this.registry.get(this.completedMarketsRegistryKey)
+  
     this.completedMarkets = new Set(
       Array.isArray(savedCompletedMarkets)
         ? savedCompletedMarkets.filter(
-            (value): value is string => typeof value === 'string',
+            (value): value is string => typeof value === 'string'
           )
-        : [],
+        : []
     )
   }
 
@@ -242,14 +262,16 @@ export default class BazaarScene extends Phaser.Scene {
 
     this.hud.setCoins(this.coins)
 this.hud.setReputation(this.reputation)
+this.saveProgress()
 
     const timerController = startOrResumeSharedCountdown(
       this,
       (remainingSeconds) => {
+        this.remainingSeconds = remainingSeconds
         this.hud.setTime(remainingSeconds)
-      },
+        this.saveProgress()      },
       {
-        totalSeconds: 3600,
+        totalSeconds: this.remainingSeconds,
       },
     )
 
@@ -342,6 +364,16 @@ this.hud.setReputation(this.reputation)
     if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.interact()
     }
+  }
+
+  private saveProgress() {
+    saveGameProgress({
+      currentScene: 'BazaarScene',
+      coins: this.coins,
+      reputation: this.reputation,
+      remainingSeconds: this.remainingSeconds,
+      completedMarkets: [...this.completedMarkets],
+    })
   }
 
   private createPlayer(map: Phaser.Tilemaps.Tilemap) {
@@ -796,6 +828,8 @@ this.hud.setReputation(this.reputation)
     this.registry.set(this.completedMarketsRegistryKey, [
       ...this.completedMarkets,
     ])
+    this.saveProgress()
+
   }
 
   private getBazaarGameId(npcName: string): BazaarGameId | null {
@@ -826,6 +860,7 @@ this.hud.setReputation(this.reputation)
     this.coins = Math.max(0, this.coins + amount)
     this.hud.setCoins(this.coins)
 this.hud.setReputation(this.reputation)
+this.saveProgress()
   }
 
   private changeReputation(amount: number) {
@@ -836,7 +871,7 @@ this.hud.setReputation(this.reputation)
     )
   
     this.hud?.setReputation(this.reputation)
-  
+    this.saveProgress()
     console.log('Bazaar reputation:', this.reputation)
   }
 
@@ -1405,6 +1440,14 @@ const y = padding
     title.setScrollFactor(0)
     title.setDepth(90001)
 
+    saveGameProgress({
+      currentScene: 'VillageScene',
+      coins: this.coins,
+      reputation: this.reputation,
+      remainingSeconds: this.remainingSeconds,
+      completedMarkets: [...this.completedMarkets],
+    })
+    
     this.cameras.main.fadeOut(650, 0, 0, 0)
 
     this.time.delayedCall(850, () => {
