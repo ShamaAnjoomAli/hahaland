@@ -5,7 +5,14 @@ export default class GameHUD {
 
   private coinText: Phaser.GameObjects.Text
   private timerText: Phaser.GameObjects.Text
+  private reputationLabel: Phaser.GameObjects.Text
   private bg: Phaser.GameObjects.Graphics
+  private reputationFill: Phaser.GameObjects.Graphics
+
+  private width: number
+  private reputationBarWidth: number
+  private reputationBarX: number
+  private reputationBarY: number
 
   constructor(
     scene: Phaser.Scene,
@@ -13,9 +20,16 @@ export default class GameHUD {
     y: number,
     width = 150
   ) {
-    const height = 28
+    this.width = width
+
+    const height = 50
+    const topHeight = 28
     const dividerX = Math.round(width * 0.46)
     const clockX = dividerX + 14
+
+    this.reputationBarX = 44
+    this.reputationBarY = 36
+    this.reputationBarWidth = width - 56
 
     this.container = scene.add.container(x, y)
 
@@ -28,11 +42,32 @@ export default class GameHUD {
     this.bg.strokeRoundedRect(0, 0, width, height, 7)
 
     this.bg.lineStyle(1, 0xffffff, 0.2)
-    this.bg.lineBetween(dividerX, 5, dividerX, height - 5)
+    this.bg.lineBetween(dividerX, 5, dividerX, topHeight - 5)
+
+    this.bg.lineStyle(1, 0xffffff, 0.18)
+    this.bg.lineBetween(8, topHeight + 1, width - 8, topHeight + 1)
+
+    this.bg.fillStyle(0x1d1d1d, 1)
+    this.bg.fillRoundedRect(
+      this.reputationBarX,
+      this.reputationBarY,
+      this.reputationBarWidth,
+      7,
+      3
+    )
+
+    this.bg.lineStyle(1, 0xffffff, 0.28)
+    this.bg.strokeRoundedRect(
+      this.reputationBarX,
+      this.reputationBarY,
+      this.reputationBarWidth,
+      7,
+      3
+    )
 
     const coinIcon = scene.add.circle(
       14,
-      height / 2,
+      topHeight / 2,
       6,
       0xffd966
     )
@@ -40,7 +75,7 @@ export default class GameHUD {
 
     this.coinText = scene.add.text(
       27,
-      height / 2,
+      topHeight / 2,
       '0',
       {
         fontFamily: 'Arial',
@@ -52,7 +87,7 @@ export default class GameHUD {
 
     const clockIcon = scene.add.circle(
       clockX,
-      height / 2,
+      topHeight / 2,
       6,
       0x222222
     )
@@ -62,9 +97,9 @@ export default class GameHUD {
       0,
       0,
       clockX,
-      height / 2,
+      topHeight / 2,
       clockX,
-      height / 2 - 4,
+      topHeight / 2 - 4,
       0xffffff
     )
     clockHandA.setLineWidth(1.5)
@@ -73,16 +108,16 @@ export default class GameHUD {
       0,
       0,
       clockX,
-      height / 2,
+      topHeight / 2,
       clockX + 3,
-      height / 2,
+      topHeight / 2,
       0xffffff
     )
     clockHandB.setLineWidth(1.5)
 
     this.timerText = scene.add.text(
       clockX + 13,
-      height / 2,
+      topHeight / 2,
       '00:00',
       {
         fontFamily: 'Arial',
@@ -92,6 +127,21 @@ export default class GameHUD {
     )
     this.timerText.setOrigin(0, 0.5)
 
+    this.reputationLabel = scene.add.text(
+      12,
+      39,
+      'REP',
+      {
+        fontFamily: 'Arial',
+        fontSize: '11px',
+        color: '#ffd966',
+        fontStyle: 'bold',
+      }
+    )
+    this.reputationLabel.setOrigin(0, 0.5)
+
+    this.reputationFill = scene.add.graphics()
+
     this.container.add([
       this.bg,
       coinIcon,
@@ -100,10 +150,14 @@ export default class GameHUD {
       clockHandA,
       clockHandB,
       this.timerText,
+      this.reputationLabel,
+      this.reputationFill,
     ])
 
     this.container.setScrollFactor(0)
     this.container.setDepth(20050)
+
+    this.setReputation(0)
   }
 
   setCoins(value: number) {
@@ -130,5 +184,35 @@ export default class GameHUD {
     } else {
       this.timerText.setColor('#ffffff')
     }
+  }
+
+  setReputation(value: number) {
+    const safeValue = Phaser.Math.Clamp(Math.floor(value), 0, 100)
+    const fillWidth = Math.round(
+      this.reputationBarWidth * (safeValue / 100)
+    )
+
+    let fillColor = 0xff6666
+
+    if (safeValue >= 70) {
+      fillColor = 0x66ff99
+    } else if (safeValue >= 35) {
+      fillColor = 0xffd966
+    }
+
+    this.reputationFill.clear()
+
+    if (fillWidth > 0) {
+      this.reputationFill.fillStyle(fillColor, 1)
+      this.reputationFill.fillRoundedRect(
+        this.reputationBarX,
+        this.reputationBarY,
+        fillWidth,
+        7,
+        3
+      )
+    }
+
+    this.reputationLabel.setText(`REP`)
   }
 }

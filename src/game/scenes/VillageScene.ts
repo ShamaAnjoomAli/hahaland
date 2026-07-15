@@ -461,6 +461,7 @@ this.hud = new GameHUD(
 )
 
     this.hud.setCoins(this.coins)
+this.hud.setReputation(this.reputation)
 
     const timerController = startOrResumeSharedCountdown(
       this,
@@ -2359,11 +2360,13 @@ const y = padding
   private addCoins(amount: number) {
     this.coins += amount
     this.hud.setCoins(this.coins)
+this.hud.setReputation(this.reputation)
   }
 
   private removeCoins(amount: number) {
     this.coins -= amount
     this.hud.setCoins(this.coins)
+this.hud.setReputation(this.reputation)
   }
 
   private endGameDueToTime() {
@@ -2548,8 +2551,14 @@ const y = padding
   }
 
   private changeReputation(amount: number) {
-    this.reputation = Phaser.Math.Clamp(this.reputation + amount, 0, 100)
-
+    this.reputation = Phaser.Math.Clamp(
+      this.reputation + amount,
+      0,
+      100
+    )
+  
+    this.hud?.setReputation(this.reputation)
+  
     console.log('Reputation:', this.reputation)
   }
 

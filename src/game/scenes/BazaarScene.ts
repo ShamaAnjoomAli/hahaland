@@ -241,6 +241,7 @@ export default class BazaarScene extends Phaser.Scene {
     )
 
     this.hud.setCoins(this.coins)
+this.hud.setReputation(this.reputation)
 
     const timerController = startOrResumeSharedCountdown(
       this,
@@ -837,11 +838,18 @@ export default class BazaarScene extends Phaser.Scene {
   private changeCoins(amount: number) {
     this.coins = Math.max(0, this.coins + amount)
     this.hud.setCoins(this.coins)
+this.hud.setReputation(this.reputation)
   }
 
   private changeReputation(amount: number) {
-    this.reputation = Phaser.Math.Clamp(this.reputation + amount, 0, 100)
-
+    this.reputation = Phaser.Math.Clamp(
+      this.reputation + amount,
+      0,
+      100
+    )
+  
+    this.hud?.setReputation(this.reputation)
+  
     console.log('Bazaar reputation:', this.reputation)
   }
 
