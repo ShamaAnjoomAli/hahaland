@@ -559,8 +559,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":518,
-                 "y":501.166666666667
+                 "x":501,
+                 "y":485.166666666667
                 }, 
                 {
                  "height":0,
@@ -659,7 +659,7 @@
                         {
                          "name":"gameId",
                          "type":"string",
-                         "value":"scale-puzzle"
+                         "value":"grain-pact"
                         }, 
                         {
                          "name":"merchantTitle",
@@ -675,8 +675,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":432.833333333333,
-                 "y":968.666666666667
+                 "x":422.833333333333,
+                 "y":970.666666666667
                 }, 
                 {
                  "height":0,
@@ -689,7 +689,7 @@
                  "visible":true,
                  "width":0,
                  "x":714,
-                 "y":1044
+                 "y":1015
                 }, 
                 {
                  "height":0,
@@ -898,7 +898,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }, 

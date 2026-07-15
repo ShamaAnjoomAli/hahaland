@@ -811,7 +811,7 @@ export default class BazaarScene extends Phaser.Scene {
   private getBazaarGameId(npcName: string): BazaarGameId | null {
     const games: Record<string, BazaarGameId> = {
       NPC_3: 'map-bargain',
-      NPC_4: 'scale-puzzle',
+      NPC_4: 'grain-pact',
       NPC_8: 'spice-memory',
       NPC_7: 'date-trade',
       NPC_10: 'pottery-fraud',

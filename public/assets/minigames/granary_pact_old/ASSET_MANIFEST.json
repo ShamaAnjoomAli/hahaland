@@ -1,0 +1,35 @@
+{
+  "frameSize": {
+    "cat_sheet.png": [
+      128,
+      128
+    ],
+    "mouse_sheet.png": [
+      128,
+      128
+    ],
+    "fx_sheet.png": [
+      64,
+      64
+    ]
+  },
+  "rows": {
+    "cat": [
+      "idle",
+      "walk",
+      "push",
+      "carry",
+      "push_cart",
+      "celebrate"
+    ],
+    "mouse": [
+      "idle",
+      "walk",
+      "crawl",
+      "chew",
+      "pull_lever",
+      "celebrate"
+    ]
+  },
+  "framesPerAnimation": 4
+}

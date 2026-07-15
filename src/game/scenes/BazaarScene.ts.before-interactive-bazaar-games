@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 
 export type BazaarGameId =
   | 'map-bargain'
-  | 'scale-puzzle'
+  | 'grain-pact'
   | 'spice-memory'
   | 'date-trade'
   | 'pottery-fraud'
@@ -79,7 +79,7 @@ export default class BazaarChallengePopup {
       case 'map-bargain':
         this.createMapBargainGame()
         break
-      case 'scale-puzzle':
+      case 'grain-pact':
         this.createScalePuzzleGame()
         break
       case 'spice-memory':

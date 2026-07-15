@@ -8,6 +8,7 @@ export type BazaarGameId =
   | 'pottery-fraud'
   | 'donkey-race'
   | 'eagle-delivery'
+  | 'grain-pact'
 
 export type BazaarMinigameResult = {
   success: boolean
@@ -107,6 +108,11 @@ export default class BazaarChallengePopup {
       case 'eagle-delivery':
         this.ensureEagleDeliveryAssets(() => {
           this.createEagleDeliveryGame()
+        })
+        break
+      case 'grain-pact':
+        this.ensureGranaryPactAssets(() => {
+          this.createGranaryPactGame()
         })
         break
     }
@@ -1068,6 +1074,116 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     if (!this.scene.load.isLoading()) {
       this.scene.load.start()
     }
+  }
+
+
+  private ensureGranaryPactAssets(onReady: () => void) {
+    const images = [
+      { key: 'granary_pact_bg', path: 'assets/minigames/granary_pact/granary_bg.png' },
+      { key: 'granary_cat_icon', path: 'assets/minigames/granary_pact/cat_icon.png' },
+      { key: 'granary_mouse_icon', path: 'assets/minigames/granary_pact/mouse_icon.png' },
+      { key: 'granary_jar_upright', path: 'assets/minigames/granary_pact/jar_upright.png' },
+      { key: 'granary_jar_fallen', path: 'assets/minigames/granary_pact/jar_fallen.png' },
+      { key: 'granary_gate_closed', path: 'assets/minigames/granary_pact/gate_closed.png' },
+      { key: 'granary_gate_open', path: 'assets/minigames/granary_pact/gate_open.png' },
+      { key: 'granary_hole_open', path: 'assets/minigames/granary_pact/hole_open.png' },
+      { key: 'granary_lever_up', path: 'assets/minigames/granary_pact/lever_up.png' },
+      { key: 'granary_lever_down', path: 'assets/minigames/granary_pact/lever_down.png' },
+      { key: 'granary_rope_intact', path: 'assets/minigames/granary_pact/rope_intact.png' },
+      { key: 'granary_rope_cut', path: 'assets/minigames/granary_pact/rope_cut.png' },
+      { key: 'granary_bridge_up', path: 'assets/minigames/granary_pact/bridge_up.png' },
+      { key: 'granary_bridge_down', path: 'assets/minigames/granary_pact/bridge_down.png' },
+      { key: 'granary_sack_ground', path: 'assets/minigames/granary_pact/sack_ground.png' },
+      { key: 'granary_cart_locked', path: 'assets/minigames/granary_pact/cart_locked.png' },
+      { key: 'granary_cart_unlocked', path: 'assets/minigames/granary_pact/cart_unlocked.png' },
+      { key: 'granary_cart_loaded', path: 'assets/minigames/granary_pact/cart_loaded.png' },
+      { key: 'granary_cart_moving', path: 'assets/minigames/granary_pact/cart_moving.png' },
+      { key: 'granary_wheel_peg', path: 'assets/minigames/granary_pact/wheel_peg.png' },
+    ]
+
+    const sheets = [
+      { key: 'granary_cat_sheet', path: 'assets/minigames/granary_pact/cat_sheet.png', frameWidth: 256, frameHeight: 256 },
+      { key: 'granary_mouse_sheet', path: 'assets/minigames/granary_pact/mouse_sheet.png', frameWidth: 256, frameHeight: 256 },
+    ]
+
+    const missingImages = images.filter((asset) => !this.scene.textures.exists(asset.key))
+    const missingSheets = sheets.filter((asset) => !this.scene.textures.exists(asset.key))
+    if (missingImages.length === 0 && missingSheets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(455, this.panelWidth - 80),
+      112,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Preparing the Granary Pact artwork...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+      }
+    )
+    loadingText.setOrigin(0.5)
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+    const allMissing = [...missingImages, ...missingSheets]
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (allMissing.some((asset) => asset.key === file.key)) loadFailed = true
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+      if (!this.isVisible || session !== this.sessionId) return
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissing = allMissing.filter((asset) => !this.scene.textures.exists(asset.key))
+      if (loadFailed || stillMissing.length > 0) {
+        const names = stillMissing.map((asset) => asset.path).join('\n')
+        const errorText = this.addStatusText(
+          `Could not load the Granary Pact artwork.\n\n${names}`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(14)
+        return
+      }
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingImages.forEach((asset) => this.scene.load.image(asset.key, asset.path))
+    missingSheets.forEach((asset) => {
+      this.scene.load.spritesheet(asset.key, asset.path, {
+        frameWidth: asset.frameWidth,
+        frameHeight: asset.frameHeight,
+      })
+    })
+
+    if (!this.scene.load.isLoading()) this.scene.load.start()
   }
 
   private createBase() {
@@ -7250,4 +7366,1279 @@ ${roundSettings.introText}`, {
     this.container.bringToTop(eagle)
     this.container.bringToTop(countdownText)
   }
+
+  // ---------------------------------------------------------------------------
+  // 8. GRAIN MERCHANT — THE GRANARY PACT
+  // ---------------------------------------------------------------------------
+
+  private createGranaryPactGame() {
+    const width = this.scene.scale.width
+    const top = this.getPanelTop()
+    const bottom = this.getPanelBottom()
+
+    this.addTitle('8. Grain Merchant — The Granary Pact')
+    this.addInstruction(
+      'Choose CAT or MOUSE, then use the action button to complete each task.',
+      top + 82
+    )
+
+    type Friend = 'cat' | 'mouse'
+    type PactState = 'ready' | 'playing' | 'animating' | 'transition' | 'finished'
+    type ActionName =
+      | 'pushJar'
+      | 'crawlTunnel'
+      | 'pullLever'
+      | 'chewRope'
+      | 'crossBridge'
+      | 'carrySack'
+      | 'loadCart'
+      | 'removePeg'
+      | 'pushCart'
+
+    type PactStep = {
+      actor: Friend
+      action: string
+      objective: string
+      hint: string
+      animation: ActionName
+    }
+
+    const rounds: Array<{
+      shortTitle: string
+      title: string
+      intro: string
+      steps: PactStep[]
+    }> = [
+      {
+        shortTitle: 'GATE',
+        title: 'Open the Store Gate',
+        intro: 'Clear the tunnel, send the mouse behind the gate, then open it.',
+        steps: [
+          {
+            actor: 'cat',
+            action: 'PUSH JAR',
+            objective: 'Move the grain jar away from the tunnel.',
+            hint: 'The jar is too heavy for the mouse.',
+            animation: 'pushJar',
+          },
+          {
+            actor: 'mouse',
+            action: 'ENTER TUNNEL',
+            objective: 'Use the tunnel to reach the other side of the gate.',
+            hint: 'Only the mouse can fit through the opening.',
+            animation: 'crawlTunnel',
+          },
+          {
+            actor: 'mouse',
+            action: 'PULL LEVER',
+            objective: 'Pull the lever and let the cat through.',
+            hint: 'The lever is behind the locked gate.',
+            animation: 'pullLever',
+          },
+        ],
+      },
+      {
+        shortTitle: 'BRIDGE',
+        title: 'Recover the Grain Sack',
+        intro: 'Release the raised bridge, cross it, and bring the sack back.',
+        steps: [
+          {
+            actor: 'mouse',
+            action: 'CHEW ROPE',
+            objective: 'Cut the tether holding the bridge upright.',
+            hint: 'The mouse can chew through the rope.',
+            animation: 'chewRope',
+          },
+          {
+            actor: 'cat',
+            action: 'CROSS BRIDGE',
+            objective: 'Cross the lowered bridge to the grain sack.',
+            hint: 'The cat is steady enough to cross safely.',
+            animation: 'crossBridge',
+          },
+          {
+            actor: 'cat',
+            action: 'CARRY SACK',
+            objective: 'Carry the recovered grain sack back.',
+            hint: 'The sack is too heavy for the mouse.',
+            animation: 'carrySack',
+          },
+        ],
+      },
+      {
+        shortTitle: 'CART',
+        title: 'Complete the Delivery',
+        intro: 'Load the cart, release its wheel, and push it into storage.',
+        steps: [
+          {
+            actor: 'cat',
+            action: 'LOAD CART',
+            objective: 'Lift the final sack into the empty cart.',
+            hint: 'Use the cat’s strength.',
+            animation: 'loadCart',
+          },
+          {
+            actor: 'mouse',
+            action: 'REMOVE PEG',
+            objective: 'Pull the small locking peg from the wheel.',
+            hint: 'The mouse can reach the tiny mechanism.',
+            animation: 'removePeg',
+          },
+          {
+            actor: 'cat',
+            action: 'PUSH CART',
+            objective: 'Push the loaded cart into the storage area.',
+            hint: 'One final team effort will finish the rescue.',
+            animation: 'pushCart',
+          },
+        ],
+      },
+    ]
+
+    const playLeft = this.getPanelLeft() + 30
+    const playRight = this.getPanelRight() - 30
+    const sceneWidth = playRight - playLeft
+    const sceneCenterX = (playLeft + playRight) / 2
+
+    const hudY = top + 118
+    const progressY = top + 151
+    const objectiveY = top + 184
+    const objectiveHeight = 44
+    const sceneTop = top + 211
+    const controlsY = bottom - 50
+    const statusY = controlsY - 52
+    const sceneBottom = statusY - 24
+    const sceneHeight = sceneBottom - sceneTop
+    const sceneCenterY = (sceneTop + sceneBottom) / 2
+    const floorY = sceneBottom - 18
+
+    let state: PactState = 'ready'
+    let roundIndex = 0
+    let stepIndex = 0
+    let friendship = 3
+    let completedStages = 0
+    let score = 0
+    let selectedFriend: Friend = 'cat'
+    let activeTarget: Phaser.GameObjects.Image | undefined
+
+    const ensureAnimation = (
+      key: string,
+      texture: string,
+      start: number,
+      end: number,
+      frameRate: number,
+      repeat: number
+    ) => {
+      if (this.scene.anims.exists(key)) return
+      this.scene.anims.create({
+        key,
+        frames: this.scene.anims.generateFrameNumbers(texture, { start, end }),
+        frameRate,
+        repeat,
+      })
+    }
+
+    ensureAnimation('granary-v6-cat-idle', 'granary_cat_sheet', 0, 3, 4, -1)
+    ensureAnimation('granary-v6-cat-walk', 'granary_cat_sheet', 4, 7, 7, -1)
+    ensureAnimation('granary-v6-cat-push', 'granary_cat_sheet', 8, 11, 3, 0)
+    ensureAnimation('granary-v6-cat-carry', 'granary_cat_sheet', 12, 15, 5, -1)
+    ensureAnimation('granary-v6-cat-cart', 'granary_cat_sheet', 16, 19, 5, -1)
+    ensureAnimation('granary-v6-cat-celebrate', 'granary_cat_sheet', 20, 23, 6, -1)
+
+    ensureAnimation('granary-v6-mouse-idle', 'granary_mouse_sheet', 0, 3, 4, -1)
+    ensureAnimation('granary-v6-mouse-walk', 'granary_mouse_sheet', 4, 7, 7, -1)
+    ensureAnimation('granary-v6-mouse-crawl', 'granary_mouse_sheet', 8, 11, 3, 0)
+    ensureAnimation('granary-v6-mouse-chew', 'granary_mouse_sheet', 12, 15, 3, 0)
+    ensureAnimation('granary-v6-mouse-pull', 'granary_mouse_sheet', 16, 19, 3, 0)
+    ensureAnimation('granary-v6-mouse-celebrate', 'granary_mouse_sheet', 20, 23, 6, -1)
+
+    const hudPanel = this.scene.add.rectangle(sceneCenterX, hudY, sceneWidth, 36, 0xead8aa, 1)
+    hudPanel.setStrokeStyle(3, 0xd4af37, 1)
+    this.addObject(hudPanel)
+
+    const hudText = this.scene.add.text(sceneCenterX, hudY, '', {
+      fontFamily: 'Georgia',
+      fontSize: '14px',
+      color: '#4c321a',
+      stroke: '#8a8a8a',
+      strokeThickness: 1,
+      fontStyle: 'bold',
+      align: 'center',
+    })
+    hudText.setOrigin(0.5)
+    this.addObject(hudText)
+
+    const progressConnectors: Phaser.GameObjects.Rectangle[] = []
+    const progressMarkers: Array<{
+      circle: Phaser.GameObjects.Arc
+      number: Phaser.GameObjects.Text
+      label: Phaser.GameObjects.Text
+    }> = []
+    const progressStartX = sceneCenterX - sceneWidth * 0.34
+    const progressGap = sceneWidth * 0.34
+
+    for (let index = 0; index < 3; index += 1) {
+      const markerX = progressStartX + index * progressGap
+      if (index < 2) {
+        const connector = this.scene.add.rectangle(
+          markerX + progressGap / 2,
+          progressY,
+          progressGap - 48,
+          4,
+          0x6f5630,
+          1
+        )
+        this.addObject(connector)
+        progressConnectors.push(connector)
+      }
+
+      const circle = this.scene.add.circle(markerX, progressY, 14, 0x4a3722, 1)
+      circle.setStrokeStyle(3, 0x8f6f3c, 1)
+      const number = this.scene.add.text(markerX, progressY, `${index + 1}`, {
+        fontFamily: 'Georgia',
+        fontSize: '12px',
+        color: '#ffffff',
+        stroke: '#333333',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      })
+      number.setOrigin(0.5)
+      const label = this.scene.add.text(markerX + 21, progressY, rounds[index].shortTitle, {
+        fontFamily: 'Georgia',
+        fontSize: '11px',
+        color: '#bca888',
+        stroke: '#333333',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      })
+      label.setOrigin(0, 0.5)
+
+      this.addObject(circle)
+      this.addObject(number)
+      this.addObject(label)
+      progressMarkers.push({ circle, number, label })
+    }
+
+    const objectivePanel = this.scene.add.rectangle(
+      sceneCenterX,
+      objectiveY,
+      sceneWidth,
+      objectiveHeight,
+      0x241507,
+      0.98
+    )
+    objectivePanel.setStrokeStyle(2, 0x9b682c, 1)
+    this.addObject(objectivePanel)
+
+    const objectiveText = this.scene.add.text(sceneCenterX, objectiveY, '', {
+      fontFamily: 'Georgia',
+      fontSize: '14px',
+      color: '#f4ead8',
+      stroke: '#333333',
+      strokeThickness: 3,
+      align: 'center',
+      wordWrap: { width: sceneWidth - 34 },
+    })
+    objectiveText.setOrigin(0.5)
+    this.addObject(objectiveText)
+
+    const sceneFrame = this.scene.add.rectangle(
+      sceneCenterX,
+      sceneCenterY,
+      sceneWidth,
+      sceneHeight,
+      0x2a1809,
+      1
+    )
+    sceneFrame.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(sceneFrame)
+
+    const background = this.scene.add.image(sceneCenterX, sceneCenterY, 'granary_pact_bg')
+    background.setDisplaySize(sceneWidth - 8, sceneHeight - 8)
+    this.addObject(background)
+
+    const stageShade = this.scene.add.rectangle(
+      sceneCenterX,
+      sceneCenterY,
+      sceneWidth - 8,
+      sceneHeight - 8,
+      0x120904,
+      0.08
+    )
+    this.addObject(stageShade)
+
+    const targetPointer = this.scene.add.text(sceneCenterX, floorY - 110, '▼', {
+      fontFamily: 'Georgia',
+      fontSize: '20px',
+      color: '#ffd966',
+      stroke: '#3b2b1a',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    targetPointer.setOrigin(0.5)
+    targetPointer.setVisible(false)
+    this.addObject(targetPointer)
+    this.addTween({
+      targets: targetPointer,
+      y: '+=6',
+      duration: 520,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    const addProp = (key: string) => {
+      const prop = this.scene.add.image(sceneCenterX, floorY, key)
+      prop.setOrigin(0.5, 1)
+      prop.setVisible(false)
+      this.addObject(prop)
+      return prop
+    }
+
+    const entranceHole = addProp('granary_hole_open')
+    const exitHole = addProp('granary_hole_open')
+    const jar = addProp('granary_jar_upright')
+    const gateClosed = addProp('granary_gate_closed')
+    const gateOpen = addProp('granary_gate_open')
+    const lever = addProp('granary_lever_up')
+    const rope = addProp('granary_rope_intact')
+    const ropeCut = addProp('granary_rope_cut')
+    const bridgeUp = addProp('granary_bridge_up')
+    const bridgeDown = addProp('granary_bridge_down')
+    const sack = addProp('granary_sack_ground')
+    const cart = addProp('granary_cart_locked')
+    const wheelPeg = addProp('granary_wheel_peg')
+
+    const props = [
+      entranceHole,
+      exitHole,
+      jar,
+      gateClosed,
+      gateOpen,
+      lever,
+      rope,
+      ropeCut,
+      bridgeUp,
+      bridgeDown,
+      sack,
+      cart,
+      wheelPeg,
+    ]
+
+    const catSprite = this.scene.add.sprite(sceneCenterX - 160, floorY, 'granary_cat_sheet', 0)
+    catSprite.setOrigin(0.5, 1)
+    catSprite.setDisplaySize(122, 122)
+    catSprite.play('granary-v6-cat-idle')
+    this.addObject(catSprite)
+
+    const mouseSprite = this.scene.add.sprite(sceneCenterX - 72, floorY, 'granary_mouse_sheet', 0)
+    mouseSprite.setOrigin(0.5, 1)
+    mouseSprite.setDisplaySize(90, 90)
+    mouseSprite.play('granary-v6-mouse-idle')
+    this.addObject(mouseSprite)
+
+    const catAction = this.scene.add.sprite(sceneCenterX, floorY, 'granary_cat_sheet', 8)
+    catAction.setOrigin(0.5, 1)
+    catAction.setVisible(false)
+    this.addObject(catAction)
+
+    const mouseAction = this.scene.add.sprite(sceneCenterX, floorY, 'granary_mouse_sheet', 8)
+    mouseAction.setOrigin(0.5, 1)
+    mouseAction.setVisible(false)
+    this.addObject(mouseAction)
+
+    const statusPanel = this.scene.add.rectangle(sceneCenterX, statusY, sceneWidth, 38, 0x241507, 0.98)
+    statusPanel.setStrokeStyle(2, 0x9b682c, 1)
+    this.addObject(statusPanel)
+
+    const statusText = this.scene.add.text(sceneCenterX, statusY, '', {
+      fontFamily: 'Georgia',
+      fontSize: '13px',
+      color: '#f4ead8',
+      stroke: '#333333',
+      strokeThickness: 3,
+      align: 'center',
+      wordWrap: { width: sceneWidth - 34 },
+    })
+    statusText.setOrigin(0.5)
+    this.addObject(statusText)
+
+    const catIconX = sceneCenterX - 174
+    const mouseIconX = sceneCenterX - 101
+    const iconY = controlsY
+    const actionX = sceneCenterX + 108
+
+    const catRing = this.scene.add.circle(catIconX, iconY, 29, 0x18232b, 1)
+    catRing.setStrokeStyle(4, 0x6c5a42, 0.8)
+    catRing.setInteractive({ useHandCursor: true })
+    this.addObject(catRing)
+
+    const catIcon = this.scene.add.image(catIconX, iconY, 'granary_cat_icon')
+    catIcon.setDisplaySize(54, 54)
+    catIcon.setInteractive({ useHandCursor: true })
+    this.addObject(catIcon)
+
+    const mouseRing = this.scene.add.circle(mouseIconX, iconY, 29, 0x18232b, 1)
+    mouseRing.setStrokeStyle(4, 0x6c5a42, 0.8)
+    mouseRing.setInteractive({ useHandCursor: true })
+    this.addObject(mouseRing)
+
+    const mouseIcon = this.scene.add.image(mouseIconX, iconY, 'granary_mouse_icon')
+    mouseIcon.setDisplaySize(54, 54)
+    mouseIcon.setInteractive({ useHandCursor: true })
+    this.addObject(mouseIcon)
+
+    let actionButton: ButtonHandle
+    let startButton: ButtonHandle
+
+    const setButtonVisible = (button: ButtonHandle, visible: boolean) => {
+      button.bg.setVisible(visible)
+      button.text.setVisible(visible)
+    }
+
+    const setCharacterControlsVisible = (visible: boolean) => {
+      catRing.setVisible(visible)
+      catIcon.setVisible(visible)
+      mouseRing.setVisible(visible)
+      mouseIcon.setVisible(visible)
+    }
+
+    const currentRound = () => rounds[roundIndex]
+    const currentStep = () => rounds[roundIndex]?.steps[stepIndex]
+
+    const clearTargetInteractions = () => {
+      props.forEach((prop) => prop.disableInteractive())
+      activeTarget = undefined
+      targetPointer.setVisible(false)
+    }
+
+    const setActiveTarget = (target: Phaser.GameObjects.Image) => {
+      clearTargetInteractions()
+      activeTarget = target
+      targetPointer.setPosition(
+        target.x,
+        Math.max(sceneTop + 18, target.y - target.displayHeight - 9)
+      )
+      targetPointer.setVisible(state === 'playing')
+      this.container.bringToTop(targetPointer)
+    }
+
+    const hideProps = () => {
+      clearTargetInteractions()
+      props.forEach((prop) => {
+        prop.setVisible(false)
+        prop.setAlpha(1)
+        prop.setAngle(0)
+      })
+    }
+
+    const setMainCharacter = (
+      sprite: Phaser.GameObjects.Sprite,
+      x: number,
+      y: number,
+      size: number,
+      animation: string
+    ) => {
+      sprite.setVisible(true)
+      sprite.setPosition(x, y)
+      sprite.setDisplaySize(size, size)
+      sprite.setAlpha(1)
+      sprite.setAngle(0)
+      sprite.play(animation, true)
+    }
+
+    const stopActionSprites = () => {
+      catAction.stop().setVisible(false)
+      mouseAction.stop().setVisible(false)
+    }
+
+    const updateSelection = () => {
+      const catSelected = selectedFriend === 'cat'
+      catRing.setStrokeStyle(catSelected ? 5 : 3, catSelected ? 0x72d6ff : 0x6c5a42, catSelected ? 1 : 0.65)
+      mouseRing.setStrokeStyle(catSelected ? 3 : 5, catSelected ? 0x6c5a42 : 0x72ff9b, catSelected ? 0.65 : 1)
+      catIcon.setDisplaySize(catSelected ? 58 : 50, catSelected ? 58 : 50)
+      mouseIcon.setDisplaySize(catSelected ? 50 : 58, catSelected ? 50 : 58)
+      catIcon.setAlpha(catSelected ? 1 : 0.55)
+      mouseIcon.setAlpha(catSelected ? 0.55 : 1)
+    }
+
+    const updateProgress = () => {
+      progressMarkers.forEach((marker, index) => {
+        const complete = index < roundIndex
+        const current = index === roundIndex
+        marker.circle.setFillStyle(complete ? 0x2f6b42 : current ? 0x245d78 : 0x4a3722, 1)
+        marker.circle.setStrokeStyle(3, complete ? 0x72ff9b : current ? 0x8ed6ff : 0x8f6f3c, 1)
+        marker.label.setColor(complete ? '#9dffb0' : current ? '#ffffff' : '#a99572')
+        marker.number.setText(complete ? '✓' : `${index + 1}`)
+      })
+      progressConnectors.forEach((connector, index) => {
+        connector.setFillStyle(index < roundIndex ? 0x5cab73 : 0x6f5630, 1)
+      })
+    }
+
+    const updateHud = () => {
+      const hearts = Array.from({ length: 3 }, (_value, index) => (index < friendship ? '♥' : '♡')).join(' ')
+      hudText.setText(`FRIENDSHIP ${hearts}   •   STAGES ${completedStages}/3   •   SCORE ${score}`)
+      updateProgress()
+
+      if (state === 'ready') {
+        objectiveText.setText('Three connected scenes: open the gate, recover the sack, complete the delivery.')
+        statusText.setText('Cat uses strength. Mouse reaches tunnels and mechanisms.')
+        return
+      }
+
+      const round = currentRound()
+      const step = currentStep()
+      if (!round || !step) return
+      objectiveText.setText(`${round.title}  •  ${step.objective}`)
+      statusText.setText(step.hint)
+      actionButton.text.setText(step.action)
+    }
+
+    const setInteractionsEnabled = (enabled: boolean) => {
+      actionButton.setEnabled(enabled)
+      if (enabled) {
+        catRing.setInteractive({ useHandCursor: true })
+        catIcon.setInteractive({ useHandCursor: true })
+        mouseRing.setInteractive({ useHandCursor: true })
+        mouseIcon.setInteractive({ useHandCursor: true })
+        targetPointer.setVisible(Boolean(activeTarget))
+      } else {
+        catRing.disableInteractive()
+        catIcon.disableInteractive()
+        mouseRing.disableInteractive()
+        mouseIcon.disableInteractive()
+        targetPointer.setVisible(false)
+      }
+    }
+
+    const setupReadyScene = () => {
+      hideProps()
+      stopActionSprites()
+      setMainCharacter(catSprite, sceneCenterX - 54, floorY, 108, 'granary-v6-cat-idle')
+      setMainCharacter(mouseSprite, sceneCenterX + 46, floorY, 78, 'granary-v6-mouse-idle')
+    }
+
+    const setupGateScene = () => {
+      hideProps()
+      stopActionSprites()
+
+      const tunnelX = playLeft + sceneWidth * 0.43
+      const jarX = tunnelX + 32
+      const gateX = playLeft + sceneWidth * 0.73
+      const exitX = gateX + 66
+      const leverX = playRight - 38
+
+      entranceHole.setPosition(tunnelX, floorY + 1).setDisplaySize(82, 64)
+      exitHole.setPosition(exitX, floorY + 1).setDisplaySize(58, 46)
+      jar.setPosition(jarX, floorY + 2)
+      gateClosed.setPosition(gateX, floorY + 2).setDisplaySize(92, 76)
+      gateOpen.setPosition(gateX, floorY + 2).setDisplaySize(92, 76)
+      lever.setPosition(leverX, floorY + 1).setDisplaySize(40, 50)
+
+      // The tunnel and lever are visible from the start so the physical puzzle
+      // reads clearly before the first action.
+      entranceHole.setVisible(true)
+      exitHole.setVisible(true).setAlpha(stepIndex >= 2 ? 1 : 0.48)
+
+      jar.setTexture(stepIndex >= 1 ? 'granary_jar_fallen' : 'granary_jar_upright')
+      jar.setDisplaySize(stepIndex >= 1 ? 90 : 60, stepIndex >= 1 ? 57 : 78)
+      jar.setPosition(stepIndex >= 1 ? tunnelX + 76 : jarX, floorY + 2)
+      jar.setVisible(true)
+
+      gateClosed.setVisible(stepIndex < 3)
+      gateOpen.setVisible(stepIndex >= 3)
+      lever.setTexture(stepIndex >= 3 ? 'granary_lever_down' : 'granary_lever_up')
+      lever.setVisible(true)
+
+      if (stepIndex === 0) {
+        setMainCharacter(catSprite, playLeft + 62, floorY, 104, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, playLeft + 132, floorY, 74, 'granary-v6-mouse-idle')
+        setActiveTarget(jar)
+      } else if (stepIndex === 1) {
+        setMainCharacter(catSprite, tunnelX - 88, floorY, 104, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, playLeft + 132, floorY, 74, 'granary-v6-mouse-idle')
+        setActiveTarget(entranceHole)
+      } else {
+        setMainCharacter(catSprite, tunnelX - 88, floorY, 104, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, exitX + 10, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(lever)
+      }
+    }
+
+    const setupBridgeScene = () => {
+      hideProps()
+      stopActionSprites()
+
+      const bridgeX = sceneCenterX + 10
+      const ropeX = bridgeX
+      const sackX = playRight - 52
+
+      bridgeUp.setPosition(bridgeX, floorY + 2).setDisplaySize(300, 105)
+      bridgeDown.setPosition(bridgeX, floorY + 2).setDisplaySize(300, 62)
+      rope.setPosition(ropeX, floorY - 91).setDisplaySize(218, 40).setAngle(0)
+      ropeCut.setPosition(ropeX, floorY - 91).setDisplaySize(218, 40).setAngle(0)
+      sack.setPosition(sackX, floorY + 2).setDisplaySize(58, 66)
+
+      bridgeUp.setVisible(stepIndex === 0)
+      bridgeDown.setVisible(stepIndex >= 1)
+      rope.setVisible(stepIndex === 0)
+      ropeCut.setVisible(false)
+      sack.setVisible(stepIndex < 3)
+
+      if (stepIndex === 0) {
+        setMainCharacter(catSprite, playLeft + 58, floorY, 102, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, playLeft + 124, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(rope)
+      } else if (stepIndex === 1) {
+        setMainCharacter(catSprite, playLeft + 58, floorY, 102, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, ropeX - 54, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(bridgeDown)
+      } else {
+        setMainCharacter(catSprite, sackX - 62, floorY, 102, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, ropeX - 54, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(sack)
+      }
+    }
+
+    const setupCartScene = () => {
+      hideProps()
+      stopActionSprites()
+
+      const sackX = sceneCenterX - 30
+      const cartX = playRight - 82
+
+      sack.setPosition(sackX, floorY + 2).setDisplaySize(60, 69)
+      cart.setPosition(cartX, floorY + 3).setDisplaySize(132, 95)
+      wheelPeg.setPosition(cartX - 40, floorY - 15).setDisplaySize(30, 44)
+
+      // Once loaded, the cart remains visibly loaded through the peg and push steps.
+      cart.setTexture(stepIndex === 0 ? 'granary_cart_locked' : 'granary_cart_loaded')
+      cart.setVisible(true)
+      sack.setVisible(stepIndex === 0)
+      wheelPeg.setVisible(stepIndex === 1)
+
+      if (stepIndex === 0) {
+        setMainCharacter(catSprite, playLeft + 60, floorY, 102, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, playLeft + 126, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(sack)
+      } else if (stepIndex === 1) {
+        setMainCharacter(catSprite, cartX - 88, floorY, 102, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, playLeft + 126, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(wheelPeg)
+      } else {
+        setMainCharacter(catSprite, cartX - 92, floorY, 102, 'granary-v6-cat-idle')
+        setMainCharacter(mouseSprite, cartX - 62, floorY, 72, 'granary-v6-mouse-idle')
+        setActiveTarget(cart)
+      }
+    }
+
+    const configureScene = () => {
+      if (state === 'ready') {
+        setupReadyScene()
+        return
+      }
+      if (roundIndex >= rounds.length) return
+      if (roundIndex === 0) setupGateScene()
+      else if (roundIndex === 1) setupBridgeScene()
+      else setupCartScene()
+    }
+
+    const selectFriend = (friend: Friend) => {
+      if (state !== 'playing') return
+      selectedFriend = friend
+      updateSelection()
+    }
+
+    catRing.on('pointerdown', () => selectFriend('cat'))
+    catIcon.on('pointerdown', () => selectFriend('cat'))
+    mouseRing.on('pointerdown', () => selectFriend('mouse'))
+    mouseIcon.on('pointerdown', () => selectFriend('mouse'))
+
+    const showCatAction = (x: number, size: number, animation: string) => {
+      catSprite.setVisible(false)
+      catAction.setVisible(true)
+      catAction.setPosition(x, floorY)
+      catAction.setDisplaySize(size, size)
+      catAction.play(animation, true)
+    }
+
+    const showMouseAction = (x: number, size: number, animation: string) => {
+      mouseSprite.setVisible(false)
+      mouseAction.setVisible(true)
+      mouseAction.setPosition(x, floorY)
+      mouseAction.setDisplaySize(size, size)
+      mouseAction.play(animation, true)
+    }
+
+    const playOnce = (
+      sprite: Phaser.GameObjects.Sprite,
+      animation: string,
+      onComplete: () => void
+    ) => {
+      const handler = () => {
+        sprite.off(Phaser.Animations.Events.ANIMATION_COMPLETE, handler)
+        onComplete()
+      }
+      sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, handler)
+      sprite.play(animation, true)
+    }
+
+    const runActionAnimation = (step: PactStep, done: () => void) => {
+      clearTargetInteractions()
+
+      if (step.animation === 'pushJar') {
+        const jarStartX = jar.x
+        const jarEndX = entranceHole.x + 76
+        catSprite.play('granary-v6-cat-walk', true)
+        this.addTween({
+          targets: catSprite,
+          x: jarStartX - 54,
+          duration: 620,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            catSprite.play('granary-v6-cat-idle', true)
+            const originalScaleX = catSprite.scaleX
+            const originalScaleY = catSprite.scaleY
+            this.addTween({
+              targets: catSprite,
+              x: jarStartX - 38,
+              scaleX: originalScaleX * 1.05,
+              scaleY: originalScaleY * 0.96,
+              duration: 420,
+              yoyo: true,
+              repeat: 1,
+              ease: 'Sine.easeInOut',
+            })
+            this.addTween({
+              targets: jar,
+              x: jarEndX,
+              y: floorY + 7,
+              angle: 82,
+              duration: 1320,
+              ease: 'Cubic.easeInOut',
+              onComplete: () => {
+                jar.setTexture('granary_jar_fallen')
+                jar.setDisplaySize(90, 57)
+                jar.setPosition(jarEndX, floorY + 2)
+                jar.setAngle(0)
+                catSprite.play('granary-v6-cat-idle', true)
+                done()
+              },
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'crawlTunnel') {
+        const entranceX = entranceHole.x
+        const exitX = exitHole.x
+        mouseSprite.play('granary-v6-mouse-walk', true)
+        this.addTween({
+          targets: mouseSprite,
+          x: entranceX - 26,
+          duration: 560,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            mouseSprite.play('granary-v6-mouse-idle', true)
+            const normalScaleX = mouseSprite.scaleX
+            const normalScaleY = mouseSprite.scaleY
+            this.addTween({
+              targets: mouseSprite,
+              x: entranceX + 4,
+              alpha: 0,
+              scaleX: normalScaleX * 0.38,
+              scaleY: normalScaleY * 0.38,
+              duration: 650,
+              ease: 'Sine.easeIn',
+              onComplete: () => {
+                mouseSprite.setPosition(exitX - 8, floorY)
+                mouseSprite.setAlpha(0)
+                mouseSprite.setScale(normalScaleX * 0.38, normalScaleY * 0.38)
+                exitHole.setAlpha(1)
+                this.addTween({
+                  targets: mouseSprite,
+                  x: exitX + 10,
+                  alpha: 1,
+                  scaleX: normalScaleX,
+                  scaleY: normalScaleY,
+                  duration: 650,
+                  ease: 'Sine.easeOut',
+                  onComplete: () => {
+                    mouseSprite.play('granary-v6-mouse-idle', true)
+                    done()
+                  },
+                })
+              },
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'pullLever') {
+        const leverX = lever.x
+        mouseSprite.play('granary-v6-mouse-walk', true)
+        this.addTween({
+          targets: mouseSprite,
+          x: leverX - 24,
+          duration: 440,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            mouseSprite.play('granary-v6-mouse-idle', true)
+            this.addTween({
+              targets: mouseSprite,
+              x: leverX - 13,
+              angle: -7,
+              duration: 230,
+              yoyo: true,
+              repeat: 2,
+              ease: 'Sine.easeInOut',
+            })
+            this.schedule(420, () => {
+              lever.setTexture('granary_lever_down')
+              gateOpen.setAlpha(0).setVisible(true)
+              this.addTween({ targets: gateClosed, alpha: 0, duration: 520 })
+              this.addTween({
+                targets: gateOpen,
+                alpha: 1,
+                duration: 520,
+                onComplete: () => {
+                  gateClosed.setVisible(false).setAlpha(1)
+                  catSprite.play('granary-v6-cat-walk', true)
+                  this.addTween({
+                    targets: catSprite,
+                    x: gateOpen.x + 36,
+                    duration: 900,
+                    ease: 'Sine.easeInOut',
+                    onComplete: () => {
+                      catSprite.play('granary-v6-cat-idle', true)
+                      done()
+                    },
+                  })
+                },
+              })
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'chewRope') {
+        const ropeLeftX = rope.x - rope.displayWidth / 2 + 38
+        mouseSprite.play('granary-v6-mouse-walk', true)
+        this.addTween({
+          targets: mouseSprite,
+          x: ropeLeftX,
+          duration: 600,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            mouseSprite.play('granary-v6-mouse-idle', true)
+            const baseScaleX = mouseSprite.scaleX
+            const baseScaleY = mouseSprite.scaleY
+            this.addTween({
+              targets: mouseSprite,
+              x: mouseSprite.x + 6,
+              angle: { from: -3, to: 3 },
+              scaleX: baseScaleX * 1.04,
+              scaleY: baseScaleY * 0.97,
+              duration: 120,
+              yoyo: true,
+              repeat: 5,
+            })
+            this.addTween({
+              targets: rope,
+              alpha: { from: 1, to: 0.62 },
+              duration: 180,
+              yoyo: true,
+              repeat: 3,
+              onComplete: () => {
+                rope.setVisible(false).setAlpha(1)
+                ropeCut.setVisible(true)
+                bridgeDown.setAlpha(0).setPosition(bridgeUp.x, bridgeUp.y - 24).setVisible(true)
+                this.addTween({ targets: bridgeUp, alpha: 0, y: bridgeUp.y + 18, duration: 760, ease: 'Sine.easeIn' })
+                this.addTween({
+                  targets: bridgeDown,
+                  alpha: 1,
+                  y: floorY + 2,
+                  duration: 760,
+                  ease: 'Bounce.easeOut',
+                  onComplete: () => {
+                    bridgeUp.setVisible(false).setAlpha(1)
+                    ropeCut.setVisible(false)
+                    mouseSprite.setAngle(0)
+                    mouseSprite.play('granary-v6-mouse-idle', true)
+                    done()
+                  },
+                })
+              },
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'crossBridge') {
+        const deckY = floorY - 24
+        const bridgeLeftX = bridgeDown.x - bridgeDown.displayWidth * 0.34
+        const bridgeRightX = bridgeDown.x + bridgeDown.displayWidth * 0.34
+        catSprite.play('granary-v6-cat-walk', true)
+        this.addTween({
+          targets: catSprite,
+          x: bridgeLeftX,
+          y: deckY,
+          duration: 420,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.addTween({
+              targets: catSprite,
+              x: bridgeRightX,
+              y: deckY,
+              duration: 1050,
+              ease: 'Linear',
+              onComplete: () => {
+                this.addTween({
+                  targets: catSprite,
+                  x: sack.x - 54,
+                  y: floorY,
+                  duration: 360,
+                  ease: 'Sine.easeOut',
+                  onComplete: () => {
+                    catSprite.play('granary-v6-cat-idle', true)
+                    done()
+                  },
+                })
+              },
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'carrySack') {
+        const sackX = sack.x
+        const deckY = floorY - 24
+        const bridgeRightX = bridgeDown.x + bridgeDown.displayWidth * 0.34
+        const bridgeLeftX = bridgeDown.x - bridgeDown.displayWidth * 0.34
+        catSprite.play('granary-v6-cat-walk', true)
+        this.addTween({
+          targets: catSprite,
+          x: sackX - 34,
+          duration: 360,
+          onComplete: () => {
+            sack.setVisible(false)
+            catSprite.setVisible(false)
+            catAction.setVisible(true)
+            catAction.setPosition(sackX - 18, floorY)
+            catAction.setDisplaySize(120, 120)
+            catAction.play('granary-v6-cat-carry', true)
+            this.addTween({
+              targets: catAction,
+              x: bridgeRightX,
+              y: deckY,
+              duration: 420,
+              ease: 'Sine.easeInOut',
+              onComplete: () => {
+                this.addTween({
+                  targets: catAction,
+                  x: bridgeLeftX,
+                  y: deckY,
+                  duration: 1050,
+                  ease: 'Linear',
+                  onComplete: () => {
+                    this.addTween({
+                      targets: catAction,
+                      x: playLeft + 92,
+                      y: floorY,
+                      duration: 360,
+                      ease: 'Sine.easeOut',
+                      onComplete: () => {
+                        catAction.setVisible(false)
+                        setMainCharacter(catSprite, playLeft + 92, floorY, 102, 'granary-v6-cat-idle')
+                        done()
+                      },
+                    })
+                  },
+                })
+              },
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'loadCart') {
+        const sackX = sack.x
+        const cartX = cart.x
+        catSprite.play('granary-v6-cat-walk', true)
+        this.addTween({
+          targets: catSprite,
+          x: sackX - 38,
+          duration: 520,
+          onComplete: () => {
+            sack.setVisible(false)
+            catSprite.setVisible(false)
+            catAction.setVisible(true)
+            catAction.setPosition(sackX - 18, floorY)
+            catAction.setDisplaySize(120, 120)
+            catAction.play('granary-v6-cat-carry', true)
+            this.addTween({
+              targets: catAction,
+              x: cartX - 78,
+              duration: 1050,
+              ease: 'Sine.easeInOut',
+              onComplete: () => {
+                catAction.setVisible(false)
+                cart.setTexture('granary_cart_loaded').setDisplaySize(138, 100)
+                setMainCharacter(catSprite, cartX - 88, floorY, 102, 'granary-v6-cat-idle')
+                done()
+              },
+            })
+          },
+        })
+        return
+      }
+
+      if (step.animation === 'removePeg') {
+        const pegX = wheelPeg.x
+        mouseSprite.play('granary-v6-mouse-walk', true)
+        this.addTween({
+          targets: mouseSprite,
+          x: pegX - 32,
+          duration: 650,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            mouseSprite.play('granary-v6-mouse-idle', true)
+            this.addTween({
+              targets: mouseSprite,
+              angle: { from: 0, to: -10 },
+              x: mouseSprite.x - 10,
+              duration: 260,
+              yoyo: true,
+              repeat: 1,
+            })
+            this.addTween({
+              targets: wheelPeg,
+              x: wheelPeg.x - 38,
+              y: wheelPeg.y + 26,
+              angle: -70,
+              alpha: 0,
+              duration: 760,
+              ease: 'Cubic.easeOut',
+              onComplete: () => {
+                wheelPeg.setVisible(false).setAlpha(1)
+                cart.setTexture('granary_cart_loaded').setDisplaySize(138, 100)
+                done()
+              },
+            })
+          },
+        })
+        return
+      }
+
+      const cartX = cart.x
+      catSprite.play('granary-v6-cat-walk', true)
+      this.addTween({
+        targets: catSprite,
+        x: cartX - 82,
+        duration: 420,
+        onComplete: () => {
+          cart.setTexture('granary_cart_moving').setDisplaySize(138, 100)
+          catSprite.play('granary-v6-cat-walk', true)
+          mouseSprite.play('granary-v6-mouse-walk', true)
+          const travel = sceneWidth * 0.25
+          this.addTween({
+            targets: cart,
+            x: cart.x + travel,
+            duration: 1700,
+            ease: 'Sine.easeInOut',
+          })
+          this.addTween({
+            targets: catSprite,
+            x: catSprite.x + travel,
+            duration: 1700,
+            ease: 'Sine.easeInOut',
+          })
+          this.addTween({
+            targets: mouseSprite,
+            x: mouseSprite.x + travel,
+            duration: 1700,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+              cart.setVisible(false)
+              setMainCharacter(catSprite, sceneCenterX - 46, floorY, 108, 'granary-v6-cat-celebrate')
+              setMainCharacter(mouseSprite, sceneCenterX + 46, floorY, 78, 'granary-v6-mouse-idle')
+              done()
+            },
+          })
+        },
+      })
+
+    }
+
+    const finishGame = (success: boolean) => {
+      if (state === 'finished') return
+      state = 'finished'
+      clearTargetInteractions()
+      setInteractionsEnabled(false)
+      setButtonVisible(actionButton, false)
+      setButtonVisible(startButton, false)
+      setCharacterControlsVisible(false)
+      hideProps()
+      stopActionSprites()
+
+      if (success) {
+        objectiveText.setText('GRANARY RESCUED')
+        statusText.setText('The cat and mouse celebrate their teamwork.')
+        setMainCharacter(catSprite, sceneCenterX - 46, floorY, 108, 'granary-v6-cat-celebrate')
+        setMainCharacter(mouseSprite, sceneCenterX + 46, floorY, 78, 'granary-v6-mouse-idle')
+        this.container.bringToTop(catSprite)
+        this.container.bringToTop(mouseSprite)
+        this.addTween({
+          targets: mouseSprite,
+          y: floorY - 10,
+          angle: { from: -4, to: 4 },
+          duration: 230,
+          yoyo: true,
+          repeat: 3,
+          ease: 'Sine.easeInOut',
+        })
+      }
+
+      this.complete(
+        {
+          success,
+          response: success
+            ? 'The gate opens, the grain is recovered, and the final cart reaches storage.'
+            : 'The friends lose their rhythm. The grain merchant asks you to try again.',
+          goldDelta: success ? 45 : 0,
+          reputationDelta: success ? 3 : 0,
+          itemKey: success ? 'grain_bundle' : undefined,
+        },
+        success ? 1650 : 750
+      )
+    }
+
+    const advanceStep = () => {
+      const round = currentRound()
+      if (!round) {
+        finishGame(true)
+        return
+      }
+
+      stepIndex += 1
+
+      if (stepIndex >= round.steps.length) {
+        completedStages += 1
+        score += 30
+        roundIndex += 1
+        stepIndex = 0
+
+        if (roundIndex >= rounds.length) {
+          updateProgress()
+          hudText.setText(`FRIENDSHIP ${Array.from({ length: 3 }, (_value, index) => (index < friendship ? '♥' : '♡')).join(' ')}   •   STAGES 3/3   •   SCORE ${score}`)
+          finishGame(true)
+          return
+        }
+
+        state = 'transition'
+        clearTargetInteractions()
+        objectiveText.setText(`${round.shortTitle} COMPLETE  •  NEXT: ${currentRound().title}`)
+        statusText.setText(currentRound().intro)
+        this.schedule(950, () => {
+          state = 'playing'
+          configureScene()
+          setInteractionsEnabled(true)
+          updateSelection()
+          updateHud()
+        })
+        return
+      }
+
+      state = 'playing'
+      configureScene()
+      setInteractionsEnabled(true)
+      updateSelection()
+      updateHud()
+    }
+
+    const performAction = () => {
+      if (state !== 'playing') return
+      const step = currentStep()
+
+      if (selectedFriend !== step.actor) {
+        friendship -= 1
+        score = Math.max(0, score - 8)
+        updateHud()
+        statusText.setText(selectedFriend === 'cat' ? 'This task needs the mouse.' : 'This task needs the cat.')
+        const wrongTarget = selectedFriend === 'cat' ? catSprite : mouseSprite
+        this.addTween({
+          targets: wrongTarget,
+          angle: { from: -6, to: 6 },
+          duration: 75,
+          repeat: 3,
+          yoyo: true,
+        })
+        if (friendship <= 0) finishGame(false)
+        return
+      }
+
+      state = 'animating'
+      score += 20
+      setInteractionsEnabled(false)
+      statusText.setText(`Working together: ${step.action.toLowerCase()}...`)
+      runActionAnimation(step, advanceStep)
+    }
+
+    const startGame = () => {
+      if (state !== 'ready') return
+      state = 'playing'
+      roundIndex = 0
+      stepIndex = 0
+      friendship = 3
+      completedStages = 0
+      score = 0
+      selectedFriend = 'cat'
+      setButtonVisible(startButton, false)
+      setButtonVisible(actionButton, true)
+      setCharacterControlsVisible(true)
+      configureScene()
+      setInteractionsEnabled(true)
+      updateSelection()
+      updateHud()
+    }
+
+    actionButton = this.createButton(
+      actionX,
+      controlsY,
+      250,
+      42,
+      'DO TASK',
+      performAction,
+      0x8b5a2b,
+      14
+    )
+
+    startButton = this.createButton(
+      sceneCenterX,
+      controlsY,
+      282,
+      42,
+      'BEGIN THE GRANARY PACT',
+      startGame,
+      0x8b5a2b,
+      14
+    )
+
+    setButtonVisible(actionButton, false)
+    setCharacterControlsVisible(false)
+    setupReadyScene()
+    updateSelection()
+    updateHud()
+  }
+
+
+
+
 }
