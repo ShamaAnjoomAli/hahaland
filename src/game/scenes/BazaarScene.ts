@@ -503,25 +503,6 @@ this.hud.setReputation(this.reputation)
       return
     }
 
-    if (this.completedMarkets.has(npcName)) {
-      this.dialogue.show(
-        [
-          {
-            text: 'We already finished business here.',
-            portraitKey: nearest.texture.key,
-          },
-          {
-            text: 'The merchant is still emotionally recovering.',
-            portraitKey: nearest.texture.key,
-          },
-        ],
-        undefined,
-        nearest.texture.key,
-      )
-
-      return
-    }
-
     this.startMarketMinigame(npcName, nearest.texture.key, config)
   }
 
@@ -573,9 +554,15 @@ this.hud.setReputation(this.reputation)
             this.refreshMerchantHighlight(npcName)
             this.refreshMinimapNpcDot(npcName)
 
-            this.objectiveBox.setText(
-              `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`,
-            )
+            if (this.completedMarkets.size >= 7) {
+              this.objectiveBox.setText(
+                'Objective: Exit the bazaar through the entrance gate, or replay markets for more gold and reputation.'
+              )
+            } else {
+              this.objectiveBox.setText(
+                `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`
+              )
+            }
 
             if (this.completedMarkets.size >= 7) {
               this.dialogue.show(

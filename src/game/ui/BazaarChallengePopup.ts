@@ -75,8 +75,9 @@ export default class BazaarChallengePopup {
     this.container.removeAll(true)
     this.container.setVisible(true)
     this.createBase()
+this.createExitButton()
 
-    switch (config.gameId) {
+switch (config.gameId) {
       case 'map-bargain':
         this.ensureReedMarshAssets(() => {
           this.createMapBargainGame()
@@ -8639,6 +8640,64 @@ ${roundSettings.introText}`, {
   }
 
 
-
+  private createExitButton() {
+    const width = this.scene.scale.width
+    const height = this.scene.scale.height
+  
+    const size = 30
+  
+    const x =
+      width / 2 + this.panelWidth / 2 - 24
+  
+    const y =
+      height / 2 - this.panelHeight / 2 + 24
+  
+    const bg = this.scene.add.rectangle(
+      x,
+      y,
+      size,
+      size,
+      0x5a1111,
+      1
+    )
+  
+    bg.setStrokeStyle(2, 0xffffff, 0.85)
+    bg.setScrollFactor(0)
+    bg.setInteractive({
+      useHandCursor: true,
+    })
+  
+    const text = this.scene.add.text(
+      x,
+      y - 1,
+      '×',
+      {
+        fontFamily: 'Arial',
+        fontSize: '24px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+  
+    text.setOrigin(0.5)
+    text.setScrollFactor(0)
+  
+    bg.on('pointerover', () => {
+      bg.setFillStyle(0x8a1c1c, 1)
+    })
+  
+    bg.on('pointerout', () => {
+      bg.setFillStyle(0x5a1111, 1)
+    })
+  
+    bg.on('pointerdown', () => {
+      if (this.resultLocked) return
+      this.hide()
+    })
+  
+    this.container.add([bg, text])
+  }
 
 }
