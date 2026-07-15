@@ -129,11 +129,68 @@ export default class BazaarScene extends Phaser.Scene {
 
     this.worldObjects.push(background)
 
-    this.gateForeground = this.add.image(639.5, 870, 'bazaar-gate-foreground')
-
+    const cachedBazaarMap = this.cache.tilemap.get(
+      'egypt_bazaar'
+    ) as
+      | {
+          data?: {
+            layers?: Array<{
+              name?: string
+              type?: string
+              x?: number
+              y?: number
+              offsetx?: number
+              offsety?: number
+              imagewidth?: number
+              imageheight?: number
+              opacity?: number
+              visible?: boolean
+            }>
+          }
+        }
+      | undefined
+    
+    const foregroundGateLayer =
+      cachedBazaarMap?.data?.layers?.find(
+        (layer) =>
+          layer.type === 'imagelayer' &&
+          layer.name === 'ForegroundGate'
+      )
+    
+    const foregroundGateX =
+      (foregroundGateLayer?.x ?? 0) +
+      (foregroundGateLayer?.offsetx ?? 0)
+    
+    const foregroundGateY =
+      (foregroundGateLayer?.y ?? 0) +
+      (foregroundGateLayer?.offsety ?? 0)
+    
+    this.gateForeground = this.add.image(
+      foregroundGateX,
+      foregroundGateY,
+      'bazaar-gate-foreground'
+    )
+    
     this.gateForeground.setOrigin(0, 0)
     this.gateForeground.setDepth(9000)
-
+    this.gateForeground.setAlpha(
+      foregroundGateLayer?.opacity ?? 1
+    )
+    this.gateForeground.setVisible(
+      foregroundGateLayer?.visible !== false
+    )
+    
+    // Match the size shown in Tiled.
+    if (
+      foregroundGateLayer?.imagewidth &&
+      foregroundGateLayer?.imageheight
+    ) {
+      this.gateForeground.setDisplaySize(
+        foregroundGateLayer.imagewidth,
+        foregroundGateLayer.imageheight
+      )
+    }
+    
     this.worldObjects.push(this.gateForeground)
 
     const mapWidth = map.widthInPixels || background.width
@@ -170,7 +227,7 @@ export default class BazaarScene extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15)
 
-    this.cameras.main.setZoom(0.7)
+    this.cameras.main.setZoom(0.55)
 
     this.createBazaarMinimap(mapWidth, mapHeight)
 
