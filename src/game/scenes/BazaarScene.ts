@@ -249,7 +249,7 @@ this.hud.setReputation(this.reputation)
         this.hud.setTime(remainingSeconds)
       },
       {
-        totalSeconds: 600,
+        totalSeconds: 3600,
       },
     )
 

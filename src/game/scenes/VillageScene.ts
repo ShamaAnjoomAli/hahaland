@@ -102,7 +102,7 @@ export default class VillageScene extends Phaser.Scene {
   // Timer and gold HUD
   private hud!: GameHUD
   private coins = 1000
-  private remainingTime = 120 // in seconds
+  private remainingTime = 3600 // in seconds
   private timerEvent!: Phaser.Time.TimerEvent
   private isTimeUp = false
 
@@ -469,7 +469,7 @@ this.hud.setReputation(this.reputation)
         this.hud.setTime(remainingSeconds)
       },
       {
-        totalSeconds: 600,
+        totalSeconds: 3600,
       }
     )
     
