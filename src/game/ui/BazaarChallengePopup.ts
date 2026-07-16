@@ -9,6 +9,8 @@ export type BazaarGameId =
   | 'donkey-race'
   | 'eagle-delivery'
   | 'grain-pact'
+  | 'grain-pact-old'
+  | 'grain-friends'
 
 export type BazaarMinigameResult = {
   success: boolean
@@ -22,6 +24,7 @@ type BazaarChallengeConfig = {
   gameId: BazaarGameId
   portraitKey?: string
   onComplete: (result: BazaarMinigameResult) => void
+  alreadyCompleted?: boolean
 }
 
 type ButtonHandle = {
@@ -45,6 +48,7 @@ export default class BazaarChallengePopup {
   private isVisible = false
   private currentOnComplete?: (result: BazaarMinigameResult) => void
   private resultLocked = false
+  private currentAlreadyCompleted = false
 
   private panelWidth = 760
   private panelHeight = 600
@@ -72,15 +76,16 @@ export default class BazaarChallengePopup {
     this.isVisible = true
     this.resultLocked = false
     this.currentOnComplete = config.onComplete
+    this.currentAlreadyCompleted = config.alreadyCompleted === true
     this.lives = 3
     this.livesText = undefined
 
     this.container.removeAll(true)
     this.container.setVisible(true)
     this.createBase()
-this.createExitButton()
+    this.createExitButton()
 
-switch (config.gameId) {
+    switch (config.gameId) {
       case 'map-bargain':
         this.ensureReedMarshAssets(() => {
           this.createMapBargainGame()
@@ -115,8 +120,14 @@ switch (config.gameId) {
         })
         break
       case 'grain-pact':
+      case 'grain-pact-old':
         this.ensureGranaryPactAssets(() => {
           this.createGranaryPactGame()
+        })
+        break
+      case 'grain-friends':
+        this.ensureGranaryFriendsAssets(() => {
+          this.createGranaryFriendsGame()
         })
         break
     }
@@ -128,6 +139,7 @@ switch (config.gameId) {
     this.isVisible = false
     this.resultLocked = false
     this.currentOnComplete = undefined
+    this.currentAlreadyCompleted = false
     this.container.removeAll(true)
     this.container.setVisible(false)
   }
@@ -1467,6 +1479,1385 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     })
 
     if (!this.scene.load.isLoading()) this.scene.load.start()
+  }
+
+  private ensureGranaryFriendsAssets(onReady: () => void) {
+    const imageAssets = [
+      {
+        key: 'granary_friends_bg',
+        path: 'assets/minigames/granary_friends/granary_background.png',
+      },
+      {
+        key: 'granary_friends_cat_icon',
+        path: 'assets/minigames/granary_friends/granary_cat_icon.png',
+      },
+      {
+        key: 'granary_friends_failure',
+        path: 'assets/minigames/granary_friends/granary_failure.png',
+      },
+    ]
+
+    const sheetAssets = [
+      {
+        key: 'granary_friends_cat',
+        path: 'assets/minigames/granary_friends/granary_cat_sheet.png',
+        frameWidth: 256,
+        frameHeight: 256,
+      },
+      {
+        key: 'granary_friends_mouse',
+        path: 'assets/minigames/granary_friends/granary_mouse_sheet.png',
+        frameWidth: 240,
+        frameHeight: 180,
+      },
+      {
+        key: 'granary_friends_merchant',
+        path: 'assets/minigames/granary_friends/granary_merchant_sheet.png',
+        frameWidth: 240,
+        frameHeight: 220,
+      },
+      {
+        key: 'granary_friends_containers',
+        path: 'assets/minigames/granary_friends/granary_containers_sheet.png',
+        frameWidth: 280,
+        frameHeight: 230,
+      },
+      {
+        key: 'granary_friends_props',
+        path: 'assets/minigames/granary_friends/granary_props_sheet.png',
+        frameWidth: 240,
+        frameHeight: 200,
+      },
+      {
+        key: 'granary_friends_icons',
+        path: 'assets/minigames/granary_friends/granary_phase_icons.png',
+        frameWidth: 320,
+        frameHeight: 320,
+      },
+      {
+        key: 'granary_friends_effects',
+        path: 'assets/minigames/granary_friends/granary_effects_sheet.png',
+        frameWidth: 150,
+        frameHeight: 120,
+      },
+    ]
+
+    const missingImages = imageAssets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+    const missingSheets = sheetAssets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingImages.length === 0 && missingSheets.length === 0) {
+      this.ensureGranaryFriendsAnimations()
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(470, this.panelWidth - 80),
+      112,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Opening the Grain Merchant storehouse...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: { width: Math.min(410, this.panelWidth - 110) },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+    const watchedKeys = new Set([
+      ...missingImages.map((asset) => asset.key),
+      ...missingSheets.map((asset) => asset.key),
+    ])
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (watchedKeys.has(String(file.key))) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (!this.isVisible || session !== this.sessionId) return
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissing = [
+        ...imageAssets,
+        ...sheetAssets,
+      ].filter((asset) => !this.scene.textures.exists(asset.key))
+
+      if (loadFailed || stillMissing.length > 0) {
+        const missingPaths = stillMissing
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load the Granary Friends artwork.\n\n${missingPaths}\n\nCopy the granary_friends folder into public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(14)
+        return
+      }
+
+      this.ensureGranaryFriendsAnimations()
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingImages.forEach((asset) => {
+      this.scene.load.image(asset.key, asset.path)
+    })
+
+    missingSheets.forEach((asset) => {
+      this.scene.load.spritesheet(asset.key, asset.path, {
+        frameWidth: asset.frameWidth,
+        frameHeight: asset.frameHeight,
+      })
+    })
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
+  }
+
+  private ensureGranaryFriendsAnimations() {
+    const create = (
+      key: string,
+      texture: string,
+      frames: number[],
+      frameRate: number,
+      repeat = -1,
+      yoyo = false
+    ) => {
+      if (this.scene.anims.exists(key)) return
+
+      this.scene.anims.create({
+        key,
+        frames: frames.map((frame) => ({ key: texture, frame })),
+        frameRate,
+        repeat,
+        yoyo,
+      })
+    }
+
+    // The clean cat sheet supplied for this minigame is a 4 x 6 grid.
+    create('granary-cat-idle', 'granary_friends_cat', [0, 1, 2, 3], 4)
+    create('granary-cat-walk', 'granary_friends_cat', [4, 5, 6, 7], 8)
+    create('granary-cat-run', 'granary_friends_cat', [4, 5, 6, 7], 13)
+    create('granary-cat-search', 'granary_friends_cat', [8, 9, 10, 11], 7, 0)
+    create('granary-cat-carry', 'granary_friends_cat', [12, 13, 14, 15], 7)
+    create('granary-cat-push', 'granary_friends_cat', [16, 17, 18, 19], 7, 0)
+    create('granary-cat-happy', 'granary_friends_cat', [20, 21, 22, 23], 7, 1, true)
+    create('granary-cat-surprised', 'granary_friends_cat', [8, 9, 10, 11], 10, 0, true)
+    create('granary-cat-panic', 'granary_friends_cat', [4, 5, 6, 7], 15)
+
+    // Mouse sheet: 6 columns x 10 rows. Frames 0, 1, 4 and 5 are not
+    // valid single-mouse idle cells: some are blank and some contain two mice
+    // inside one sliced frame. Frames 2 and 3 are the clean matching poses.
+    // Remove any stale definitions left by Vite hot reload before recreating
+    // these two animations with the corrected frames.
+    if (this.scene.anims.exists('granary-mouse-idle')) {
+      this.scene.anims.remove('granary-mouse-idle')
+    }
+    if (this.scene.anims.exists('granary-mouse-idle-stable')) {
+      this.scene.anims.remove('granary-mouse-idle-stable')
+    }
+    create('granary-mouse-idle', 'granary_friends_mouse', [2, 3], 3)
+    create('granary-mouse-idle-stable', 'granary_friends_mouse', [2, 3], 3)
+    create('granary-mouse-run', 'granary_friends_mouse', [8, 9, 10, 11], 12)
+    create('granary-mouse-notice', 'granary_friends_mouse', [12, 13, 14, 15], 6, 0)
+    create('granary-mouse-push', 'granary_friends_mouse', [18, 19, 20, 21, 22, 23], 8, 0)
+    create('granary-mouse-carry', 'granary_friends_mouse', [24, 25, 26, 27, 28, 29], 8, 0)
+    create('granary-mouse-sweep', 'granary_friends_mouse', [30, 31, 32, 33, 34, 35], 9, 0)
+    create('granary-mouse-tidy', 'granary_friends_mouse', [36, 37, 38, 39, 40, 41], 8, 0)
+    create('granary-mouse-happy', 'granary_friends_mouse', [42, 43, 44, 45], 8, 1, true)
+    create('granary-mouse-nervous', 'granary_friends_mouse', [48, 50, 51, 53], 8, -1, true)
+    create('granary-mouse-panic', 'granary_friends_mouse', [54, 55, 56, 57, 58], 14)
+
+    // Merchant sheet: 6 columns x 6 rows.
+    create('granary-merchant-idle', 'granary_friends_merchant', [0, 1, 2, 3, 4, 5], 4)
+    create('granary-merchant-walk', 'granary_friends_merchant', [6, 7, 8, 9, 10, 11], 8)
+    create('granary-merchant-inspect', 'granary_friends_merchant', [12, 13, 14, 15, 16, 17], 6, 0, true)
+    create('granary-merchant-notice', 'granary_friends_merchant', [18, 19, 20, 21, 22], 8, 0)
+    create('granary-merchant-angry', 'granary_friends_merchant', [24, 25, 26, 27, 28], 9, 0, true)
+    create('granary-merchant-chase', 'granary_friends_merchant', [30, 31, 32, 33, 34, 35], 11)
+
+    create('granary-effect-dust', 'granary_friends_effects', [0, 1, 2, 3, 4, 5, 6, 7], 12, 0)
+    create('granary-effect-sparkle', 'granary_friends_effects', [8, 9, 10, 11, 12, 13, 14, 15], 12, 0)
+    create('granary-effect-warning', 'granary_friends_effects', [16, 17, 18, 19, 20, 21, 22, 23], 10)
+    create('granary-effect-success', 'granary_friends_effects', [24, 25, 26, 27, 28, 29, 30, 31], 12, 0)
+    create('granary-effect-panic', 'granary_friends_effects', [32, 33, 34, 35, 36, 37, 38, 39], 12, 0)
+  }
+
+  private createGranaryFriendsGame() {
+    type GranaryState =
+      | 'round-start'
+      | 'cat-search'
+      | 'cat-moving'
+      | 'mouse-cleanup'
+      | 'round-complete'
+      | 'merchant-return'
+      | 'success'
+      | 'failure'
+
+    type ContainerType = 'sack' | 'pot' | 'basket' | 'crate' | 'jar' | 'chest'
+    type CleanupKind = 'container' | 'grain' | 'lid' | 'cloth' | 'rope' | 'straw'
+
+    type ContainerSlot = {
+      id: string
+      type: ContainerType
+      typeIndex: number
+      x: number
+      y: number
+      sprite: Phaser.GameObjects.Sprite
+      searched: boolean
+      containsTarget: boolean
+      cleanupComplete: boolean
+    }
+
+    type CleanupTask = {
+      id: string
+      kind: CleanupKind
+      x: number
+      y: number
+      sprite: Phaser.GameObjects.Sprite
+      slot?: ContainerSlot
+      complete: boolean
+    }
+
+    const rounds = [
+      {
+        targetFrame: 0,
+        targetLabel: 'cheese wedge',
+        visibleContainers: 4,
+        cleanupSeconds: 12,
+        minimumCleanupTasks: 3,
+      },
+      {
+        targetFrame: 1,
+        targetLabel: 'grain bun',
+        visibleContainers: 5,
+        cleanupSeconds: 10,
+        minimumCleanupTasks: 4,
+      },
+      {
+        targetFrame: 3,
+        targetLabel: 'wheat-and-honey cake',
+        visibleContainers: 6,
+        cleanupSeconds: 9,
+        minimumCleanupTasks: 5,
+      },
+    ] as const
+
+    const width = this.scene.scale.width
+    const top = this.getPanelTop()
+    const bottom = this.getPanelBottom()
+    const stageWidth = this.panelWidth - 42
+
+    // Reserve a permanent footer below the gameplay image. The previous
+    // layout allowed the gameplay image to grow too close to the popup bottom
+    // on short screens, placing the phase icons over the action and success
+    // presentation.
+    const granaryFooterHeight = 92
+    const stageHeight = Phaser.Math.Clamp(
+      this.panelHeight - 82 - granaryFooterHeight - 24,
+      270,
+      370
+    )
+    const stageX = width / 2
+    const stageTop = top + 82
+    const stageBottom = stageTop + stageHeight
+    const stageY = stageTop + stageHeight / 2
+    const stageLeft = stageX - stageWidth / 2
+    const stageRight = stageX + stageWidth / 2
+
+    // The phase icons live in the dedicated popup footer, fully outside the
+    // granary animation screen at every supported viewport height.
+    const phaseIconY = bottom - 34
+    const phaseIconOffsetX = 38
+
+    const catHomeX = stageLeft + 66
+    const catHomeY = stageBottom - 75
+    const mouseHomeX = stageRight - 74
+    const mouseHomeY = stageBottom - 70
+
+    this.addTitle('Grain Merchant — Granary Friends')
+
+    const stageShadow = this.scene.add.rectangle(
+      stageX + 4,
+      stageY + 5,
+      stageWidth,
+      stageHeight,
+      0x000000,
+      0.5
+    )
+    const background = this.scene.add.image(stageX, stageY, 'granary_friends_bg')
+    background.setDisplaySize(stageWidth, stageHeight)
+
+    const stageBorder = this.scene.add.rectangle(
+      stageX,
+      stageY,
+      stageWidth,
+      stageHeight,
+      0x000000,
+      0
+    )
+    stageBorder.setStrokeStyle(3, 0xd4af37, 1)
+
+    const topHud = this.scene.add.rectangle(
+      stageX,
+      stageTop + 21,
+      stageWidth - 4,
+      42,
+      0x120b05,
+      0.82
+    )
+
+    const roundText = this.scene.add.text(
+      stageLeft + 18,
+      stageTop + 21,
+      'ROUND 1 / 3',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '15px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+    roundText.setOrigin(0, 0.5)
+
+    const timerLabel = this.scene.add.text(
+      stageRight - 18,
+      stageTop + 12,
+      'MERCHANT RETURNS',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '11px',
+        color: '#f1d49a',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }
+    )
+    timerLabel.setOrigin(1, 0.5)
+
+    const timerText = this.scene.add.text(
+      stageRight - 18,
+      stageTop + 30,
+      '--',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+    timerText.setOrigin(1, 0.5)
+
+    const statusPanel = this.scene.add.rectangle(
+      stageX,
+      stageTop + 61,
+      stageWidth - 120,
+      30,
+      0x120b05,
+      0.72
+    )
+    statusPanel.setStrokeStyle(1, 0xa8792c, 0.9)
+
+    const statusText = this.scene.add.text(
+      stageX,
+      stageTop + 61,
+      '',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '14px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+        align: 'center',
+        wordWrap: { width: stageWidth - 145 },
+      }
+    )
+    statusText.setOrigin(0.5)
+
+    const progressText = this.scene.add.text(
+      stageX,
+      stageBottom + 18,
+      '',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '14px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }
+    )
+    progressText.setOrigin(0.5)
+
+    const phaseTray = this.scene.add.rectangle(
+      stageX,
+      phaseIconY,
+      132,
+      54,
+      0x120b05,
+      0.92
+    )
+    phaseTray.setStrokeStyle(2, 0xa8792c, 0.95)
+
+    const catIconGlow = this.scene.add.circle(
+      stageX - phaseIconOffsetX,
+      phaseIconY,
+      27,
+      0xffd966,
+      0.24
+    )
+    catIconGlow.setStrokeStyle(2, 0xffd966, 1)
+    const mouseIconGlow = this.scene.add.circle(
+      stageX + phaseIconOffsetX,
+      phaseIconY,
+      27,
+      0x67d7e8,
+      0.08
+    )
+    mouseIconGlow.setStrokeStyle(2, 0x67d7e8, 0.45)
+
+    const catIcon = this.scene.add.sprite(
+      stageX - phaseIconOffsetX,
+      phaseIconY,
+      'granary_friends_icons',
+      0
+    )
+    catIcon.setDisplaySize(47, 47)
+    const mouseIcon = this.scene.add.sprite(
+      stageX + phaseIconOffsetX,
+      phaseIconY,
+      'granary_friends_icons',
+      3
+    )
+    mouseIcon.setDisplaySize(47, 47)
+
+    const catSprite = this.scene.add.sprite(
+      catHomeX,
+      catHomeY,
+      'granary_friends_cat',
+      0
+    )
+    catSprite.setScale(0.34)
+    catSprite.play('granary-cat-idle')
+
+    const mouseSprite = this.scene.add.sprite(
+      mouseHomeX,
+      mouseHomeY,
+      'granary_friends_mouse',
+      2
+    )
+    mouseSprite.setScale(0.36)
+    mouseSprite.play('granary-mouse-idle-stable')
+
+    const merchantSprite = this.scene.add.sprite(
+      stageRight + 80,
+      stageBottom - 91,
+      'granary_friends_merchant',
+      6
+    )
+    merchantSprite.setScale(0.43)
+    merchantSprite.setVisible(false)
+
+    ;[
+      stageShadow,
+      background,
+      stageBorder,
+      topHud,
+      roundText,
+      timerLabel,
+      timerText,
+      statusPanel,
+      statusText,
+      progressText,
+      phaseTray,
+      catIconGlow,
+      mouseIconGlow,
+      catIcon,
+      mouseIcon,
+      catSprite,
+      mouseSprite,
+      merchantSprite,
+    ].forEach((object) => this.addObject(object))
+
+    const containerTypes: Array<{ type: ContainerType; typeIndex: number }> = [
+      { type: 'sack', typeIndex: 0 },
+      { type: 'pot', typeIndex: 1 },
+      { type: 'basket', typeIndex: 2 },
+      { type: 'crate', typeIndex: 3 },
+      { type: 'jar', typeIndex: 4 },
+      { type: 'chest', typeIndex: 5 },
+    ]
+
+    // These coordinates match the six woven placement mats painted into the
+    // granary background. Keeping the slots fixed prevents pots and chests
+    // from floating between mats or drifting into the character lanes.
+    const slotPositions = [
+      { x: stageLeft + stageWidth * 0.25, y: stageTop + stageHeight * 0.57 },
+      { x: stageLeft + stageWidth * 0.50, y: stageTop + stageHeight * 0.57 },
+      { x: stageLeft + stageWidth * 0.75, y: stageTop + stageHeight * 0.57 },
+      { x: stageLeft + stageWidth * 0.25, y: stageTop + stageHeight * 0.735 },
+      { x: stageLeft + stageWidth * 0.50, y: stageTop + stageHeight * 0.735 },
+      { x: stageLeft + stageWidth * 0.75, y: stageTop + stageHeight * 0.735 },
+    ]
+
+    const clutterPositions = [
+      { x: stageLeft + stageWidth * 0.22, y: stageTop + stageHeight * 0.67 },
+      { x: stageLeft + stageWidth * 0.40, y: stageTop + stageHeight * 0.69 },
+      { x: stageLeft + stageWidth * 0.59, y: stageTop + stageHeight * 0.68 },
+      { x: stageLeft + stageWidth * 0.78, y: stageTop + stageHeight * 0.68 },
+      { x: stageLeft + stageWidth * 0.40, y: stageTop + stageHeight * 0.88 },
+      { x: stageLeft + stageWidth * 0.60, y: stageTop + stageHeight * 0.88 },
+    ]
+
+    let state: GranaryState = 'round-start'
+    let roundIndex = 0
+    let inputLocked = false
+    let wrongSearchesThisRound = 0
+    let totalWrongSearches = 0
+    let cleanedTasks = 0
+    let cleanupSecondsRemaining = 0
+    let totalCleanupTimeRemaining = 0
+    let cleanupTimer: Phaser.Time.TimerEvent | undefined
+    let warningSprite: Phaser.GameObjects.Sprite | undefined
+    let rewardSprite: Phaser.GameObjects.Sprite | undefined
+    let slots: ContainerSlot[] = []
+    let cleanupTasks: CleanupTask[] = []
+    let roundObjects: Phaser.GameObjects.GameObject[] = []
+
+    // All Granary Friends objects live inside the same Phaser Container. In a
+    // Container, children added later can cover children added earlier even
+    // when the character is meant to act in front of them. Reapply a stable
+    // layer order whenever round props/effects are created or a character
+    // begins an action.
+    const refreshGranaryLayerOrder = () => {
+      const bringToTop = (object?: Phaser.GameObjects.GameObject) => {
+        if (object?.active) {
+          this.container.bringToTop(object)
+        }
+      }
+
+      // Characters always remain readable above searchable objects and loose
+      // clutter. This prevents search, tidy and merchant animations from being
+      // hidden behind sacks, crates, pots or baskets.
+      bringToTop(catSprite)
+      bringToTop(mouseSprite)
+      bringToTop(merchantSprite)
+
+      // Temporary gameplay effects sit above the characters.
+      bringToTop(rewardSprite)
+      bringToTop(warningSprite)
+
+      // HUD and phase indicators always remain above the gameplay layer.
+      ;[
+        stageBorder,
+        topHud,
+        roundText,
+        timerLabel,
+        timerText,
+        statusPanel,
+        statusText,
+        progressText,
+        phaseTray,
+        catIconGlow,
+        mouseIconGlow,
+        catIcon,
+        mouseIcon,
+      ].forEach((object) => bringToTop(object))
+    }
+
+    const setPhase = (phase: 'cat' | 'mouse') => {
+      const catActive = phase === 'cat'
+
+      // setDisplaySize() converts the requested 47px size into a small texture
+      // scale. Tweening the icon to an absolute scale of 1.1 made it expand to
+      // several hundred pixels. Keep both icons at a fixed display size and
+      // communicate the active phase using frames, alpha and the glow only.
+      this.scene.tweens.killTweensOf(catIcon)
+      this.scene.tweens.killTweensOf(mouseIcon)
+
+      catIcon.setFrame(catActive ? 0 : 1)
+      mouseIcon.setFrame(catActive ? 3 : 2)
+      catIcon.setDisplaySize(47, 47)
+      mouseIcon.setDisplaySize(47, 47)
+      catIcon.setAlpha(catActive ? 1 : 0.46)
+      mouseIcon.setAlpha(catActive ? 0.46 : 1)
+      catIconGlow.setFillStyle(0xffd966, catActive ? 0.28 : 0.05)
+      catIconGlow.setStrokeStyle(2, 0xffd966, catActive ? 1 : 0.35)
+      mouseIconGlow.setFillStyle(0x67d7e8, catActive ? 0.05 : 0.24)
+      mouseIconGlow.setStrokeStyle(2, 0x67d7e8, catActive ? 0.35 : 1)
+      refreshGranaryLayerOrder()
+    }
+
+    const frameForContainer = (typeIndex: number, stateIndex: number) =>
+      typeIndex * 4 + stateIndex
+
+    const destroyRoundObjects = () => {
+      cleanupTimer?.remove(false)
+      cleanupTimer = undefined
+      warningSprite?.destroy()
+      warningSprite = undefined
+      rewardSprite?.destroy()
+      rewardSprite = undefined
+
+      roundObjects.forEach((object) => {
+        if (object.active) object.destroy()
+      })
+      roundObjects = []
+      slots = []
+      cleanupTasks = []
+      cleanedTasks = 0
+    }
+
+    const isLiveGranarySprite = (
+      sprite?: Phaser.GameObjects.Sprite
+    ): sprite is Phaser.GameObjects.Sprite =>
+      Boolean(sprite?.active && sprite.scene?.sys)
+
+    const disableGranarySpriteInput = (
+      sprite?: Phaser.GameObjects.Sprite
+    ) => {
+      if (!isLiveGranarySprite(sprite)) return
+
+      // Phaser's disableInteractive() reaches through sprite.scene.sys.
+      // Destroyed cleanup sprites no longer have a scene, so calling it on
+      // them throws "Cannot read properties of undefined (reading 'sys')".
+      if (sprite.input) {
+        sprite.disableInteractive()
+      }
+    }
+
+    const enableGranarySpriteInput = (
+      sprite?: Phaser.GameObjects.Sprite
+    ) => {
+      if (!isLiveGranarySprite(sprite)) return
+      sprite.setInteractive({ useHandCursor: true })
+    }
+
+    const disableContainerInput = () => {
+      slots.forEach((slot) => disableGranarySpriteInput(slot.sprite))
+    }
+
+    const enableAvailableContainerInput = () => {
+      if (state !== 'cat-search' || inputLocked) return
+      slots.forEach((slot) => {
+        if (!slot.searched) {
+          enableGranarySpriteInput(slot.sprite)
+        }
+      })
+    }
+
+    const moveCharacter = (
+      sprite: Phaser.GameObjects.Sprite,
+      x: number,
+      y: number,
+      duration: number,
+      animationKey: string,
+      onComplete: () => void
+    ) => {
+      refreshGranaryLayerOrder()
+      sprite.setFlipX(x < sprite.x)
+      sprite.play(animationKey, true)
+      this.addTween({
+        targets: sprite,
+        x,
+        y,
+        duration,
+        ease: 'Sine.easeInOut',
+        onComplete,
+      })
+    }
+
+    const playEffect = (
+      animationKey: string,
+      x: number,
+      y: number,
+      scale = 0.65
+    ) => {
+      const effect = this.scene.add.sprite(x, y, 'granary_friends_effects', 0)
+      effect.setScale(scale)
+      this.addObject(effect)
+      refreshGranaryLayerOrder()
+      effect.play(animationKey)
+      effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        effect.destroy()
+      })
+      this.schedule(1200, () => {
+        if (effect.active) effect.destroy()
+      })
+      return effect
+    }
+
+    const createCleanupTaskForContainer = (slot: ContainerSlot) => {
+      if (cleanupTasks.some((task) => task.slot === slot)) return
+      cleanupTasks.push({
+        id: `container-${slot.id}`,
+        kind: 'container',
+        x: slot.x,
+        y: slot.y,
+        sprite: slot.sprite,
+        slot,
+        complete: false,
+      })
+    }
+
+    const createLooseClutterTask = (index: number) => {
+      const frameOptions = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+      const frame = Phaser.Utils.Array.GetRandom(frameOptions)
+      const position = clutterPositions[index % clutterPositions.length]
+      const sprite = this.scene.add.sprite(
+        position.x + Phaser.Math.Between(-12, 12),
+        position.y + Phaser.Math.Between(-6, 8),
+        'granary_friends_props',
+        frame
+      )
+      sprite.setScale(frame === 5 ? 0.22 : 0.25)
+      sprite.setData('granaryBaseScale', sprite.scaleX)
+      sprite.setInteractive({ useHandCursor: true })
+      this.addObject(sprite)
+      roundObjects.push(sprite)
+      refreshGranaryLayerOrder()
+
+      let kind: CleanupKind = 'cloth'
+      if (frame === 4 || frame === 5 || frame === 15) kind = 'grain'
+      else if (frame === 6) kind = 'rope'
+      else if (frame === 7 || frame === 8) kind = 'lid'
+      else if (frame === 12 || frame === 13) kind = 'straw'
+
+      const task: CleanupTask = {
+        id: `loose-${roundIndex}-${index}-${frame}`,
+        kind,
+        x: sprite.x,
+        y: sprite.y,
+        sprite,
+        complete: false,
+      }
+      cleanupTasks.push(task)
+      return task
+    }
+
+    const showCorrectHint = (strong: boolean) => {
+      const target = slots.find((slot) => slot.containsTarget && !slot.searched)
+      if (!target) return
+
+      const hintTargets: ContainerSlot[] = strong
+        ? [target]
+        : Phaser.Utils.Array.Shuffle([
+            target,
+            ...slots.filter((slot) => !slot.searched && slot !== target),
+          ]).slice(0, 2)
+
+      hintTargets.forEach((slot) => {
+        this.addTween({
+          targets: slot.sprite,
+          angle: { from: -3, to: 3 },
+          scaleX: 0.37,
+          scaleY: 0.37,
+          duration: 110,
+          yoyo: true,
+          repeat: strong ? 4 : 2,
+          onComplete: () => {
+            if (slot.sprite.active) {
+              slot.sprite.setAngle(0)
+              slot.sprite.setScale(0.34)
+            }
+          },
+        })
+
+        if (strong && slot === target) {
+          playEffect('granary-effect-sparkle', slot.x, slot.y - 28, 0.4)
+        }
+      })
+    }
+
+    const finishFailure = () => {
+      if (state === 'failure' || state === 'success') return
+
+      state = 'failure'
+      inputLocked = true
+      cleanupTimer?.remove(false)
+      cleanupTimer = undefined
+      disableContainerInput()
+      cleanupTasks.forEach((task) =>
+        disableGranarySpriteInput(task.sprite)
+      )
+      warningSprite?.destroy()
+      warningSprite = undefined
+
+      catSprite.play('granary-cat-panic', true)
+      mouseSprite.play('granary-mouse-panic', true)
+      merchantSprite.setVisible(true)
+      merchantSprite.play('granary-merchant-chase', true)
+      refreshGranaryLayerOrder()
+      statusText.setText('The merchant saw everything. Run!')
+      timerText.setText('00:00')
+      timerText.setColor('#ff6666')
+
+      const cutscene = this.scene.add.image(stageX, stageY, 'granary_friends_failure')
+      cutscene.setDisplaySize(stageWidth, stageHeight)
+      this.addObject(cutscene)
+      stageBorder.setDepth(2)
+
+      this.complete(
+        {
+          success: false,
+          response:
+            'The merchant discovers the chaos and chases the unlikely friends from the granary. Nothing is lost—try again.',
+          goldDelta: 0,
+          reputationDelta: 0,
+        },
+        1900
+      )
+    }
+
+    const startCleanupTimer = () => {
+      cleanupTimer?.remove(false)
+      cleanupSecondsRemaining = rounds[roundIndex].cleanupSeconds
+      timerText.setText(`00:${String(cleanupSecondsRemaining).padStart(2, '0')}`)
+      timerText.setColor('#ffd966')
+
+      cleanupTimer = this.addLoop(1000, () => {
+        if (state !== 'mouse-cleanup') return
+
+        cleanupSecondsRemaining -= 1
+        timerText.setText(`00:${String(Math.max(0, cleanupSecondsRemaining)).padStart(2, '0')}`)
+
+        if (cleanupSecondsRemaining <= 3) {
+          timerText.setColor('#ff6666')
+          mouseSprite.play('granary-mouse-nervous', true)
+
+          if (!warningSprite) {
+            warningSprite = this.scene.add.sprite(
+              stageRight - 92,
+              stageTop + 63,
+              'granary_friends_effects',
+              16
+            )
+            warningSprite.setScale(0.38)
+            this.addObject(warningSprite)
+            refreshGranaryLayerOrder()
+            warningSprite.play('granary-effect-warning')
+          }
+        } else if (cleanupSecondsRemaining <= 5) {
+          timerText.setColor('#ffad4d')
+        }
+
+        if (cleanupSecondsRemaining <= 0) {
+          finishFailure()
+        }
+      })
+    }
+
+    const finishSuccess = () => {
+      state = 'merchant-return'
+      inputLocked = true
+      cleanupTimer?.remove(false)
+      cleanupTimer = undefined
+      warningSprite?.destroy()
+      warningSprite = undefined
+
+      statusText.setText('The merchant is returning... act natural.')
+      progressText.setText('')
+      timerText.setText('--')
+      timerText.setColor('#ffd966')
+
+      catSprite.play('granary-cat-idle', true)
+      mouseSprite.play('granary-mouse-idle-stable', true)
+
+      moveCharacter(
+        catSprite,
+        stageLeft + 68,
+        stageBottom - 76,
+        450,
+        'granary-cat-run',
+        () => undefined
+      )
+      moveCharacter(
+        mouseSprite,
+        stageLeft + 110,
+        stageBottom - 66,
+        480,
+        'granary-mouse-run',
+        () => undefined
+      )
+
+      merchantSprite.setVisible(true)
+      merchantSprite.setPosition(stageRight + 78, stageBottom - 91)
+      merchantSprite.setFlipX(true)
+      merchantSprite.play('granary-merchant-walk', true)
+      refreshGranaryLayerOrder()
+
+      this.addTween({
+        targets: merchantSprite,
+        x: stageRight - 110,
+        duration: 900,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          merchantSprite.setFlipX(false)
+          merchantSprite.play('granary-merchant-inspect')
+          statusText.setText('He checks the room... and notices absolutely nothing.')
+
+          this.schedule(1200, () => {
+            state = 'success'
+
+            // Keep the live granary scene visible instead of replacing it
+            // with a separate success illustration. This lets the player
+            // enjoy the merchant's oblivious reaction and the characters'
+            // celebration for a little longer.
+            merchantSprite.play('granary-merchant-idle', true)
+            catSprite.play('granary-cat-happy', true)
+            mouseSprite.play('granary-mouse-happy', true)
+            statusText.setText('He noticed nothing! The cat and mouse quietly celebrate.')
+            playEffect('granary-effect-success', stageX, stageY - 18, 0.72)
+            refreshGranaryLayerOrder()
+
+            let goldDelta = 300
+            let reputationDelta = 12
+
+            if (this.currentAlreadyCompleted) {
+              goldDelta = 75
+              reputationDelta = 0
+            } else {
+              if (totalWrongSearches === 0) {
+                goldDelta += 100
+                reputationDelta += 3
+              }
+
+              if (totalCleanupTimeRemaining >= 12) {
+                goldDelta += 50
+                reputationDelta += 2
+              }
+            }
+
+            this.complete(
+              {
+                success: true,
+                response: this.currentAlreadyCompleted
+                  ? 'The cat and mouse repeat their flawless granary trick. The merchant remains wonderfully oblivious.'
+                  : 'The merchant notices nothing. The cat and mouse celebrate their perfectly tidy crime.',
+                goldDelta,
+                reputationDelta,
+              },
+              3400
+            )
+          })
+        },
+      })
+    }
+
+    const startRound = () => {
+      destroyRoundObjects()
+      state = 'round-start'
+      inputLocked = true
+      wrongSearchesThisRound = 0
+
+      const config = rounds[roundIndex]
+      roundText.setText(`ROUND ${roundIndex + 1} / ${rounds.length}`)
+      timerText.setText('--')
+      timerText.setColor('#ffd966')
+      progressText.setText('')
+      setPhase('cat')
+
+      catSprite.setPosition(catHomeX, catHomeY)
+      catSprite.setFlipX(false)
+      catSprite.play('granary-cat-idle', true)
+      mouseSprite.setPosition(mouseHomeX, mouseHomeY)
+      mouseSprite.setFlipX(false)
+      mouseSprite.play('granary-mouse-idle-stable', true)
+      merchantSprite.setVisible(false)
+      refreshGranaryLayerOrder()
+
+      const shuffledTypes = Phaser.Utils.Array.Shuffle([...containerTypes])
+      const selectedTypes = shuffledTypes.slice(0, config.visibleContainers)
+      const selectedPositions = Phaser.Utils.Array.Shuffle([...slotPositions]).slice(
+        0,
+        config.visibleContainers
+      )
+      const targetIndex = Phaser.Math.Between(0, config.visibleContainers - 1)
+
+      selectedTypes.forEach((entry, index) => {
+        const position = selectedPositions[index]
+        const sprite = this.scene.add.sprite(
+          position.x,
+          position.y,
+          'granary_friends_containers',
+          frameForContainer(entry.typeIndex, 0)
+        )
+        sprite.setScale(0.34)
+        sprite.setData('granaryBaseScale', 0.34)
+        sprite.setInteractive({ useHandCursor: true })
+        this.addObject(sprite)
+        roundObjects.push(sprite)
+        refreshGranaryLayerOrder()
+
+        const slot: ContainerSlot = {
+          id: `${roundIndex}-${index}`,
+          type: entry.type,
+          typeIndex: entry.typeIndex,
+          x: position.x,
+          y: position.y,
+          sprite,
+          searched: false,
+          containsTarget: index === targetIndex,
+          cleanupComplete: false,
+        }
+
+        sprite.on('pointerover', () => {
+          if (state !== 'cat-search' || inputLocked || slot.searched) return
+          sprite.setTint(0xffefad)
+          this.addTween({
+            targets: sprite,
+            scaleX: 0.36,
+            scaleY: 0.36,
+            duration: 90,
+          })
+        })
+
+        sprite.on('pointerout', () => {
+          if (!sprite.active) return
+          sprite.clearTint()
+          this.addTween({
+            targets: sprite,
+            scaleX: 0.34,
+            scaleY: 0.34,
+            duration: 90,
+          })
+        })
+
+        slots.push(slot)
+        sprite.on('pointerdown', () => searchContainer(slot))
+      })
+
+      const roundIntro = [
+        'Find the cheese. The mouse is trying not to look hopeful.',
+        'Find the grain bun. The cat promises to be subtle this time.',
+        'Find the wheat-and-honey cake. The footsteps are getting closer.',
+      ][roundIndex]
+
+      statusText.setText(roundIntro)
+
+      this.schedule(800, () => {
+        state = 'cat-search'
+        inputLocked = false
+        statusText.setText(`CAT SEARCH: Check the containers for the ${config.targetLabel}.`)
+        enableAvailableContainerInput()
+      })
+    }
+
+    const completeRound = () => {
+      if (state !== 'mouse-cleanup') return
+
+      state = 'round-complete'
+      inputLocked = true
+      cleanupTimer?.remove(false)
+      cleanupTimer = undefined
+      warningSprite?.destroy()
+      warningSprite = undefined
+      totalCleanupTimeRemaining += Math.max(0, cleanupSecondsRemaining)
+
+      cleanupTasks.forEach((task) =>
+        disableGranarySpriteInput(task.sprite)
+      )
+      statusText.setText('ROOM TIDY! The merchant will never know.')
+      progressText.setText('')
+      timerText.setText('--')
+      timerText.setColor('#72ff9b')
+      catSprite.play('granary-cat-happy', true)
+      mouseSprite.play('granary-mouse-happy', true)
+      playEffect('granary-effect-success', stageX, stageY, 0.8)
+
+      this.schedule(1300, () => {
+        if (roundIndex >= rounds.length - 1) {
+          finishSuccess()
+        } else {
+          roundIndex += 1
+          startRound()
+        }
+      })
+    }
+
+    const cleanTask = (task: CleanupTask) => {
+      if (
+        state !== 'mouse-cleanup' ||
+        inputLocked ||
+        task.complete ||
+        !isLiveGranarySprite(task.sprite)
+      ) {
+        return
+      }
+
+      inputLocked = true
+      cleanupTasks.forEach((item) =>
+        disableGranarySpriteInput(item.sprite)
+      )
+
+      const animation =
+        task.kind === 'grain' || task.kind === 'straw'
+          ? 'granary-mouse-sweep'
+          : task.kind === 'lid'
+            ? 'granary-mouse-carry'
+            : task.kind === 'container'
+              ? 'granary-mouse-push'
+              : 'granary-mouse-tidy'
+
+      moveCharacter(
+        mouseSprite,
+        task.x - 26,
+        task.y + 18,
+        330,
+        'granary-mouse-run',
+        () => {
+          // The cleanup timer may expire while the mouse is still moving.
+          // Do not continue a stale cleanup animation after failure/close.
+          if (state !== 'mouse-cleanup' || !isLiveGranarySprite(task.sprite)) {
+            return
+          }
+
+          mouseSprite.play(animation)
+
+          this.schedule(620, () => {
+            if (state !== 'mouse-cleanup' || task.complete) {
+              return
+            }
+
+            task.complete = true
+            cleanedTasks += 1
+
+            if (task.slot && isLiveGranarySprite(task.slot.sprite)) {
+              task.slot.cleanupComplete = true
+              task.slot.sprite.setFrame(
+                frameForContainer(task.slot.typeIndex, 3)
+              )
+              task.slot.sprite.clearTint()
+            } else if (isLiveGranarySprite(task.sprite)) {
+              task.sprite.removeAllListeners()
+              task.sprite.destroy()
+            }
+
+            playEffect('granary-effect-sparkle', task.x, task.y - 18, 0.32)
+            progressText.setText(`TIDY ${cleanedTasks} / ${cleanupTasks.length}`)
+
+            if (cleanedTasks >= cleanupTasks.length) {
+              completeRound()
+              return
+            }
+
+            mouseSprite.play('granary-mouse-idle-stable', true)
+            inputLocked = false
+            cleanupTasks.forEach((item) => {
+              if (!item.complete) {
+                enableGranarySpriteInput(item.sprite)
+              }
+            })
+          })
+        }
+      )
+    }
+
+    const beginMouseCleanup = () => {
+      state = 'mouse-cleanup'
+      inputLocked = false
+      disableContainerInput()
+      setPhase('mouse')
+
+      const requiredTasks = rounds[roundIndex].minimumCleanupTasks
+      let looseIndex = 0
+      while (cleanupTasks.length < requiredTasks) {
+        createLooseClutterTask(looseIndex)
+        looseIndex += 1
+      }
+
+      cleanupTasks.forEach((task) => {
+        if (!isLiveGranarySprite(task.sprite)) return
+
+        task.sprite.clearTint()
+        task.sprite.removeAllListeners('pointerover')
+        task.sprite.removeAllListeners('pointerout')
+        task.sprite.removeAllListeners('pointerdown')
+        enableGranarySpriteInput(task.sprite)
+        task.sprite.on('pointerover', () => {
+          if (state !== 'mouse-cleanup' || inputLocked || task.complete) return
+          task.sprite.setTint(0x8ff6ff)
+          const baseScale = Number(
+            task.sprite.getData('granaryBaseScale') ?? task.sprite.scaleX
+          )
+          this.addTween({
+            targets: task.sprite,
+            scaleX: baseScale * 1.07,
+            scaleY: baseScale * 1.07,
+            duration: 90,
+          })
+        })
+        task.sprite.on('pointerout', () => {
+          if (!isLiveGranarySprite(task.sprite)) return
+          task.sprite.clearTint()
+          const baseScale = Number(
+            task.sprite.getData('granaryBaseScale') ?? 0.34
+          )
+          task.sprite.setScale(baseScale)
+        })
+        task.sprite.on('pointerdown', () => cleanTask(task))
+      })
+
+      cleanedTasks = 0
+      progressText.setText(`TIDY 0 / ${cleanupTasks.length}`)
+      statusText.setText('MOUSE CLEANUP: Put everything back before the merchant returns!')
+      catSprite.setFlipX(false)
+      catSprite.play('granary-cat-idle', true)
+      mouseSprite.play('granary-mouse-notice')
+      startCleanupTimer()
+    }
+
+    const revealTarget = (slot: ContainerSlot) => {
+      const config = rounds[roundIndex]
+      rewardSprite?.destroy()
+      rewardSprite = this.scene.add.sprite(
+        slot.x,
+        slot.y - 45,
+        'granary_friends_props',
+        config.targetFrame
+      )
+      rewardSprite.setScale(0.25)
+      this.addObject(rewardSprite)
+      roundObjects.push(rewardSprite)
+      refreshGranaryLayerOrder()
+      playEffect('granary-effect-sparkle', slot.x, slot.y - 43, 0.55)
+
+      statusText.setText(`FOUND IT! The cat found the ${config.targetLabel}.`)
+      catSprite.play('granary-cat-carry', true)
+
+      this.schedule(700, () => {
+        rewardSprite?.destroy()
+        rewardSprite = undefined
+
+        // Clear the searched container before the mouse starts. This keeps the
+        // cat from crowding the cleanup target and makes the active character
+        // change immediately readable.
+        moveCharacter(
+          catSprite,
+          catHomeX,
+          catHomeY,
+          420,
+          'granary-cat-run',
+          () => {
+            catSprite.setFlipX(false)
+            catSprite.play('granary-cat-idle', true)
+            beginMouseCleanup()
+          }
+        )
+      })
+    }
+
+    const searchContainer = (slot: ContainerSlot) => {
+      if (
+        state !== 'cat-search' ||
+        inputLocked ||
+        slot.searched ||
+        !slot.sprite.active
+      ) {
+        return
+      }
+
+      inputLocked = true
+      state = 'cat-moving'
+      disableContainerInput()
+      slot.sprite.clearTint()
+
+      moveCharacter(
+        catSprite,
+        slot.x - 36,
+        slot.y + 16,
+        360,
+        'granary-cat-walk',
+        () => {
+          catSprite.play('granary-cat-search')
+
+          this.schedule(540, () => {
+            slot.searched = true
+            slot.sprite.setFrame(frameForContainer(slot.typeIndex, 2))
+            slot.sprite.setScale(0.34)
+            playEffect('granary-effect-dust', slot.x, slot.y - 12, 0.52)
+            createCleanupTaskForContainer(slot)
+
+            if (slot.containsTarget) {
+              revealTarget(slot)
+              return
+            }
+
+            wrongSearchesThisRound += 1
+            totalWrongSearches += 1
+            catSprite.play('granary-cat-surprised')
+            statusText.setText('Not here! That container will need tidying.')
+
+            if (wrongSearchesThisRound === 2) {
+              this.schedule(300, () => {
+                statusText.setText('The cat hears something... two containers seem suspicious.')
+                showCorrectHint(false)
+              })
+            } else if (wrongSearchesThisRound >= 3) {
+              this.schedule(300, () => {
+                statusText.setText('The cat catches the scent. One container sparkles faintly.')
+                showCorrectHint(true)
+              })
+            }
+
+            this.schedule(620, () => {
+              state = 'cat-search'
+              inputLocked = false
+              catSprite.play('granary-cat-idle', true)
+              enableAvailableContainerInput()
+            })
+          })
+        }
+      )
+    }
+
+    statusText.setText('The merchant steps outside. The cat has an idea.')
+    setPhase('cat')
+
+    this.schedule(450, () => {
+      startRound()
+    })
   }
 
   private createBase() {
