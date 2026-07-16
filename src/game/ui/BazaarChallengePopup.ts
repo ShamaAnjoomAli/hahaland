@@ -1907,6 +1907,40 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     playBorder.setStrokeStyle(4, 0xd4af37, 1)
     this.addObject(playBorder)
 
+    // Keep the birds/effects inside the marsh window. Without this, fast birds
+    // and escape animations can visually leave the popup on smaller canvases.
+    const playMaskShape = this.scene.make.graphics({
+      x: 0,
+      y: 0,
+      add: false,
+    })
+    playMaskShape.setScrollFactor(0)
+    playMaskShape.fillStyle(0xffffff, 1)
+    playMaskShape.fillRect(playLeft, playTop, playWidth, playHeight)
+
+    const playMask = playMaskShape.createGeometryMask()
+
+    const clipToPlayArea = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+      const maskable = object as T & {
+        setMask?: (mask: Phaser.Display.Masks.GeometryMask) => T
+        clearMask?: (destroyMask?: boolean) => T
+      }
+
+      maskable.setMask?.(playMask)
+      this.runtimeCleanups.push(() => {
+        maskable.clearMask?.(false)
+      })
+
+      return object
+    }
+
+    this.runtimeCleanups.push(() => {
+      playMask.destroy()
+      playMaskShape.destroy()
+    })
+
+    clipToPlayArea(background)
+
     const createHudCard = (x: number, cardWidth: number, bandColor: number) => {
       const shadow = this.scene.add.rectangle(x + 3, hudY + 3, cardWidth, hudHeight, 0x000000, 0.3)
       const card = this.scene.add.rectangle(x, hudY, cardWidth, hudHeight, 0xf0dfb5, 1)
@@ -2129,6 +2163,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
       shadow.setDisplaySize(60, 18)
       shadow.setAlpha(0.32)
       this.addObject(shadow)
+      clipToPlayArea(shadow)
 
       const sprite = this.scene.add.sprite(startX, startY, birdTexture(kind), 0)
       const size = birdDimensions(kind, roundSettings.sizeScale, pattern)
@@ -2136,6 +2171,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
       sprite.setFlipX(direction > 0)
       sprite.play(birdAnimation(kind), true)
       this.addObject(sprite)
+      clipToPlayArea(sprite)
 
       const baseSpeed = kind === 'fastDuck' ? 238 : kind === 'goldenDuck' ? 214 : kind === 'forbiddenBird' ? 188 : kind === 'decoy' ? 188 : 165
       const patternMultiplier = pattern === 'foreground' ? 1.28 : pattern === 'diagonal-up' ? 1.1 : pattern === 'curve' ? 1.05 : 1
@@ -2213,6 +2249,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
       const effect = this.scene.add.image(x, y, key)
       effect.setDisplaySize(golden ? 92 : 48, golden ? 92 : 48)
       this.addObject(effect)
+      clipToPlayArea(effect)
       this.container.bringToTop(effect)
       this.addTween({
         targets: effect,
@@ -2436,12 +2473,19 @@ ${roundSettings.introText}`, {
     const animateBirdHit = (bird: BirdTarget) => {
       removeBirdReference(bird)
       bird.shadow?.destroy()
+
+      const fallY = Phaser.Math.Clamp(
+        bird.y + 76,
+        playTop + 24,
+        playBottom - 22
+      )
+
       this.addTween({
         targets: bird.sprite,
-        y: bird.y + 105,
-        angle: bird.direction > 0 ? 68 : -68,
+        y: fallY,
+        angle: bird.direction > 0 ? 62 : -62,
         alpha: 0.2,
-        duration: 390,
+        duration: 340,
         ease: 'Quad.easeIn',
         onComplete: () => bird.sprite.destroy(),
       })
@@ -2450,13 +2494,26 @@ ${roundSettings.introText}`, {
     const animateBirdEscape = (bird: BirdTarget, forbidden = false) => {
       removeBirdReference(bird)
       bird.shadow?.destroy()
+
+      const escapeX = Phaser.Math.Clamp(
+        bird.x + bird.direction * 86,
+        playLeft + 28,
+        playRight - 28
+      )
+
+      const escapeY = Phaser.Math.Clamp(
+        bird.y - 42,
+        playTop + 24,
+        playBottom - 24
+      )
+
       this.addTween({
         targets: bird.sprite,
-        x: bird.x + bird.direction * 145,
-        y: bird.y - 82,
-        angle: bird.direction > 0 ? -20 : 20,
-        alpha: forbidden ? 1 : 0.4,
-        duration: 430,
+        x: escapeX,
+        y: escapeY,
+        angle: bird.direction > 0 ? -16 : 16,
+        alpha: forbidden ? 0.82 : 0.35,
+        duration: 320,
         ease: 'Sine.easeOut',
         onComplete: () => bird.sprite.destroy(),
       })
@@ -2520,6 +2577,7 @@ ${roundSettings.introText}`, {
       arrow.setDisplaySize(68, 14)
       arrow.setRotation(Phaser.Math.Angle.Between(playCenterX, playBottom - 44, reticle.x, reticle.y))
       this.addObject(arrow)
+      clipToPlayArea(arrow)
       this.container.bringToTop(arrow)
       this.container.bringToTop(reticle)
       this.container.bringToTop(comboBadge)
@@ -2594,27 +2652,42 @@ ${roundSettings.introText}`, {
 
         const halfW = Math.max(14, bird.sprite.displayWidth * 0.5 - 2)
         const halfH = Math.max(14, bird.sprite.displayHeight * 0.5 - 2)
-        const minX = playLeft + halfW
-        const maxX = playRight - halfW
         const minY = playTop + halfH
         const maxY = playBottom - halfH
+        const exitMargin = Math.max(58, halfW + 18)
 
-        const wouldLeaveX = bird.x < minX || bird.x > maxX
-        const wouldLeaveY = bird.y < minY || bird.y > maxY
+        const leftExit = playLeft - exitMargin
+        const rightExit = playRight + exitMargin
+        const topExit = playTop - exitMargin
+        const bottomExit = playBottom + exitMargin
 
-        bird.x = Phaser.Math.Clamp(bird.x, minX, maxX)
+        const shouldRemove =
+          bird.x < leftExit ||
+          bird.x > rightExit ||
+          bird.y < topExit ||
+          bird.y > bottomExit
+
+        if (shouldRemove) {
+          destroyBird(bird)
+          continue
+        }
+
+        // Keep vertical motion stable. Horizontal flight is allowed to pass
+        // behind the play-area mask, which prevents edge-sticking glitches.
         bird.y = Phaser.Math.Clamp(bird.y, minY, maxY)
 
         bird.sprite.setPosition(bird.x, bird.y)
-        bird.sprite.setAngle(Math.sin(bird.elapsed * 10 + bird.phase) * 3 * bird.direction)
-        bird.shadow?.setPosition(bird.x, Math.min(playBottom - 24, bird.startY + 40))
-
-        const shouldRemove =
-          ((bird.pattern === 'left-right' || bird.pattern === 'right-left' || bird.pattern === 'foreground') && wouldLeaveX) ||
-          (bird.pattern === 'diagonal-up' && (wouldLeaveX || wouldLeaveY)) ||
-          (bird.pattern === 'curve' && (wouldLeaveX || wouldLeaveY))
-
-        if (shouldRemove) destroyBird(bird)
+        bird.sprite.setAngle(
+          Math.sin(bird.elapsed * 10 + bird.phase) * 3 * bird.direction
+        )
+        bird.shadow?.setPosition(
+          Phaser.Math.Clamp(bird.x, playLeft + 18, playRight - 18),
+          Phaser.Math.Clamp(
+            Math.min(playBottom - 24, bird.startY + 40),
+            playTop + 18,
+            playBottom - 18
+          )
+        )
       }
       updateHud()
       if (roundTime <= 0) endRound()
