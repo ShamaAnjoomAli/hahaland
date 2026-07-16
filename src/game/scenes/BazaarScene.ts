@@ -24,6 +24,19 @@ type MinigameChoice = {
   setItems?: string[]
 }
 
+type FillerConversationChoice = {
+  label: string
+  response: string[]
+  reputationDelta?: number
+}
+
+type FillerConversationConfig = {
+  title: string
+  greeting: string
+  repeatGreeting?: string
+  choices: FillerConversationChoice[]
+}
+
 type MerchantHighlightHandle = {
   npc: NPC
   outerGlow: Phaser.GameObjects.Sprite
@@ -42,6 +55,9 @@ export default class BazaarScene extends Phaser.Scene {
   private objectiveBox!: ObjectiveBox
   private hud!: GameHUD
   private minigame!: BazaarChallengePopup
+  private rewardedFillerBargains = new Set<string>()
+  private readonly fillerBargainRegistryKey =
+    'hahaland.bazaar.fillerBargains'
 
   private npcs: NPC[] = []
   private interactPrompt!: Phaser.GameObjects.Container
@@ -130,6 +146,8 @@ export default class BazaarScene extends Phaser.Scene {
           )
         : []
     )
+
+    this.loadFillerBargainFlags()
   }
 
   create() {
@@ -517,6 +535,17 @@ this.saveProgress()
     const config = this.getMarketConfig(npcName)
 
     if (!config) {
+      const fillerConversation = this.getFillerConversationConfig(npcName)
+
+      if (fillerConversation) {
+        this.showFillerConversation(
+          npcName,
+          nearest.texture.key,
+          fillerConversation,
+        )
+        return
+      }
+
       this.dialogue.show(
         [
           {
@@ -536,6 +565,415 @@ this.saveProgress()
     }
 
     this.startMarketMinigame(npcName, nearest.texture.key, config)
+  }
+
+  private showFillerConversation(
+    npcName: string,
+    portraitKey: string,
+    config: FillerConversationConfig,
+  ) {
+    this.interactPrompt.setVisible(false)
+
+    const greeting =
+      this.rewardedFillerBargains.has(npcName) && config.repeatGreeting
+        ? config.repeatGreeting
+        : config.greeting
+
+    this.dialogue.showChoiceList({
+      lines: [
+        {
+          text: greeting,
+          portraitKey,
+        },
+      ],
+      portraitKey,
+      choices: config.choices.map((choice, index) => ({
+        label: choice.label,
+        value: String(index),
+      })),
+      onChoice: (value) => {
+        const choiceIndex = Number(value)
+        const choice = config.choices[choiceIndex]
+
+        if (!choice) {
+          console.warn(
+            `Invalid filler conversation choice "${value}" for ${npcName}`,
+          )
+          return
+        }
+
+        this.handleFillerConversationChoice(
+          npcName,
+          portraitKey,
+          choice,
+        )
+      },
+    })
+  }
+
+  private handleFillerConversationChoice(
+    npcName: string,
+    portraitKey: string,
+    choice: FillerConversationChoice,
+  ) {
+    const responseLines = choice.response.map((text) => ({
+      text: text.replace(/^Merchant:\s*/, ''),
+      portraitKey,
+    }))
+
+    if (
+      typeof choice.reputationDelta === 'number' &&
+      choice.reputationDelta !== 0
+    ) {
+      if (!this.rewardedFillerBargains.has(npcName)) {
+        this.rewardedFillerBargains.add(npcName)
+        this.changeReputation(choice.reputationDelta)
+        this.saveFillerBargainFlags()
+
+        responseLines.push({
+          text: `Reputation +${choice.reputationDelta}`,
+          portraitKey: 'player',
+        })
+      } else {
+        responseLines.push({
+          text: 'You already earned reputation from this bargain.',
+          portraitKey: 'player',
+        })
+      }
+    }
+
+    this.dialogue.show(
+      responseLines,
+      undefined,
+      portraitKey,
+    )
+  }
+
+  private loadFillerBargainFlags() {
+    const registryValue = this.registry.get(this.fillerBargainRegistryKey)
+    let storedValue: unknown = registryValue
+
+    if (!Array.isArray(storedValue) && typeof window !== 'undefined') {
+      try {
+        const raw = window.localStorage.getItem(this.fillerBargainRegistryKey)
+        storedValue = raw ? JSON.parse(raw) : []
+      } catch {
+        storedValue = []
+      }
+    }
+
+    this.rewardedFillerBargains = new Set(
+      Array.isArray(storedValue)
+        ? storedValue.filter(
+            (value): value is string => typeof value === 'string',
+          )
+        : [],
+    )
+  }
+
+  private saveFillerBargainFlags() {
+    const values = [...this.rewardedFillerBargains]
+    this.registry.set(this.fillerBargainRegistryKey, values)
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(
+          this.fillerBargainRegistryKey,
+          JSON.stringify(values),
+        )
+      } catch {
+        // The game still works when browser storage is unavailable.
+      }
+    }
+  }
+
+  private getFillerConversationConfig(
+    npcName: string,
+  ): FillerConversationConfig | null {
+    const conversations: Record<string, FillerConversationConfig> = {
+      NPC_PapyrusSeller: {
+        title: 'Papyrus & Scrolls',
+        greeting:
+          'Welcome! I sell knowledge by the scroll and nonsense by the paragraph.',
+        repeatGreeting:
+          'Back for more knowledge, or have you finally decided to buy the blank scroll?',
+        choices: [
+          {
+            label: 'Do you have any heroic stories?',
+            response: [
+              'Merchant: Of course.',
+              'Most were written by the heroes themselves, so the accuracy is questionable.',
+            ],
+          },
+          {
+            label: 'What is your finest scroll?',
+            response: [
+              'Merchant: A completely blank one.',
+              'Not a single spelling mistake.',
+            ],
+          },
+          {
+            label: 'It has no writing. Ten coins.',
+            response: [
+              'Merchant: A cruel but intelligent argument.',
+              'Twelve coins. You bargain like a scholar with an empty purse.',
+            ],
+            reputationDelta: 1,
+          },
+          {
+            label: 'Five coins for the blank scroll.',
+            response: [
+              'Merchant: For five coins, you may admire it from where you are standing.',
+            ],
+          },
+        ],
+      },
+
+      NPC_Herbalist: {
+        title: 'Herbs & Teas',
+        greeting:
+          'Tea for courage, tea for sleep, and tea for pretending you understand taxes.',
+        repeatGreeting:
+          'Smell first. Sip second. Blame the donkey third.',
+        choices: [
+          {
+            label: 'Which tea sells the most?',
+            response: [
+              'Merchant: The tax tea.',
+              'Nobody knows whether it works, which makes it extremely convincing.',
+            ],
+          },
+          {
+            label: 'Do you have anything for tired legs?',
+            response: ['Merchant: Yes.', 'A chair.'],
+          },
+          {
+            label: 'Eight coins, and I will not ask what is inside.',
+            response: [
+              'Merchant: That silence has value.',
+              'Nine coins. Do not drink it near birds.',
+            ],
+            reputationDelta: 1,
+          },
+          {
+            label: 'Three coins.',
+            response: [
+              'Merchant: For three coins, I can sell you warm water and encouragement.',
+            ],
+          },
+        ],
+      },
+
+      NPC_Perfumer: {
+        title: 'Perfumes & Oils',
+        greeting:
+          'One drop for elegance. Two drops for confidence. Three drops and the whole bazaar knows you arrived.',
+        repeatGreeting:
+          'Please sample responsibly. The last customer attracted six camels.',
+        choices: [
+          {
+            label: 'What is your strongest perfume?',
+            response: [
+              'Merchant: Desert Thunder.',
+              'One drop and your enemies remember you from another district.',
+            ],
+          },
+          {
+            label: 'Does this scent last all day?',
+            response: [
+              'Merchant: It survived a sandstorm, a wedding, and one extremely determined goat.',
+            ],
+          },
+          {
+            label: 'Why is that bottle shaking?',
+            response: [
+              'Merchant: It is excited to meet you.',
+              'Please do not open it indoors.',
+            ],
+          },
+          {
+            label: 'Do you have something subtle?',
+            response: [
+              'Merchant: Certainly.',
+              'This one only announces you to people within three streets.',
+            ],
+          },
+        ],
+      },
+
+      NPC_MapSeller: {
+        title: 'Map Seller',
+        greeting:
+          'Every map I sell is completely accurate. Some locations simply move.',
+        repeatGreeting: 'You are here. Probably.',
+        choices: [
+          {
+            label: 'Where am I right now?',
+            response: [
+              'Merchant: In front of a map seller.',
+              'Your navigation skills are improving already.',
+            ],
+          },
+          {
+            label: 'Why is there a sea monster drawn here?',
+            response: ['Merchant: The corner looked empty.'],
+          },
+          {
+            label: 'This road leads directly into a wall.',
+            response: [
+              'Merchant: It was an excellent road when I drew it.',
+            ],
+          },
+          {
+            label: 'Can I buy half a map?',
+            response: [
+              'Merchant: Certainly.',
+              'Which half would you prefer to be lost in?',
+            ],
+          },
+        ],
+      },
+
+      NPC_Jeweler: {
+        title: 'Jewelry & Gems',
+        greeting:
+          'Real gold, polished glass, and several stones whose origins are best left mysterious.',
+        repeatGreeting:
+          'The ring is still whispering. Ignore it unless it starts discussing prices.',
+        choices: [
+          {
+            label: 'Is that gem real?',
+            response: ['Merchant: It is genuinely shiny.'],
+          },
+          {
+            label: 'What is the cheapest thing here?',
+            response: ['Merchant: Your reflection. No charge.'],
+          },
+          {
+            label: 'Why is that ring whispering?',
+            response: [
+              'Merchant: It only does that around customers with money.',
+            ],
+          },
+          {
+            label: 'Twenty coins, and I will not test it with my teeth.',
+            response: [
+              'Merchant: Twenty-four.',
+              'Your teeth concern me, but your bargaining does not.',
+            ],
+            reputationDelta: 1,
+          },
+        ],
+      },
+
+      NPC_TextileSeller: {
+        title: 'Silk & Textiles',
+        greeting:
+          'This silk is lighter than a secret and twice as difficult to keep.',
+        repeatGreeting: 'Please do not sneeze near the silk.',
+        choices: [
+          {
+            label: 'Does this colour suit me?',
+            response: [
+              'Merchant: It suits your future success.',
+              'Your present success is still negotiating.',
+            ],
+          },
+          {
+            label: 'Is this silk imported?',
+            response: [
+              'Merchant: Everything is imported when you walk far enough.',
+            ],
+          },
+          {
+            label: 'Will it survive a sandstorm?',
+            response: [
+              'Merchant: Nothing survives a sandstorm.',
+              'We simply charge enough to remain optimistic.',
+            ],
+          },
+          {
+            label: 'Can I try the scarf?',
+            response: [
+              'The merchant wraps you in an enormous scarf.',
+              'Merchant: Perfect. Now you look expensive and slightly lost.',
+            ],
+          },
+        ],
+      },
+
+      NPC_BasketWeaver: {
+        title: 'Basket Weaver',
+        greeting:
+          'Small baskets, large baskets, and one basket that keeps returning after I sell it.',
+        repeatGreeting:
+          'The returning basket has not returned today. That worries me.',
+        choices: [
+          {
+            label: 'Which basket keeps returning?',
+            response: [
+              'Merchant: Nice try.',
+              'I am not touching it again.',
+            ],
+          },
+          {
+            label: 'Can your strongest basket carry a donkey?',
+            response: ['Merchant: Yes.', 'Once.'],
+          },
+          {
+            label: 'Why so many different baskets?',
+            response: [
+              'Merchant: So customers can spend longer pretending they know which one they need.',
+            ],
+          },
+          {
+            label: 'What makes a good basket?',
+            response: [
+              'Merchant: A strong base, tight weaving, and the ability to ignore family gossip.',
+            ],
+          },
+        ],
+      },
+
+      NPC_RugSeller: {
+        title: 'Carpets & Rugs',
+        greeting:
+          'This carpet has crossed three deserts, mostly tied to a camel that strongly disliked it.',
+        repeatGreeting: 'No, it still does not fly.',
+        choices: [
+          {
+            label: 'Does it fly?',
+            response: [
+              'Merchant: Only when thrown from a roof, and not for very long.',
+            ],
+          },
+          {
+            label: 'Why is there a hole in it?',
+            response: [
+              'Merchant: Ventilation.',
+              'Rare desert craftsmanship.',
+            ],
+          },
+          {
+            label: 'It looks extremely old.',
+            response: [
+              'Merchant: Antique.',
+              'Player: It looks damaged.',
+              'Merchant: Historic.',
+            ],
+          },
+          {
+            label: 'Thirty coins. The camel already used it.',
+            response: [
+              'Merchant: Thirty-two, and we never discuss the camel again.',
+            ],
+            reputationDelta: 1,
+          },
+        ],
+      },
+    }
+
+    return conversations[npcName] ?? null
   }
 
   private startMarketMinigame(
