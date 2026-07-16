@@ -95,7 +95,7 @@ switch (config.gameId) {
         })
         break
       case 'date-trade':
-        this.ensureDateQuizAssets(() => {
+        this.ensureDatePalmGroveAssets(() => {
           this.createDateTradeGame()
         })
         break
@@ -154,7 +154,7 @@ switch (config.gameId) {
       this.getLivesLabel(),
       {
         fontFamily: 'Georgia',
-        fontSize: '18px',
+        fontSize: '17px',
         color: '#ffd966',
         stroke: '#000000',
         strokeThickness: 4,
@@ -950,6 +950,245 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     }
   }
 
+
+  private ensureDatePalmGroveAssets(onReady: () => void) {
+    const imageAssets = [
+      {
+        key: 'date_palm6_bg',
+        path: 'assets/minigames/date_palm_grove/date_palm_bg_v6.png',
+      },
+      {
+        key: 'date_palm6_seed_majdoul',
+        path: 'assets/minigames/date_palm_grove/seed_majdoul_v12.png',
+      },
+      {
+        key: 'date_palm6_seed_sukkari',
+        path: 'assets/minigames/date_palm_grove/seed_sukkari_v12.png',
+      },
+      {
+        key: 'date_palm6_seed_ajwa',
+        path: 'assets/minigames/date_palm_grove/seed_ajwa_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_hoe',
+        path: 'assets/minigames/date_palm_grove/tool_hoe_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_spoon',
+        path: 'assets/minigames/date_palm_grove/tool_spoon_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_bell',
+        path: 'assets/minigames/date_palm_grove/tool_bell_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_water_jar',
+        path: 'assets/minigames/date_palm_grove/tool_water_jar_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_sand_basket',
+        path: 'assets/minigames/date_palm_grove/tool_sand_basket_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_perfume',
+        path: 'assets/minigames/date_palm_grove/tool_perfume_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_palm_net',
+        path: 'assets/minigames/date_palm_grove/tool_palm_net_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_carpet',
+        path: 'assets/minigames/date_palm_grove/tool_carpet_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_treasure_box',
+        path: 'assets/minigames/date_palm_grove/tool_treasure_box_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_harvest_basket',
+        path: 'assets/minigames/date_palm_grove/tool_harvest_basket_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_hammer',
+        path: 'assets/minigames/date_palm_grove/tool_hammer_v12.png',
+      },
+      {
+        key: 'date_palm6_tool_fishing_hook',
+        path: 'assets/minigames/date_palm_grove/tool_fishing_hook_v12.png',
+      },
+      {
+        key: 'date_palm6_harvest_majdoul',
+        path: 'assets/minigames/date_palm_grove/harvest_majdoul_v6.png',
+      },
+      {
+        key: 'date_palm6_harvest_sukkari',
+        path: 'assets/minigames/date_palm_grove/harvest_sukkari_v6.png',
+      },
+      {
+        key: 'date_palm6_harvest_ajwa',
+        path: 'assets/minigames/date_palm_grove/harvest_ajwa_v6.png',
+      },
+      {
+        key: 'date_palm6_dust_puff',
+        path: 'assets/minigames/date_palm_grove/dust_puff_v6.png',
+      },
+    ]
+
+    const sheetAssets = [
+      {
+        key: 'date_palm6_farmer_sheet',
+        path: 'assets/minigames/date_palm_grove/farmer_actions_sheet_v6.png',
+        frameWidth: 160,
+        frameHeight: 160,
+      },
+      {
+        key: 'date_palm6_growth_majdoul_sheet',
+        path: 'assets/minigames/date_palm_grove/palm_growth_majdoul_sheet_v6.png',
+        frameWidth: 220,
+        frameHeight: 240,
+      },
+      {
+        key: 'date_palm6_growth_sukkari_sheet',
+        path: 'assets/minigames/date_palm_grove/palm_growth_sukkari_sheet_v6.png',
+        frameWidth: 220,
+        frameHeight: 240,
+      },
+      {
+        key: 'date_palm6_growth_ajwa_sheet',
+        path: 'assets/minigames/date_palm_grove/palm_growth_ajwa_sheet_v6.png',
+        frameWidth: 220,
+        frameHeight: 240,
+      },
+      {
+        key: 'date_palm6_crow_sheet',
+        path: 'assets/minigames/date_palm_grove/crow_fly_sheet_v6.png',
+        frameWidth: 140,
+        frameHeight: 90,
+      },
+      {
+        key: 'date_palm6_net_cover_sheet',
+        path: 'assets/minigames/date_palm_grove/net_cover_sheet_v6.png',
+        frameWidth: 220,
+        frameHeight: 140,
+      },
+      {
+        key: 'date_palm6_sparkle_sheet',
+        path: 'assets/minigames/date_palm_grove/sparkle_burst_sheet_v6.png',
+        frameWidth: 160,
+        frameHeight: 100,
+      },
+    ]
+
+    const missingImages = imageAssets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+    const missingSheets = sheetAssets.filter(
+      (asset) => !this.scene.textures.exists(asset.key)
+    )
+
+    if (missingImages.length === 0 && missingSheets.length === 0) {
+      onReady()
+      return
+    }
+
+    const session = this.sessionId
+
+    const loadingPanel = this.scene.add.rectangle(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      Math.min(465, this.panelWidth - 80),
+      116,
+      0x241507,
+      0.98
+    )
+    loadingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+    const loadingText = this.scene.add.text(
+      this.scene.scale.width / 2,
+      this.scene.scale.height / 2,
+      'Preparing the Palm Grove Trial...',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        wordWrap: {
+          width: Math.min(400, this.panelWidth - 120),
+        },
+      }
+    )
+    loadingText.setOrigin(0.5)
+
+    this.addObject(loadingPanel)
+    this.addObject(loadingText)
+
+    let loadFailed = false
+    const allMissing = [...missingImages, ...missingSheets]
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (allMissing.some((asset) => asset.key === file.key)) {
+        loadFailed = true
+      }
+    }
+
+    const handleComplete = () => {
+      this.scene.load.off('loaderror', handleLoadError)
+
+      if (!this.isVisible || session !== this.sessionId) {
+        return
+      }
+
+      loadingPanel.destroy()
+      loadingText.destroy()
+
+      const stillMissing = allMissing.filter(
+        (asset) => !this.scene.textures.exists(asset.key)
+      )
+
+      if (loadFailed || stillMissing.length > 0) {
+        const missingNames = stillMissing
+          .map((asset) => asset.path)
+          .join('\n')
+
+        const errorText = this.addStatusText(
+          `Could not load the Palm Grove artwork.\n\n${missingNames}\n\nCopy the date_palm_grove folder into public/assets/minigames/.`,
+          this.scene.scale.height / 2,
+          '#ffbd63'
+        )
+        errorText.setFontSize(14)
+        return
+      }
+
+      onReady()
+    }
+
+    this.scene.load.once('complete', handleComplete)
+    this.scene.load.on('loaderror', handleLoadError)
+
+    this.runtimeCleanups.push(() => {
+      this.scene.load.off('complete', handleComplete)
+      this.scene.load.off('loaderror', handleLoadError)
+    })
+
+    missingImages.forEach((asset) => {
+      this.scene.load.image(asset.key, asset.path)
+    })
+
+    missingSheets.forEach((asset) => {
+      this.scene.load.spritesheet(asset.key, asset.path, {
+        frameWidth: asset.frameWidth,
+        frameHeight: asset.frameHeight,
+      })
+    })
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
+  }
+
   private ensureDateQuizAssets(onReady: () => void) {
     const assets = [
       {
@@ -1234,8 +1473,8 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     const width = this.scene.scale.width
     const height = this.scene.scale.height
 
-    this.panelWidth = Math.min(760, width - 30)
-    this.panelHeight = Math.min(600, height - 24)
+    this.panelWidth = Math.min(760, width - 16)
+    this.panelHeight = Math.min(620, height - 8)
 
     const overlay = this.scene.add.rectangle(
       width / 2,
@@ -1861,7 +2100,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     const statusY = bottom - 60
     const playBottom = statusY - 24
     const playWidth = playRight - playLeft
-    const playHeight = playBottom - playTop
+    const playHeight = Math.max(150, playBottom - playTop)
     const playCenterX = (playLeft + playRight) / 2
     const playCenterY = (playTop + playBottom) / 2
 
@@ -3581,11 +3820,1083 @@ ${roundSettings.introText}`, {
     this.container.bringToTop(startButton.text)
   }
 
+
   // ---------------------------------------------------------------------------
-  // 4. DATE MERCHANT — DRAG/DROP ORDER RUSH
+  // 4. DATE MERCHANT — PALM GROVE TRIAL
   // ---------------------------------------------------------------------------
 
   private createDateTradeGame() {
+    const width = this.scene.scale.width
+    const top = this.getPanelTop()
+    const bottom = this.getPanelBottom()
+
+    this.addTitle('4. Date Merchant — Palm Grove Trial')
+    this.addInstruction(
+      'Grow a date palm. Choose the right picture.',
+      top + 78
+    )
+
+    type PalmSeed = 'majdoul' | 'sukkari' | 'ajwa'
+    type GroveState = 'ready' | 'choosing' | 'animating' | 'finished'
+
+    type GroveChoice = {
+      iconKey: string
+      seed?: PalmSeed
+      correct?: boolean
+      feedback: string
+    }
+
+    type GroveRound = {
+      prompt: string
+      action: 'seed' | 'soil' | 'water' | 'protect' | 'harvest'
+      choices: [GroveChoice, GroveChoice, GroveChoice]
+    }
+
+    type ImageChoiceHandle = {
+      bg: Phaser.GameObjects.Rectangle
+      image: Phaser.GameObjects.Image
+      setEnabled: (enabled: boolean) => void
+      setSelected: (selected: boolean) => void
+      destroy: () => void
+    }
+
+    const seedNames: Record<PalmSeed, string> = {
+      majdoul: 'Majdoul',
+      sukkari: 'Sukkari',
+      ajwa: 'Ajwa',
+    }
+
+    const growthSheetKey = (seed: PalmSeed) =>
+      `date_palm6_growth_${seed}_sheet`
+
+    const harvestIconKey = (seed: PalmSeed) =>
+      `date_palm6_harvest_${seed}`
+
+    const rounds: GroveRound[] = [
+      {
+        prompt: 'Choose the seed you want to grow.',
+        action: 'seed',
+        choices: [
+          {
+            iconKey: 'date_palm6_seed_majdoul',
+            seed: 'majdoul',
+            feedback: 'A rich Majdoul seed is planted.',
+          },
+          {
+            iconKey: 'date_palm6_seed_sukkari',
+            seed: 'sukkari',
+            feedback: 'A golden Sukkari seed is planted.',
+          },
+          {
+            iconKey: 'date_palm6_seed_ajwa',
+            seed: 'ajwa',
+            feedback: 'A dark Ajwa seed is planted.',
+          },
+        ],
+      },
+      {
+        prompt: 'Prepare the soil before the roots wake up.',
+        action: 'soil',
+        choices: [
+          {
+            iconKey: 'date_palm6_tool_hoe',
+            correct: true,
+            feedback: 'The hoe opens neat rows in the soil.',
+          },
+          {
+            iconKey: 'date_palm6_tool_spoon',
+            feedback: 'The golden spoon is royal, but deeply useless in mud.',
+          },
+          {
+            iconKey: 'date_palm6_tool_bell',
+            feedback: 'The bell announces the soil, but does not prepare it.',
+          },
+        ],
+      },
+      {
+        prompt: 'The seed is thirsty. Choose what helps it grow.',
+        action: 'water',
+        choices: [
+          {
+            iconKey: 'date_palm6_tool_water_jar',
+            correct: true,
+            feedback: 'Clean water wakes the sprout.',
+          },
+          {
+            iconKey: 'date_palm6_tool_harvest_basket',
+            feedback: 'Dates are for harvest time, not for watering a thirsty seed.',
+          },
+          {
+            iconKey: 'date_palm6_tool_hammer',
+            feedback: 'The hammer looks dramatic, but the plant asked for water.',
+          },
+        ],
+      },
+      {
+        prompt: 'Crows are circling the young palm. Protect it.',
+        action: 'protect',
+        choices: [
+          {
+            iconKey: 'date_palm6_tool_palm_net',
+            correct: true,
+            feedback: 'The net shields the palm. The crows leave disappointed.',
+          },
+          {
+            iconKey: 'date_palm6_tool_carpet',
+            feedback: 'The carpet is beautiful, but the crows admire it too.',
+          },
+          {
+            iconKey: 'date_palm6_tool_treasure_box',
+            feedback: 'The treasure box protects treasure, not trees.',
+          },
+        ],
+      },
+      {
+        prompt: 'The dates are ready. Choose the safe harvest tool.',
+        action: 'harvest',
+        choices: [
+          {
+            iconKey: 'date_palm6_tool_harvest_basket',
+            correct: true,
+            feedback: 'The dates fall safely into the basket.',
+          },
+          {
+            iconKey: 'date_palm6_tool_hammer',
+            feedback: 'The hammer harvests only panic.',
+          },
+          {
+            iconKey: 'date_palm6_tool_fishing_hook',
+            feedback: 'No fish are growing on this palm.',
+          },
+        ],
+      },
+    ]
+
+    const compactLayout = this.panelHeight < 540
+
+    // Palm Grove needs a stable layout: a larger animation window up top,
+    // a dedicated hint band in the middle, and a fully visible choice row
+    // at the bottom. The values below keep those three zones from fighting
+    // each other, which was causing the cropped cards and overlapping text.
+    const hudY = top + (compactLayout ? 116 : 124)
+    const hudHeight = compactLayout ? 38 : 42
+    const sideHudWidth = compactLayout ? 148 : 145
+    const centerHudWidth = compactLayout ? 196 : 190
+
+    const playLeft = this.getPanelLeft() + 26
+    const playRight = this.getPanelRight() - 26
+    const playTop = top + (compactLayout ? 132 : 150)
+    const choiceGap = compactLayout ? 10 : 12
+    const choiceCardWidth = Math.floor(
+      Math.min(
+        compactLayout ? 222 : 238,
+        ((this.panelWidth - 58) - choiceGap * 2) / 3
+      )
+    )
+    const choiceCardHeight = compactLayout ? 112 : 122
+    const answerY = bottom - choiceCardHeight / 2 - 8
+    const statusY = answerY - choiceCardHeight / 2 - (compactLayout ? 22 : 26)
+    const playBottom = statusY - (compactLayout ? 18 : 22)
+    const playWidth = playRight - playLeft
+    const playHeight = Math.max(compactLayout ? 194 : 210, playBottom - playTop)
+    const playCenterX = (playLeft + playRight) / 2
+    const playCenterY = (playTop + playBottom) / 2
+
+    let state: GroveState = 'ready'
+    let roundIndex = 0
+    let selectedSeed: PalmSeed = 'majdoul'
+    let hearts = 3
+    let score = 0
+    let correctActions = 0
+    let perfectRun = true
+    let palmFrame = 0
+
+    const choiceHandles: ImageChoiceHandle[] = []
+
+    const createHudCard = (
+      x: number,
+      cardWidth: number,
+      bandColor: number
+    ) => {
+      const shadow = this.scene.add.rectangle(
+        x + 3,
+        hudY + 3,
+        cardWidth,
+        hudHeight,
+        0x000000,
+        0.3
+      )
+
+      const card = this.scene.add.rectangle(
+        x,
+        hudY,
+        cardWidth,
+        hudHeight,
+        0xf0dfb5,
+        1
+      )
+      card.setStrokeStyle(3, 0xb8862e, 1)
+
+      const band = this.scene.add.rectangle(
+        x,
+        hudY - hudHeight / 2 + 6,
+        cardWidth - 10,
+        8,
+        bandColor,
+        1
+      )
+
+      this.addObject(shadow)
+      this.addObject(card)
+      this.addObject(band)
+    }
+
+    const leftHudX = this.getPanelLeft() + 98
+    const centerHudX = width / 2
+    const rightHudX = this.getPanelRight() - 98
+
+    createHudCard(leftHudX, sideHudWidth, 0x8b5a2b)
+    createHudCard(centerHudX, centerHudWidth, 0x245d78)
+    createHudCard(rightHudX, sideHudWidth, 0x8f2d2d)
+
+    const roundText = this.scene.add.text(
+      leftHudX,
+      hudY + 4,
+      'ROUND 0 / 5',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '14px',
+        color: '#74420d',
+        stroke: '#fff4cf',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
+    roundText.setOrigin(0.5)
+
+    const seedText = this.scene.add.text(
+      centerHudX,
+      hudY + 4,
+      'PALM SEED',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '16px',
+        color: '#245d78',
+        stroke: '#ffffff',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      }
+    )
+    seedText.setOrigin(0.5)
+
+    const heartsText = this.scene.add.text(
+      rightHudX,
+      hudY + 4,
+      '♥ ♥ ♥',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '20px',
+        color: '#9b2525',
+        stroke: '#3c160e',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      }
+    )
+    heartsText.setOrigin(0.5)
+
+    this.addObject(roundText)
+    this.addObject(seedText)
+    this.addObject(heartsText)
+
+    const playBg = this.scene.add.image(
+      playCenterX,
+      playCenterY,
+      'date_palm6_bg'
+    )
+
+    // Use the full illustrated grove background. The art already contains
+    // the soil patch, water channel, pots, palms, and harvest area.
+    playBg.setDisplaySize(playWidth, playHeight)
+
+    const playMaskShape = this.scene.make.graphics({
+      x: 0,
+      y: 0,
+      add: false,
+    })
+    playMaskShape.setScrollFactor(0)
+    playMaskShape.fillStyle(0xffffff, 1)
+    playMaskShape.fillRect(playLeft, playTop, playWidth, playHeight)
+
+    const playMask = playMaskShape.createGeometryMask()
+    playBg.setMask(playMask)
+    this.addObject(playBg)
+
+    this.runtimeCleanups.push(() => {
+      playBg.clearMask(false)
+      playMask.destroy()
+      playMaskShape.destroy()
+    })
+
+    const shade = this.scene.add.rectangle(
+      playCenterX,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0x281607,
+      0.12
+    )
+    this.addObject(shade)
+
+    const playBorder = this.scene.add.rectangle(
+      playCenterX,
+      playCenterY,
+      playWidth,
+      playHeight,
+      0x000000,
+      0
+    )
+    playBorder.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(playBorder)
+
+    // One shared ground line keeps the merchant/farmer and the action plot on
+    // the same horizontal plane. The plot is intentionally placed lower than
+    // before so it sits on the painted soil bed instead of floating above it.
+    const plotBaseX = playLeft + playWidth * 0.72
+    const plotBaseY = playTop + playHeight * 0.84
+    const actorBaselineY = plotBaseY - 8
+    const palmDisplayHeight = Math.min(compactLayout ? 156 : 186, playHeight * 1.1)
+    const palmDisplayWidth = palmDisplayHeight * (220 / 240)
+    const farmerDisplaySize = compactLayout ? 108 : 120
+
+    const palmSprite = this.scene.add.sprite(
+      plotBaseX,
+      plotBaseY - palmDisplayHeight / 2,
+      growthSheetKey(selectedSeed),
+      0
+    )
+    palmSprite.setDisplaySize(palmDisplayWidth, palmDisplayHeight)
+    this.addObject(palmSprite)
+
+    const netDisplayHeight = Math.min(122, palmDisplayHeight * 0.76)
+    const netDisplayWidth = netDisplayHeight * (220 / 140)
+
+    const netSprite = this.scene.add.sprite(
+      plotBaseX,
+      plotBaseY - netDisplayHeight / 2,
+      'date_palm6_net_cover_sheet',
+      0
+    )
+    netSprite.setDisplaySize(netDisplayWidth, netDisplayHeight)
+    netSprite.setVisible(false)
+    this.addObject(netSprite)
+
+    const farmerSprite = this.scene.add.sprite(
+      plotBaseX - Math.min(205, playWidth * 0.34),
+      actorBaselineY - farmerDisplaySize * 0.5 - 10,
+      'date_palm6_farmer_sheet',
+      0
+    )
+    farmerSprite.setDisplaySize(farmerDisplaySize, farmerDisplaySize)
+    this.addObject(farmerSprite)
+
+    const sparkle = this.scene.add.sprite(
+      palmSprite.x,
+      palmSprite.y - palmDisplayHeight * 0.22,
+      'date_palm6_sparkle_sheet',
+      0
+    )
+    sparkle.setDisplaySize(128, 80)
+    sparkle.setVisible(false)
+    this.addObject(sparkle)
+
+    const crowA = this.scene.add.sprite(
+      playRight - 70,
+      playTop + 54,
+      'date_palm6_crow_sheet',
+      0
+    )
+    crowA.setDisplaySize(92, 58)
+    crowA.setVisible(false)
+    this.addObject(crowA)
+
+    const crowB = this.scene.add.sprite(
+      playRight - 145,
+      playTop + 82,
+      'date_palm6_crow_sheet',
+      0
+    )
+    crowB.setDisplaySize(78, 50)
+    crowB.setVisible(false)
+    this.addObject(crowB)
+
+    const harvestBasket = this.scene.add.image(
+      plotBaseX + 70,
+      plotBaseY - 26,
+      harvestIconKey(selectedSeed)
+    )
+    harvestBasket.setDisplaySize(54, 54)
+    harvestBasket.setVisible(false)
+    this.addObject(harvestBasket)
+
+    const setPalmForRound = (action: GroveRound['action']) => {
+      const seedRoundDrop = action === 'seed' ? 18 : 0
+      palmSprite.setPosition(
+        plotBaseX,
+        plotBaseY - palmDisplayHeight / 2 + seedRoundDrop
+      )
+    }
+
+    const statusPanelHeight = compactLayout ? 38 : 42
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 150,
+      statusPanelHeight,
+      0xead8aa,
+      0.98
+    )
+    statusPanel.setStrokeStyle(2, 0xb8862e, 1)
+
+    const statusText = this.scene.add.text(
+      width / 2,
+      statusY,
+      'The Date Merchant points to an empty patch of soil.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '13px',
+        color: '#245d78',
+        fontStyle: 'bold',
+        align: 'center',
+        lineSpacing: 1,
+        wordWrap: { width: this.panelWidth - 190 },
+      }
+    )
+    statusText.setOrigin(0.5)
+
+    this.addObject(statusPanel)
+    this.addObject(statusText)
+
+    const promptPanel = this.scene.add.rectangle(
+      width / 2,
+      playTop + 18,
+      playWidth - 56,
+      28,
+      0x180d04,
+      0.58
+    )
+    promptPanel.setStrokeStyle(2, 0xd4af37, 0.72)
+    this.addObject(promptPanel)
+
+    const promptText = this.scene.add.text(
+      width / 2,
+      playTop + 18,
+      'Choose the seed you want to grow.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '14px',
+        color: '#ffd966',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: playWidth - 78 },
+      }
+    )
+    promptText.setOrigin(0.5)
+    this.addObject(promptText)
+    promptPanel.setVisible(false)
+    promptText.setVisible(false)
+
+    const ensureAnim = (
+      key: string,
+      texture: string,
+      start: number,
+      end: number,
+      frameRate: number,
+      repeat = 0
+    ) => {
+      if (this.scene.anims.exists(key)) return
+
+      this.scene.anims.create({
+        key,
+        frames: this.scene.anims.generateFrameNumbers(texture, {
+          start,
+          end,
+        }),
+        frameRate,
+        repeat,
+      })
+    }
+
+    ensureAnim('date-palm-farmer-idle', 'date_palm6_farmer_sheet', 0, 5, 5, -1)
+    ensureAnim('date-palm-farmer-plant', 'date_palm6_farmer_sheet', 6, 11, 8)
+    ensureAnim('date-palm-farmer-hoe', 'date_palm6_farmer_sheet', 12, 17, 8)
+    ensureAnim('date-palm-farmer-water', 'date_palm6_farmer_sheet', 18, 23, 8)
+    ensureAnim('date-palm-farmer-net', 'date_palm6_farmer_sheet', 24, 29, 8)
+    ensureAnim('date-palm-farmer-harvest', 'date_palm6_farmer_sheet', 30, 35, 8)
+    ensureAnim('date-palm-farmer-celebrate', 'date_palm6_farmer_sheet', 36, 41, 7, -1)
+    ensureAnim('date-palm-crow-fly', 'date_palm6_crow_sheet', 0, 5, 9, -1)
+    ensureAnim('date-palm-net-cover', 'date_palm6_net_cover_sheet', 0, 4, 8)
+    ensureAnim('date-palm-sparkle', 'date_palm6_sparkle_sheet', 0, 5, 12)
+
+    farmerSprite.play('date-palm-farmer-idle')
+
+    const updateHud = () => {
+      roundText.setText(`ROUND ${Math.min(roundIndex + 1, rounds.length)} / ${rounds.length}`)
+      seedText.setText(
+        roundIndex === 0
+          ? 'CHOOSE SEED'
+          : `${seedNames[selectedSeed].toUpperCase()} PALM`
+      )
+
+      heartsText.setText(
+        Array.from(
+          { length: 3 },
+          (_value, index) => (index < hearts ? '♥' : '♡')
+        ).join(' ')
+      )
+    }
+
+    const clearChoices = () => {
+      choiceHandles.forEach((choice) => choice.destroy())
+      choiceHandles.length = 0
+    }
+
+    const setChoicesEnabled = (enabled: boolean) => {
+      choiceHandles.forEach((choice) => choice.setEnabled(enabled))
+    }
+
+    const playAction = (
+      animationKey: string,
+      onComplete?: () => void
+    ) => {
+      farmerSprite.off('animationcomplete')
+      farmerSprite.play(animationKey, true)
+      farmerSprite.once('animationcomplete', () => {
+        if (state === 'finished') return
+        farmerSprite.play('date-palm-farmer-idle', true)
+        onComplete?.()
+      })
+    }
+
+    const playSparkle = () => {
+      sparkle.setVisible(true)
+      sparkle.setAlpha(1)
+      sparkle.play('date-palm-sparkle')
+      sparkle.once('animationcomplete', () => {
+        sparkle.setVisible(false)
+      })
+    }
+
+    const createGrowthAnimation = (
+      seed: PalmSeed,
+      fromFrame: number,
+      toFrame: number
+    ) => {
+      const key = `date-palm-grow-${seed}-${fromFrame}-${toFrame}`
+
+      if (!this.scene.anims.exists(key)) {
+        this.scene.anims.create({
+          key,
+          frames: this.scene.anims.generateFrameNumbers(
+            growthSheetKey(seed),
+            {
+              start: fromFrame,
+              end: toFrame,
+            }
+          ),
+          frameRate: 5,
+          repeat: 0,
+        })
+      }
+
+      return key
+    }
+
+    const growPalmTo = (targetFrame: number, onComplete?: () => void) => {
+      palmSprite.setTexture(growthSheetKey(selectedSeed))
+
+      if (targetFrame <= palmFrame) {
+        palmSprite.setFrame(targetFrame)
+        onComplete?.()
+        return
+      }
+
+      const animationKey = createGrowthAnimation(
+        selectedSeed,
+        palmFrame,
+        targetFrame
+      )
+
+      palmSprite.play(animationKey)
+      palmSprite.once('animationcomplete', () => {
+        palmFrame = targetFrame
+        palmSprite.setFrame(targetFrame)
+        onComplete?.()
+      })
+    }
+
+    const createImageChoice = (
+      x: number,
+      y: number,
+      choice: GroveChoice,
+      index: number
+    ): ImageChoiceHandle => {
+      let enabled = true
+      let selected = false
+
+      const optionSource = this.scene.textures
+        .get(choice.iconKey)
+        .getSourceImage() as { width: number; height: number }
+
+      // Use a wider, shorter card so the option row takes less vertical
+      // space and the farm animation screen can be taller. The full artwork
+      // is shown inside the card with no cropping and no white page margins.
+      const cardWidth = choiceCardWidth
+      const cardHeight = choiceCardHeight
+      const imageWidth = cardWidth - 10
+      const imageHeight = cardHeight - 10
+
+      const frame = this.scene.add.rectangle(
+        x,
+        y,
+        cardWidth,
+        cardHeight,
+        0x130904,
+        0.72
+      )
+      frame.setStrokeStyle(3, 0xd4af37, 0.95)
+
+      const bg = this.scene.add.rectangle(
+        x,
+        y,
+        cardWidth,
+        cardHeight,
+        0x130904,
+        0.001
+      )
+      bg.setStrokeStyle(3, 0xd4af37, 0.001)
+      bg.setInteractive({ useHandCursor: true })
+
+      const image = this.scene.add.image(x, y, choice.iconKey)
+      image.setDisplaySize(imageWidth, imageHeight)
+
+      const normalFill = 0x130904
+      const hoverFill = 0x2b1908
+      const selectedFill = 0x3d2609
+      const disabledFill = 0x1e1710
+      const normalStroke = 0xd4af37
+      const hoverStroke = 0xf2a900
+      const selectedStroke = 0xffd966
+      const disabledStroke = 0x8f6b2f
+
+      const refresh = () => {
+        if (!enabled) {
+          bg.disableInteractive()
+          frame.setFillStyle(selected ? selectedFill : disabledFill, selected ? 0.8 : 0.52)
+          frame.setStrokeStyle(3, selected ? selectedStroke : disabledStroke, selected ? 1 : 0.8)
+          image.setAlpha(selected ? 1 : 0.58)
+          return
+        }
+
+        bg.setInteractive({ useHandCursor: true })
+        frame.setFillStyle(selected ? selectedFill : normalFill, selected ? 0.82 : 0.72)
+        frame.setStrokeStyle(3, selected ? selectedStroke : normalStroke, 1)
+        image.setAlpha(1)
+      }
+
+      bg.on('pointerover', () => {
+        if (!enabled) return
+        frame.setFillStyle(selected ? selectedFill : hoverFill, selected ? 0.82 : 0.78)
+        frame.setStrokeStyle(3, selected ? selectedStroke : hoverStroke, 1)
+      })
+
+      bg.on('pointerout', () => {
+        if (!enabled) return
+        refresh()
+      })
+
+      bg.on('pointerdown', () => {
+        if (!enabled || state !== 'choosing' || this.resultLocked) return
+        handleChoice(index)
+      })
+
+      this.addObject(frame)
+      this.addObject(bg)
+      this.addObject(image)
+
+      return {
+        bg: frame,
+        image,
+        setEnabled: (value: boolean) => {
+          enabled = value
+          refresh()
+        },
+        setSelected: (value: boolean) => {
+          selected = value
+          refresh()
+        },
+        destroy: () => {
+          if (frame.active) frame.destroy()
+          if (bg.active) bg.destroy()
+          if (image.active) image.destroy()
+        },
+      }
+    }
+
+    const finishGame = (success: boolean) => {
+      if (state === 'finished') return
+      state = 'finished'
+      clearChoices()
+
+      const goldReward = success
+        ? 220 + hearts * 70 + (perfectRun ? 120 : 0) + Math.floor(score / 8)
+        : Math.max(40, correctActions * 45)
+
+      const reputationReward = success
+        ? 10 + hearts * 3 + (perfectRun ? 4 : 0)
+        : Math.max(0, correctActions - 1)
+
+      this.complete(
+        {
+          success,
+          goldDelta: goldReward,
+          reputationDelta: reputationReward,
+          itemKey: success && perfectRun ? `${selectedSeed}PalmHarvest` : undefined,
+          response: success
+            ? `The ${seedNames[selectedSeed]} palm gives its first harvest. The Date Merchant smiles: “You grew this from seed to souq.”`
+            : 'The palm survives, but barely. The Date Merchant hands you a practice basket and recommends fewer decorative mistakes next season.',
+        },
+        850
+      )
+    }
+
+    const loseHeart = (message: string) => {
+      hearts = Math.max(0, hearts - 1)
+      perfectRun = false
+      updateHud()
+      statusText.setText(message)
+      this.scene.cameras.main.shake(140, 0.004)
+
+      const puff = this.scene.add.image(
+        palmSprite.x,
+        palmSprite.y + 28,
+        'date_palm6_dust_puff'
+      )
+      puff.setDisplaySize(72, 72)
+      this.addObject(puff)
+
+      this.addTween({
+        targets: puff,
+        alpha: 0,
+        scaleX: 1.35,
+        scaleY: 1.35,
+        duration: 420,
+        onComplete: () => puff.destroy(),
+      })
+
+      if (hearts <= 0) {
+        finishGame(false)
+        return true
+      }
+
+      setChoicesEnabled(false)
+
+      this.schedule(850, () => {
+        if (state !== 'choosing') return
+        statusText.setText('Try again. The farmer is still waiting.')
+        setChoicesEnabled(true)
+      })
+
+      return false
+    }
+
+    const advanceRound = () => {
+      if (roundIndex >= rounds.length - 1) {
+        finishGame(true)
+        return
+      }
+
+      roundIndex += 1
+      renderRound()
+    }
+
+    const animateCorrectAction = (round: GroveRound, feedback: string) => {
+      state = 'animating'
+      setChoicesEnabled(false)
+      statusText.setText(feedback)
+
+      if (round.action === 'seed') {
+        netSprite.setVisible(false)
+        harvestBasket.setVisible(false)
+        palmFrame = 0
+        palmSprite.anims.stop()
+        setPalmForRound('seed')
+        palmSprite.setTexture(growthSheetKey(selectedSeed))
+        palmSprite.setFrame(0)
+        palmSprite.setVisible(true)
+        palmSprite.setAlpha(1)
+        harvestBasket.setTexture(harvestIconKey(selectedSeed))
+
+        playAction('date-palm-farmer-plant', () => {
+          // After the seed is planted, show a tiny first sprout so round 2
+          // no longer looks identical to the untouched seed pit.
+          palmFrame = 1
+          palmSprite.anims.stop()
+          palmSprite.setTexture(growthSheetKey(selectedSeed))
+          palmSprite.setFrame(1)
+          playSparkle()
+          this.schedule(900, advanceRound)
+        })
+
+        return
+      }
+
+      if (round.action === 'soil') {
+        playAction('date-palm-farmer-hoe', () => {
+          score += 80
+          correctActions += 1
+
+          // Soil prep changes the plot again before watering: the sprout
+          // becomes a stronger short palm, giving round 3 a clear visual step.
+          growPalmTo(2, () => {
+            playSparkle()
+            this.schedule(800, advanceRound)
+          })
+        })
+
+        return
+      }
+
+      if (round.action === 'water') {
+        playAction('date-palm-farmer-water', () => {
+          score += 110
+          correctActions += 1
+          growPalmTo(3, () => {
+            playSparkle()
+            this.schedule(900, advanceRound)
+          })
+        })
+
+        return
+      }
+
+      if (round.action === 'protect') {
+        crowA.setVisible(true)
+        crowB.setVisible(true)
+        crowA.play('date-palm-crow-fly', true)
+        crowB.play('date-palm-crow-fly', true)
+
+        playAction('date-palm-farmer-net', () => {
+          score += 120
+          correctActions += 1
+
+          growPalmTo(4, () => {
+            palmFrame = 4
+            palmSprite.anims.stop()
+            palmSprite.setVisible(false)
+            palmSprite.setAlpha(0)
+
+            netSprite.setPosition(plotBaseX, plotBaseY - netDisplayHeight / 2)
+            netSprite.setDisplaySize(netDisplayWidth, netDisplayHeight)
+            netSprite.setVisible(true)
+            netSprite.setAlpha(1)
+            netSprite.setFrame(0)
+            netSprite.play('date-palm-net-cover', true)
+
+            this.addTween({
+              targets: [crowA, crowB],
+              x: '-=120',
+              alpha: 0,
+              duration: 720,
+              onComplete: () => {
+                crowA.setVisible(false)
+                crowB.setVisible(false)
+                crowA.setAlpha(1)
+                crowB.setAlpha(1)
+                crowA.x = playRight - 70
+                crowB.x = playRight - 145
+              },
+            })
+
+            playSparkle()
+            this.schedule(950, advanceRound)
+          })
+        })
+
+        return
+      }
+
+      if (round.action === 'harvest') {
+        netSprite.setVisible(false)
+        netSprite.setAlpha(1)
+
+        palmSprite.anims.stop()
+        palmSprite.setTexture(growthSheetKey(selectedSeed))
+        palmSprite.setFrame(Math.max(palmFrame, 4))
+        palmSprite.setVisible(true)
+        palmSprite.setAlpha(1)
+
+        growPalmTo(5)
+
+        playAction('date-palm-farmer-harvest', () => {
+          score += 150
+          correctActions += 1
+          palmSprite.anims.stop()
+          palmSprite.setTexture(growthSheetKey(selectedSeed))
+          palmSprite.setFrame(5)
+          palmFrame = 5
+          harvestBasket.setTexture(harvestIconKey(selectedSeed))
+          harvestBasket.setVisible(false)
+          playSparkle()
+          farmerSprite.play('date-palm-farmer-celebrate', true)
+          this.schedule(1250, () => finishGame(true))
+        })
+      }
+    }
+
+    function isSeedChoice(
+      choice: GroveChoice
+    ): choice is GroveChoice & { seed: PalmSeed } {
+      return Boolean(choice.seed)
+    }
+
+    const handleChoice = (selectedIndex: number) => {
+      if (state !== 'choosing' || this.resultLocked) return
+
+      const round = rounds[roundIndex]
+      const choice = round.choices[selectedIndex]
+
+      choiceHandles.forEach((handle, index) => {
+        handle.setSelected(index === selectedIndex)
+      })
+
+      if (round.action === 'seed' && isSeedChoice(choice)) {
+        selectedSeed = choice.seed
+        updateHud()
+        animateCorrectAction(round, choice.feedback)
+        return
+      }
+
+      if (choice.correct) {
+        animateCorrectAction(round, choice.feedback)
+        return
+      }
+
+      loseHeart(choice.feedback)
+    }
+
+    const renderRound = () => {
+      state = 'choosing'
+      clearChoices()
+
+      const round = rounds[roundIndex]
+      promptPanel.setVisible(true)
+      promptText.setVisible(true)
+      setPalmForRound(round.action)
+
+      if (round.action === 'harvest') {
+        // Keep the protective net visible during the harvest-choice round,
+        // so the previous successful action remains on screen.
+        if (!netSprite.visible) {
+          palmSprite.setVisible(true)
+          palmSprite.setAlpha(1)
+          palmSprite.anims.stop()
+          palmSprite.setTexture(growthSheetKey(selectedSeed))
+          palmSprite.setFrame(Math.max(palmFrame, 4))
+        }
+      }
+
+      promptText.setText(round.prompt)
+      statusText.setText(
+        round.action === 'seed'
+          ? 'There is no wrong seed. Pick the harvest you want to grow.'
+          : round.action === 'water'
+            ? 'Pick the item that gives the palm water. Wrong tools cost a heart.'
+            : 'Choose the correct picture. Wrong tools cost a heart.'
+      )
+
+      const step = choiceCardWidth + choiceGap
+      const answerX = [
+        width / 2 - step,
+        width / 2,
+        width / 2 + step,
+      ]
+
+      round.choices.forEach((choice, index) => {
+        choiceHandles.push(
+          createImageChoice(answerX[index], answerY, choice, index)
+        )
+      })
+
+      updateHud()
+
+      this.container.bringToTop(promptPanel)
+      this.container.bringToTop(promptText)
+      choiceHandles.forEach((choice) => {
+        this.container.bringToTop(choice.bg)
+        this.container.bringToTop(choice.image)
+      })
+    }
+
+    let startButton: ButtonHandle
+
+    const startTrial = () => {
+      if (state !== 'ready') return
+
+      startButton.bg.setVisible(false)
+      startButton.text.setVisible(false)
+      startButton.setEnabled(false)
+
+      roundIndex = 0
+      hearts = 3
+      score = 0
+      correctActions = 0
+      perfectRun = true
+      palmFrame = 0
+      selectedSeed = 'majdoul'
+
+      palmSprite.setTexture(growthSheetKey(selectedSeed))
+      palmSprite.setFrame(0)
+      palmSprite.setVisible(true)
+      palmSprite.setAlpha(1)
+      netSprite.setVisible(false)
+      netSprite.setAlpha(1)
+      harvestBasket.setVisible(false)
+      farmerSprite.play('date-palm-farmer-idle')
+
+      renderRound()
+    }
+
+    startButton = this.createButton(
+      width / 2,
+      answerY,
+      250,
+      44,
+      'BEGIN PALM TRIAL',
+      startTrial,
+      0x8b5a2b,
+      16
+    )
+
+    updateHud()
+
+    this.container.bringToTop(farmerSprite)
+    this.container.bringToTop(palmSprite)
+    this.container.bringToTop(netSprite)
+    this.container.bringToTop(sparkle)
+    this.container.bringToTop(crowA)
+    this.container.bringToTop(crowB)
+    this.container.bringToTop(harvestBasket)
+    this.container.bringToTop(startButton.bg)
+    this.container.bringToTop(startButton.text)
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. OLD DATE MERCHANT — Date Quiz
+  // ---------------------------------------------------------------------------
+
+  private createDateTradeGameOld() {
     const width = this.scene.scale.width
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
@@ -4307,7 +5618,7 @@ ${roundSettings.introText}`, {
     const playLeft = this.getPanelLeft() + 30
     const playRight = this.getPanelRight() - 30
     const playWidth = playRight - playLeft
-    const playHeight = playBottom - playTop
+    const playHeight = Math.max(150, playBottom - playTop)
     const playCenterY = (playTop + playBottom) / 2
 
     let stage: PotStage = 'ready'
@@ -6756,7 +8067,7 @@ ${roundSettings.introText}`, {
     const playBottom = statusY - 25
 
     const playWidth = playRight - playLeft
-    const playHeight = playBottom - playTop
+    const playHeight = Math.max(150, playBottom - playTop)
     const eagleX = playLeft + 122
 
     let state: FlightState = 'ready'

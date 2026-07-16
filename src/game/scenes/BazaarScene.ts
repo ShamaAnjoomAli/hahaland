@@ -1039,16 +1039,31 @@ this.saveProgress()
         this.minigame.show({
           gameId,
           portraitKey,
+          alreadyCompleted: this.completedMarkets.has(npcName),
           onComplete: (result) => {
             this.applyMinigameReward(result)
-            this.completedMarkets.add(npcName)
-            this.saveCompletedMarkets()
-            this.refreshMerchantHighlight(npcName)
-            this.refreshMinimapNpcDot(npcName)
+
+            // Failed trials remain replayable and must not count toward the
+            // seven completed bazaar markets.
+            if (!result.success) {
+              this.objectiveBox.setText(
+                `Objective: Bazaar markets completed ${this.completedMarkets.size}/7`,
+              )
+              return
+            }
+
+            const newlyCompleted = !this.completedMarkets.has(npcName)
+
+            if (newlyCompleted) {
+              this.completedMarkets.add(npcName)
+              this.saveCompletedMarkets()
+              this.refreshMerchantHighlight(npcName)
+              this.refreshMinimapNpcDot(npcName)
+            }
 
             if (this.completedMarkets.size >= 7) {
               this.objectiveBox.setText(
-                'Objective: Exit the bazaar through the entrance gate, or replay markets for more gold and reputation.'
+                'Objective: Exit the bazaar through the entrance gate, or replay markets for more gold.'
               )
             } else {
               this.objectiveBox.setText(
@@ -1056,7 +1071,7 @@ this.saveProgress()
               )
             }
 
-            if (this.completedMarkets.size >= 7) {
+            if (newlyCompleted && this.completedMarkets.size >= 7) {
               this.dialogue.show(
                 [
                   {
@@ -1295,7 +1310,7 @@ this.saveProgress()
   private getBazaarGameId(npcName: string): BazaarGameId | null {
     const games: Record<string, BazaarGameId> = {
       NPC_3: 'map-bargain',
-      NPC_4: 'grain-pact',
+      NPC_4: 'grain-friends',
       NPC_8: 'spice-memory',
       NPC_7: 'date-trade',
       NPC_10: 'pottery-fraud',
@@ -1405,10 +1420,10 @@ this.saveProgress()
       },
 
       NPC_4: {
-        title: '2. Broken Scale Puzzle',
+        title: 'Granary Friends',
         description: [
-          'The Scale Merchant is selling dates with a suspicious scale.',
-          'One weight is fake. Which one do you accuse?',
+          'The Grain Merchant steps outside and warns everyone to leave his storeroom alone.',
+          'Help the cat find treats and the mouse tidy the evidence before the merchant returns.',
         ],
         choices: [
           {
