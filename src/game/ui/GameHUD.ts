@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 export default class GameHUD {
   public container: Phaser.GameObjects.Container
 
+  private scene: Phaser.Scene
   private coinText: Phaser.GameObjects.Text
   private timerText: Phaser.GameObjects.Text
   private reputationLabel: Phaser.GameObjects.Text
@@ -13,14 +14,14 @@ export default class GameHUD {
   private reputationBarWidth: number
   private reputationBarX: number
   private reputationBarY: number
+  private rightMargin: number
+  private fixedY: number
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number,
-    width = 150
-  ) {
+  constructor(scene: Phaser.Scene, x: number, y: number, width = 150) {
+    this.scene = scene
     this.width = width
+    this.rightMargin = Math.max(0, scene.scale.width - x - width)
+    this.fixedY = y
 
     const height = 50
     const topHeight = 28
@@ -53,7 +54,7 @@ export default class GameHUD {
       this.reputationBarY,
       this.reputationBarWidth,
       7,
-      3
+      3,
     )
 
     this.bg.lineStyle(1, 0xffffff, 0.28)
@@ -62,35 +63,20 @@ export default class GameHUD {
       this.reputationBarY,
       this.reputationBarWidth,
       7,
-      3
+      3,
     )
 
-    const coinIcon = scene.add.circle(
-      14,
-      topHeight / 2,
-      6,
-      0xffd966
-    )
+    const coinIcon = scene.add.circle(14, topHeight / 2, 6, 0xffd966)
     coinIcon.setStrokeStyle(1.5, 0x9b7a3f)
 
-    this.coinText = scene.add.text(
-      27,
-      topHeight / 2,
-      '0',
-      {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: '#ffffff',
-      }
-    )
+    this.coinText = scene.add.text(27, topHeight / 2, '0', {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#ffffff',
+    })
     this.coinText.setOrigin(0, 0.5)
 
-    const clockIcon = scene.add.circle(
-      clockX,
-      topHeight / 2,
-      6,
-      0x222222
-    )
+    const clockIcon = scene.add.circle(clockX, topHeight / 2, 6, 0x222222)
     clockIcon.setStrokeStyle(1.5, 0xffffff)
 
     const clockHandA = scene.add.line(
@@ -100,7 +86,7 @@ export default class GameHUD {
       topHeight / 2,
       clockX,
       topHeight / 2 - 4,
-      0xffffff
+      0xffffff,
     )
     clockHandA.setLineWidth(1.5)
 
@@ -111,33 +97,23 @@ export default class GameHUD {
       topHeight / 2,
       clockX + 3,
       topHeight / 2,
-      0xffffff
+      0xffffff,
     )
     clockHandB.setLineWidth(1.5)
 
-    this.timerText = scene.add.text(
-      clockX + 13,
-      topHeight / 2,
-      '00:00',
-      {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: '#ffffff',
-      }
-    )
+    this.timerText = scene.add.text(clockX + 13, topHeight / 2, '00:00', {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#ffffff',
+    })
     this.timerText.setOrigin(0, 0.5)
 
-    this.reputationLabel = scene.add.text(
-      12,
-      39,
-      'REP',
-      {
-        fontFamily: 'Arial',
-        fontSize: '11px',
-        color: '#ffd966',
-        fontStyle: 'bold',
-      }
-    )
+    this.reputationLabel = scene.add.text(12, 39, 'REP', {
+      fontFamily: 'Arial',
+      fontSize: '11px',
+      color: '#ffd966',
+      fontStyle: 'bold',
+    })
     this.reputationLabel.setOrigin(0, 0.5)
 
     this.reputationFill = scene.add.graphics()
@@ -155,9 +131,12 @@ export default class GameHUD {
     ])
 
     this.container.setScrollFactor(0)
-    this.container.setDepth(20050)
+    this.container.setDepth(50000)
 
     this.setReputation(0)
+
+    scene.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this)
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this)
   }
 
   setCoins(value: number) {
@@ -188,9 +167,7 @@ export default class GameHUD {
 
   setReputation(value: number) {
     const safeValue = Phaser.Math.Clamp(Math.floor(value), 0, 100)
-    const fillWidth = Math.round(
-      this.reputationBarWidth * (safeValue / 100)
-    )
+    const fillWidth = Math.round(this.reputationBarWidth * (safeValue / 100))
 
     let fillColor = 0xff6666
 
@@ -209,10 +186,21 @@ export default class GameHUD {
         this.reputationBarY,
         fillWidth,
         7,
-        3
+        3,
       )
     }
 
-    this.reputationLabel.setText(`REP`)
+    this.reputationLabel.setText('REP')
+  }
+
+  private handleResize(gameSize: { width: number }) {
+    this.container.setPosition(
+      gameSize.width - this.width - this.rightMargin,
+      this.fixedY,
+    )
+  }
+
+  private destroy() {
+    this.scene.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize, this)
   }
 }

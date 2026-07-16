@@ -296,6 +296,28 @@ this.saveProgress()
     this.stopGameTimer = timerController.stop
     this.createUICamera()
 
+    this.scale.off(
+      Phaser.Scale.Events.RESIZE,
+      this.handleUIResize,
+      this,
+    )
+    this.scale.on(
+      Phaser.Scale.Events.RESIZE,
+      this.handleUIResize,
+      this,
+    )
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off(
+        Phaser.Scale.Events.RESIZE,
+        this.handleUIResize,
+        this,
+      )
+      this.stopGameTimer?.()
+    })
+
+    this.handleUIResize(this.scale.gameSize)
+
     this.keys = this.input.keyboard!.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -1898,7 +1920,34 @@ const y = padding
     })
   }
 
+  private handleUIResize(gameSize: { width: number; height: number }) {
+    const padding = 12
+    const minimapX = gameSize.width - this.minimapConfig.width - padding
+    const minimapY = padding
+
+    this.minimapConfig.x = minimapX
+    this.minimapConfig.y = minimapY
+
+    this.minimapBackground?.setPosition(minimapX, minimapY)
+    this.minimapBorder?.setPosition(minimapX, minimapY)
+
+    this.hud?.container.setPosition(
+      minimapX,
+      minimapY + this.minimapConfig.height + 6,
+    )
+
+    this.uiCamera?.setViewport(0, 0, gameSize.width, gameSize.height)
+    this.updateBazaarMinimap()
+  }
+
   private createUICamera() {
+    // Explicit UI layer ordering. The dialogue and its choice list must always
+    // render above the HUD, minimap and objective box.
+    this.dialogue?.container.setDepth(100000)
+    this.minigame?.container.setDepth(90000)
+    this.hud?.container.setDepth(50000)
+    this.objectiveBox?.container.setDepth(40000)
+
     const uiObjects: Phaser.GameObjects.GameObject[] = []
 
     const addUIObject = (obj?: Phaser.GameObjects.GameObject | null) => {
