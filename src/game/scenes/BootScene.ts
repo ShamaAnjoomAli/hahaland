@@ -67,6 +67,10 @@ const IMAGES: ImageAsset[] = [
     key: 'egypt_desert_tileset',
     path: 'assets/maps/egypt_desert_tileset.png',
   },
+  {
+    key: 'egypt-city-gate-foreground',
+    path: 'assets/maps/egypt_city_gate_foreground.png',
+  },
 ]
 
 const SPRITESHEETS: SpriteSheetAsset[] = [
@@ -77,7 +81,7 @@ const SPRITESHEETS: SpriteSheetAsset[] = [
     frameHeight: 64,
   },
 
-    // NPCs
+  // NPCs
   {
     key: 'npc1',
     path: 'assets/sprites/npc/npc1.png',
@@ -211,7 +215,7 @@ const SPRITESHEETS: SpriteSheetAsset[] = [
  * Loads all shared assets, creates player walk animations, then hands off to VillageScene.
  */
 export default class BootScene extends Phaser.Scene {
-    /** Registers this scene with Phaser under the key "BootScene". */
+  /** Registers this scene with Phaser under the key "BootScene". */
   constructor() {
     super('BootScene')
   }

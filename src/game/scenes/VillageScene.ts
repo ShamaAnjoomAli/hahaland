@@ -261,8 +261,9 @@ export default class VillageScene extends Phaser.Scene {
     completedPyramidRiddles: false,
   }
 
-  // To make the player enter the city below the gate
-  private foregroundGateLayer?: Phaser.Tilemaps.TilemapLayer;
+  // Full-map transparent overlay that renders the front/top of the
+  // southern city gate above the player while they walk through it.
+  private cityGateForeground?: Phaser.GameObjects.Image
 
   private bazaarEntranceMarker?: Phaser.GameObjects.Arc  
   private bazaarEntrancePoint?: {
@@ -359,32 +360,17 @@ private stopGameTimer?: () => void
     const waterLayer = map.createLayer('Water', tileset)
     const buildingsLayer = map.createLayer('Buildings', tileset)
     const propsLayer = map.createLayer('Props', tileset)
-    const foregroundGateLayer = map.createLayer('ForegroundGate', tileset)
 
     console.log(
       'Map layers:',
       map.layers.map((layer) => layer.name)
     )
 
-    console.log(
-      'ForegroundGate created:',
-      Boolean(foregroundGateLayer)
-    )
-
-    if (!foregroundGateLayer) {
-      console.warn(
-        'ForegroundGate layer not found. Check the exact layer name in Tiled.'
-      )
-    } else {
-      this.foregroundGateLayer = foregroundGateLayer
-    }
-
     groundLayer?.setDepth(0)
     pathsLayer?.setDepth(1)
     waterLayer?.setDepth(2)
     buildingsLayer?.setDepth(10)
     propsLayer?.setDepth(20)
-    foregroundGateLayer?.setDepth(9000)
 
     this.worldObjects.push(
       ...([
@@ -393,9 +379,13 @@ private stopGameTimer?: () => void
         waterLayer,
         buildingsLayer,
         propsLayer,
-        foregroundGateLayer,
       ].filter(Boolean) as Phaser.GameObjects.GameObject[]),
     )
+
+    // Use the dedicated transparent PNG instead of rebuilding the gate roof
+    // from Tiled tiles. Because the PNG uses the full city-map canvas, it
+    // stays perfectly aligned when the world is resized or the camera zooms.
+    this.createCityGateForeground(map)
 
     // Initialization of dialogues with NPC
     this.dialogue = new DialogueBox(this)
@@ -479,7 +469,7 @@ const gameplaySpawn = this.getSpawnPoint(
 
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15)
 
-    this.cameras.main.setZoom(0.8)
+    this.cameras.main.setZoom(0.5)
 
     this.createMinimap(map)
 
@@ -572,6 +562,29 @@ this.saveProgress()
     // Debug key to get coordinates of points in the game via player movements
     // Move the player to the required coordinate and press p
     this.debugCoordKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.P)
+  }
+
+  private createCityGateForeground(map: Phaser.Tilemaps.Tilemap) {
+    const textureKey = 'egypt-city-gate-foreground'
+
+    if (!this.textures.exists(textureKey)) {
+      console.warn(
+        `City gate foreground texture "${textureKey}" was not loaded.`
+      )
+      return
+    }
+
+    this.cityGateForeground?.destroy()
+
+    const foreground = this.add.image(0, 0, textureKey)
+
+    foreground.setOrigin(0, 0)
+    foreground.setDisplaySize(map.widthInPixels, map.heightInPixels)
+    foreground.setScrollFactor(1)
+    foreground.setDepth(9000)
+
+    this.cityGateForeground = foreground
+    this.worldObjects.push(foreground)
   }
 
   private setupAudio() {
