@@ -13,6 +13,10 @@ import {
   saveGameProgress,
 } from '../utils/progressSave'
 
+type EntranceDisplayObject = Phaser.GameObjects.GameObject &
+  Phaser.GameObjects.Components.Depth &
+  Phaser.GameObjects.Components.Visible
+
 type MinigameChoice = {
   label: string
   value: string
@@ -94,11 +98,12 @@ export default class BazaarScene extends Phaser.Scene {
     y: number
   }
 
-  private bazaarExitGlow?: Phaser.GameObjects.Arc
-  private bazaarExitRing?: Phaser.GameObjects.Arc
+  private bazaarExitGlow?: Phaser.GameObjects.Ellipse
+  private bazaarExitRing?: Phaser.GameObjects.Ellipse
   private bazaarExitArrow?: Phaser.GameObjects.Text
   private bazaarExitLabel?: Phaser.GameObjects.Container
   private bazaarExitLabelText?: Phaser.GameObjects.Text
+  private bazaarExitDecor: EntranceDisplayObject[] = []
 
   private bazaarExitRadius = 90
   private minimapExitDot?: Phaser.GameObjects.Arc
@@ -108,15 +113,17 @@ export default class BazaarScene extends Phaser.Scene {
     x: number
     y: number
   }
-  private cityExitGlow?: Phaser.GameObjects.Arc
-  private cityExitRing?: Phaser.GameObjects.Arc
+  private cityExitGlow?: Phaser.GameObjects.Ellipse
+  private cityExitRing?: Phaser.GameObjects.Ellipse
   private cityExitArrow?: Phaser.GameObjects.Text
   private cityExitLabel?: Phaser.GameObjects.Container
   private cityExitLabelText?: Phaser.GameObjects.Text
-  private cityExitRadius = 90
+    private cityExitRadius = 90
   private minimapCityExitDot?: Phaser.GameObjects.Arc
 
   private gateForeground?: Phaser.GameObjects.Image
+  private enteredFromVillage = false
+  private isGateTransitioning = false
   private timerEvent?: Phaser.Time.TimerEvent
   private stopGameTimer?: () => void
   constructor() {
@@ -127,8 +134,12 @@ export default class BazaarScene extends Phaser.Scene {
     coins?: number
     reputation?: number
     resume?: boolean
+    fromVillage?: boolean
   }) {
     const savedProgress = loadGameProgress()
+
+    this.enteredFromVillage = Boolean(data?.fromVillage)
+    this.isGateTransitioning = false
   
     if (data?.resume && savedProgress) {
       this.coins = savedProgress.coins
@@ -168,6 +179,7 @@ export default class BazaarScene extends Phaser.Scene {
     this.worldObjects = []
     this.merchantHighlights.clear()
     this.minimapNpcDots = []
+    this.bazaarExitDecor = []
 
     const map = this.make.tilemap({
       key: 'egypt_bazaar',
@@ -310,6 +322,11 @@ this.saveProgress()
     this.stopGameTimer = timerController.stop
     this.createUICamera()
 
+    if (this.enteredFromVillage) {
+      this.cameras.main.fadeIn(480, 20, 11, 4)
+      this.uiCamera?.fadeIn(480, 20, 11, 4)
+    }
+
     this.scale.off(
       Phaser.Scale.Events.RESIZE,
       this.handleUIResize,
@@ -365,6 +382,12 @@ this.saveProgress()
 
   update() {
     this.updateBazaarMinimap()
+
+    if (this.isGateTransitioning) {
+      this.player.setVelocity(0)
+      this.player.stop()
+      return
+    }
 
     if (this.minigame.open()) {
       this.player.setVelocity(0)
@@ -1387,9 +1410,17 @@ this.saveProgress()
     )
 
     this.cityExitGlow?.setFillStyle(
-      playerIsNear ? 0x00ff66 : 0x00aa44,
-      0.25,
+      playerIsNear ? 0x32d6c5 : 0x167c78,
+      playerIsNear ? 0.34 : 0.18,
     )
+    this.cityExitRing?.setStrokeStyle(
+      playerIsNear ? 4 : 3,
+      playerIsNear ? 0xffe7a3 : 0xd5a84b,
+      playerIsNear ? 1 : 0.88,
+    )
+    this.cityExitArrow?.setColor(playerIsNear ? '#fff7cf' : '#ffd166')
+    this.cityExitLabel?.setScale(playerIsNear ? 1.04 : 1)
+    this.cityExitLabel?.setAlpha(playerIsNear ? 1 : 0.9)
 
     if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.startReturnToVillage('city')
@@ -1418,7 +1449,18 @@ this.saveProgress()
       playerIsNear ? 'E Exit North' : 'Northern Gate',
     )
 
-    this.bazaarExitGlow?.setFillStyle(playerIsNear ? 0x00ff66 : 0x00aa44, 0.25)
+    this.bazaarExitGlow?.setFillStyle(
+      playerIsNear ? 0x32d6c5 : 0x167c78,
+      playerIsNear ? 0.34 : 0.18,
+    )
+    this.bazaarExitRing?.setStrokeStyle(
+      playerIsNear ? 4 : 3,
+      playerIsNear ? 0xffe7a3 : 0xd5a84b,
+      playerIsNear ? 1 : 0.88,
+    )
+    this.bazaarExitArrow?.setColor(playerIsNear ? '#fff7cf' : '#ffd166')
+    this.bazaarExitLabel?.setScale(playerIsNear ? 1.04 : 1)
+    this.bazaarExitLabel?.setAlpha(playerIsNear ? 1 : 0.9)
 
     if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.startReturnToVillage('north')
@@ -1873,185 +1915,206 @@ const y = padding
     }
   }
 
-  private createBazaarCityExitMarker(map: Phaser.Tilemaps.Tilemap) {
-    const point = this.getSpawnPoint(map, 'BazaarExit')
+  private createEgyptianGateMarker(
+    point: { x: number; y: number },
+    options: {
+      markerY?: number
+      label: string
+      direction: 'up' | 'down'
+    },
+  ) {
+    const markerY = options.markerY ?? point.y
+    const accent = 0x167c78
+    const gold = 0xd5a84b
 
-    this.cityExitPoint = point
+    const glow = this.add.ellipse(point.x, markerY, 82, 36, accent, 0.18)
 
-    this.cityExitGlow = this.add.circle(point.x, point.y, 26, 0x00aa44, 0.25)
+    const ring = this.add.ellipse(point.x, markerY, 66, 28, 0x000000, 0)
+    ring.setStrokeStyle(3, gold, 0.88)
 
-    this.cityExitRing = this.add.circle(point.x, point.y, 22, 0x00aa44, 0)
+    const inner = this.add.ellipse(point.x, markerY, 40, 16, 0x0d4f52, 0.68)
+    inner.setStrokeStyle(2, 0xffdf83, 0.9)
 
-    this.cityExitRing.setStrokeStyle(4, 0xffdd66, 1)
-
-    this.cityExitArrow = this.add.text(point.x, point.y - 5, '↑', {
-      fontFamily: 'Georgia',
-      fontSize: '22px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 5,
-      fontStyle: 'bold',
+    const orbit = this.add.container(point.x, markerY)
+    const orbitRunes = [
+      { x: 0, y: -16 },
+      { x: 31, y: 0 },
+      { x: 0, y: 16 },
+      { x: -31, y: 0 },
+    ].map(({ x, y }) => {
+      const rune = this.add.rectangle(x, y, 7, 7, gold, 0.95)
+      rune.setAngle(45)
+      return rune
     })
+    orbit.add(orbitRunes)
 
-    this.cityExitArrow.setOrigin(0.5)
-
-    const labelBg = this.add.rectangle(0, 0, 210, 34, 0x000000, 0.78)
-
-    labelBg.setStrokeStyle(2, 0xffdd66, 1)
-
-    this.cityExitLabelText = this.add.text(0, 0, 'Return to City', {
+    const arrowBaseY = markerY + (options.direction === 'down' ? 1 : -1)
+    const arrow = this.add.text(point.x, arrowBaseY, options.direction === 'up' ? '▲' : '▼', {
       fontFamily: 'Georgia',
-      fontSize: '16px',
-      color: '#ffdd66',
-      stroke: '#000000',
+      fontSize: '20px',
+      color: '#ffd166',
+      stroke: '#241408',
       strokeThickness: 4,
       fontStyle: 'bold',
     })
+    arrow.setOrigin(0.5)
 
-    this.cityExitLabelText.setOrigin(0.5)
+    const labelWidth = 216
+    const labelHeight = 38
+    const labelPlate = this.add.graphics()
+    labelPlate.fillStyle(0x241408, 0.92)
+    labelPlate.fillRoundedRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight, 8)
+    labelPlate.lineStyle(2, gold, 1)
+    labelPlate.strokeRoundedRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight, 8)
+    labelPlate.lineStyle(1, 0x7bc7bd, 0.75)
+    labelPlate.lineBetween(-labelWidth / 2 + 14, 11, labelWidth / 2 - 14, 11)
 
-    this.cityExitLabel = this.add.container(point.x, point.y - 58, [
-      labelBg,
-      this.cityExitLabelText,
+    const leftDiamond = this.add.rectangle(-92, 0, 8, 8, gold, 1).setAngle(45)
+    const rightDiamond = this.add.rectangle(92, 0, 8, 8, gold, 1).setAngle(45)
+
+    const labelText = this.add.text(0, -1, options.label, {
+      fontFamily: 'Georgia',
+      fontSize: '16px',
+      color: '#ffe7a3',
+      stroke: '#120a04',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    labelText.setOrigin(0.5)
+
+    const label = this.add.container(point.x, markerY - 58, [
+      labelPlate,
+      leftDiamond,
+      rightDiamond,
+      labelText,
     ])
+    label.setAlpha(0.9)
 
-    const objects = [
-      this.cityExitGlow,
-      this.cityExitRing,
-      this.cityExitArrow,
-      this.cityExitLabel,
-    ]
+    const motes = Array.from({ length: 6 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 6
+      const mote = this.add.circle(
+        point.x + Math.cos(angle) * 36,
+        markerY + Math.sin(angle) * 13,
+        index % 2 === 0 ? 2.2 : 1.6,
+        index % 2 === 0 ? 0xffd166 : 0x7de0d3,
+        0.72,
+      )
 
-    objects.forEach((obj) => {
-      obj.setDepth(9500)
+      this.tweens.add({
+        targets: mote,
+        y: mote.y + (options.direction === 'up' ? -16 : 16),
+        alpha: 0,
+        scale: 0.45,
+        duration: 1250 + index * 90,
+        delay: index * 120,
+        repeat: -1,
+        ease: 'Sine.easeOut',
+      })
+
+      return mote
     })
 
-    this.worldObjects.push(...objects)
+    const decor: EntranceDisplayObject[] = [inner, orbit, ...motes]
+    const objects: EntranceDisplayObject[] = [glow, ring, ...decor, arrow, label]
+
+    objects.forEach((obj) => obj.setDepth(9500))
 
     this.tweens.add({
-      targets: this.cityExitGlow,
-      scaleX: 1.55,
-      scaleY: 1.55,
-      alpha: 0.1,
-      duration: 750,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-
-    this.tweens.add({
-      targets: this.cityExitRing,
+      targets: glow,
       scaleX: 1.18,
       scaleY: 1.18,
-      duration: 650,
+      alpha: 0.08,
+      duration: 1150,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
 
     this.tweens.add({
-      targets: this.cityExitArrow,
-      y: point.y - 10,
-      duration: 550,
+      targets: ring,
+      scaleX: 1.07,
+      scaleY: 1.07,
+      alpha: 0.5,
+      duration: 900,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
+
+    this.tweens.add({
+      targets: orbit,
+      angle: options.direction === 'up' ? 360 : -360,
+      duration: 7000,
+      repeat: -1,
+      ease: 'Linear',
+    })
+
+    this.tweens.add({
+      targets: arrow,
+      y: arrowBaseY + (options.direction === 'up' ? -7 : 7),
+      duration: 720,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: [leftDiamond, rightDiamond],
+      alpha: 0.45,
+      scale: 0.78,
+      duration: 850,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    return { glow, ring, arrow, label, labelText, decor, objects }
+  }
+
+  private createBazaarCityExitMarker(map: Phaser.Tilemaps.Tilemap) {
+    const point = this.getSpawnPoint(map, 'BazaarExit')
+    this.cityExitPoint = point
+
+    const marker = this.createEgyptianGateMarker(point, {
+      label: 'Return to City',
+      direction: 'down',
+    })
+
+    this.cityExitGlow = marker.glow
+    this.cityExitRing = marker.ring
+    this.cityExitArrow = marker.arrow
+    this.cityExitLabel = marker.label
+    this.cityExitLabelText = marker.labelText
+
+    this.worldObjects.push(...marker.objects)
   }
 
   private createBazaarExitMarker(map: Phaser.Tilemaps.Tilemap) {
     const point = this.getSpawnPoint(map, 'BazaarNorthExit')
-
     this.bazaarExitPoint = point
 
-    // Keep the real interaction point at the gate, but render the marker lower
-    // so the fixed objective panel cannot cover it. The visual marker remains
-    // inside the exit interaction radius.
-    const markerY = point.y + 64
-
-    this.bazaarExitGlow = this.add.circle(point.x, markerY, 26, 0x00aa44, 0.25)
-
-    this.bazaarExitRing = this.add.circle(point.x, markerY, 22, 0x00aa44, 0)
-
-    this.bazaarExitRing.setStrokeStyle(4, 0xffdd66, 1)
-
-    this.bazaarExitArrow = this.add.text(point.x, markerY - 5, '↑', {
-      fontFamily: 'Georgia',
-      fontSize: '22px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 5,
-      fontStyle: 'bold',
+    // Keep the interaction point at the gate, while the floor sigil sits on the
+    // open road below it so the fixed objective panel cannot cover the marker.
+    const marker = this.createEgyptianGateMarker(point, {
+      markerY: point.y + 64,
+      label: 'Northern Gate',
+      direction: 'up',
     })
 
-    this.bazaarExitArrow.setOrigin(0.5)
-
-    const labelBg = this.add.rectangle(0, 0, 210, 34, 0x000000, 0.78)
-
-    labelBg.setStrokeStyle(2, 0xffdd66, 1)
-
-    this.bazaarExitLabelText = this.add.text(0, 0, 'Northern Gate', {
-      fontFamily: 'Georgia',
-      fontSize: '16px',
-      color: '#ffdd66',
-      stroke: '#000000',
-      strokeThickness: 4,
-      fontStyle: 'bold',
-    })
-
-    this.bazaarExitLabelText.setOrigin(0.5)
-
-    this.bazaarExitLabel = this.add.container(point.x, markerY - 58, [
-      labelBg,
-      this.bazaarExitLabelText,
-    ])
-
-    const objects = [
-      this.bazaarExitGlow,
-      this.bazaarExitRing,
-      this.bazaarExitArrow,
-      this.bazaarExitLabel,
-    ]
+    this.bazaarExitGlow = marker.glow
+    this.bazaarExitRing = marker.ring
+    this.bazaarExitArrow = marker.arrow
+    this.bazaarExitLabel = marker.label
+    this.bazaarExitLabelText = marker.labelText
+    this.bazaarExitDecor = marker.decor
 
     const unlocked = this.completedMarkets.size >= 7
-
-    objects.forEach((obj) => {
-      obj.setDepth(9500)
+    marker.objects.forEach((obj) => {
       obj.setVisible(unlocked)
       obj.setActive(unlocked)
     })
 
-    this.worldObjects.push(...objects)
-
-    this.tweens.add({
-      targets: this.bazaarExitGlow,
-      scaleX: 1.55,
-      scaleY: 1.55,
-      alpha: 0.1,
-      duration: 750,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-
-    this.tweens.add({
-      targets: this.bazaarExitRing,
-      scaleX: 1.18,
-      scaleY: 1.18,
-      duration: 650,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-
-    this.tweens.add({
-      targets: this.bazaarExitArrow,
-      y: markerY - 10,
-      duration: 550,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
+    this.worldObjects.push(...marker.objects)
   }
 
   private setNorthernExitVisible(visible: boolean) {
@@ -2060,6 +2123,7 @@ const y = padding
       this.bazaarExitRing,
       this.bazaarExitArrow,
       this.bazaarExitLabel,
+      ...this.bazaarExitDecor,
     ]
 
     objects.forEach((obj) => {
@@ -2071,38 +2135,139 @@ const y = padding
   }
 
   private startReturnToVillage(exitMode: 'city' | 'north') {
+    if (this.isGateTransitioning) return
+
+    this.isGateTransitioning = true
+    this.player.setVelocity(0)
+    this.player.stop()
+
     const width = this.scale.width
     const height = this.scale.height
+    const panelColor = 0x241408
+    const gold = 0xd5a84b
 
-    const overlay = this.add.rectangle(
-      width / 2,
-      height / 2,
-      width,
-      height,
-      0x050505,
-      1,
-    )
+    const dimmer = this.add.rectangle(width / 2, height / 2, width, height, 0x100904, 0)
+    dimmer.setScrollFactor(0)
 
-    overlay.setScrollFactor(0)
-    overlay.setDepth(90000)
+    const topPanelBody = this.add.rectangle(0, 0, width, height / 2 + 4, panelColor, 1)
+    topPanelBody.setOrigin(0.5, 0)
+    const topGoldEdge = this.add.rectangle(0, height / 2, width, 6, gold, 1)
+    topGoldEdge.setOrigin(0.5, 1)
+    const topPanel = this.add.container(width / 2, 0, [topPanelBody, topGoldEdge])
+    topPanel.setScale(1, 0)
+    topPanel.setScrollFactor(0)
+
+    const bottomPanelBody = this.add.rectangle(0, 0, width, height / 2 + 4, panelColor, 1)
+    bottomPanelBody.setOrigin(0.5, 1)
+    const bottomGoldEdge = this.add.rectangle(0, -height / 2, width, 6, gold, 1)
+    bottomGoldEdge.setOrigin(0.5, 0)
+    const bottomPanel = this.add.container(width / 2, height, [bottomPanelBody, bottomGoldEdge])
+    bottomPanel.setScale(1, 0)
+    bottomPanel.setScrollFactor(0)
 
     const title = this.add.text(
       width / 2,
-      height / 2 - 30,
-      exitMode === 'north' ? 'TEMPLE ROAD AHEAD' : 'RETURNING TO CITY',
+      height / 2 - 22,
+      exitMode === 'north' ? 'NORTHERN GATE' : 'CITY GATE',
       {
         fontFamily: 'Georgia',
-        fontSize: '38px',
-        color: '#ffd966',
-        stroke: '#000000',
+        fontSize: '36px',
+        color: '#ffe7a3',
+        stroke: '#120a04',
         strokeThickness: 6,
         fontStyle: 'bold',
       },
     )
-
     title.setOrigin(0.5)
     title.setScrollFactor(0)
-    title.setDepth(90001)
+    title.setAlpha(0)
+    title.setScale(0.9)
+
+    const divider = this.add.text(width / 2, height / 2 + 12, '◆  ✦  ◆', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#d5a84b',
+      stroke: '#120a04',
+      strokeThickness: 3,
+    })
+    divider.setOrigin(0.5)
+    divider.setScrollFactor(0)
+    divider.setAlpha(0)
+
+    const subtitle = this.add.text(
+      width / 2,
+      height / 2 + 46,
+      exitMode === 'north' ? 'The temple road awaits.' : 'Leaving the bazaar behind.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#f4ead5',
+        stroke: '#120a04',
+        strokeThickness: 4,
+      },
+    )
+    subtitle.setOrigin(0.5)
+    subtitle.setScrollFactor(0)
+    subtitle.setAlpha(0)
+
+    const motes = Array.from({ length: 10 }, (_, index) => {
+      const mote = this.add.circle(
+        width / 2 + Phaser.Math.Between(-190, 190),
+        height / 2 + Phaser.Math.Between(-55, 70),
+        Phaser.Math.FloatBetween(1.2, 2.5),
+        index % 2 === 0 ? 0xffd166 : 0x7de0d3,
+        0,
+      )
+      mote.setScrollFactor(0)
+      return mote
+    })
+
+    const transitionObjects: EntranceDisplayObject[] = [
+      dimmer,
+      topPanel,
+      bottomPanel,
+      title,
+      divider,
+      subtitle,
+      ...motes,
+    ]
+
+    transitionObjects.forEach((obj) => obj.setDepth(200000))
+    this.cameras.main.ignore(transitionObjects)
+
+    this.tweens.add({
+      targets: dimmer,
+      alpha: 0.72,
+      duration: 300,
+      ease: 'Sine.easeOut',
+    })
+
+    this.tweens.add({
+      targets: [topPanel, bottomPanel],
+      scaleY: 1,
+      duration: 470,
+      ease: 'Cubic.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: [title, divider, subtitle],
+      alpha: 1,
+      scale: 1,
+      duration: 320,
+      delay: 300,
+      ease: 'Back.easeOut',
+    })
+
+    motes.forEach((mote, index) => {
+      this.tweens.add({
+        targets: mote,
+        alpha: { from: 0, to: 0.8 },
+        y: mote.y - 24,
+        duration: 650,
+        delay: 250 + index * 25,
+        ease: 'Sine.easeOut',
+      })
+    })
 
     saveGameProgress({
       currentScene: 'VillageScene',
@@ -2111,17 +2276,12 @@ const y = padding
       remainingSeconds: this.remainingSeconds,
       completedMarkets: [...this.completedMarkets],
     })
-    
-    this.cameras.main.fadeOut(650, 0, 0, 0)
 
-    this.time.delayedCall(850, () => {
+    this.time.delayedCall(930, () => {
       this.scene.start('VillageScene', {
         fromBazaar: true,
         bazaarExit: exitMode,
-        spawnName:
-          exitMode === 'north'
-            ? 'BazaarNorthReturnSpawn'
-            : 'BazaarReturnSpawn',
+        spawnName: exitMode === 'north' ? 'BazaarNorthReturnSpawn' : 'BazaarReturnSpawn',
         coins: this.coins,
         reputation: this.reputation,
       })

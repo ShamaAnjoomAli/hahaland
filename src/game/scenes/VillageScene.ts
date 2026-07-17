@@ -15,6 +15,10 @@ import {
 } from '../utils/progressSave'
 
 
+type EntranceDisplayObject = Phaser.GameObjects.GameObject &
+  Phaser.GameObjects.Components.Depth &
+  Phaser.GameObjects.Components.Visible
+
 type ObjectiveStep = {
   objectiveText: string
   targetNpc: string
@@ -266,13 +270,14 @@ export default class VillageScene extends Phaser.Scene {
     y: number
   }
   
-  private bazaarEntranceGlow?: Phaser.GameObjects.Arc
-  private bazaarEntranceRing?: Phaser.GameObjects.Arc
-  private bazaarEntranceInner?: Phaser.GameObjects.Arc
+  private bazaarEntranceGlow?: Phaser.GameObjects.Ellipse
+  private bazaarEntranceRing?: Phaser.GameObjects.Ellipse
+  private bazaarEntranceInner?: Phaser.GameObjects.Ellipse
   private bazaarEntranceArrow?: Phaser.GameObjects.Text
   private bazaarEntranceLabel?: Phaser.GameObjects.Container
   private bazaarEntranceLabelText?: Phaser.GameObjects.Text
   private bazaarEntranceZone?: Phaser.GameObjects.Zone
+  private bazaarEntranceDecor: EntranceDisplayObject[] = []
   
   private bazaarEntranceRadius = 95
   
@@ -329,6 +334,8 @@ private stopGameTimer?: () => void
    * Called once when the scene starts.
    */
   create() {
+    this.bazaarEntranceDecor = []
+
     // --- Tilemap setup ---
     // Load the village tilemap exported from Tiled and bind it to the loaded tileset image.
     const map = this.make.tilemap({
@@ -539,6 +546,8 @@ this.saveProgress()
       }
 
       this.cameras.main.centerOn(gameplaySpawn.x, gameplaySpawn.y)
+      this.cameras.main.fadeIn(480, 20, 11, 4)
+      this.uiCamera?.fadeIn(480, 20, 11, 4)
     } else {
       this.startOpeningSequence()
     }
@@ -2636,153 +2645,180 @@ const y = padding
 
   private createBazaarEntranceMarker(map: Phaser.Tilemaps.Tilemap) {
     const point = this.getOptionalSpawnPoint(map, 'BazaarEntrance')
-  
+
     if (!point) {
       console.warn('BazaarEntrance spawn point not found in Tiled.')
       return
     }
-  
+
     this.bazaarEntrancePoint = point
-  
-    this.bazaarEntranceGlow = this.add.circle(
-      point.x,
-      point.y,
-      38,
-      0xff4422,
-      0.25
-    )
-  
-    this.bazaarEntranceRing = this.add.circle(
-      point.x,
-      point.y,
-      34,
-      0xff0000,
-      0
-    )
-  
-    this.bazaarEntranceRing.setStrokeStyle(4, 0xffdd66, 1)
-  
-    this.bazaarEntranceInner = this.add.circle(
-      point.x,
-      point.y,
-      16,
-      0xff3311,
-      0.85
-    )
-  
-    this.bazaarEntranceInner.setStrokeStyle(2, 0xffffff, 0.95)
-  
-    this.bazaarEntranceArrow = this.add.text(
-      point.x,
-      point.y - 5,
-      '↓',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '28px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 5,
-        fontStyle: 'bold',
-      }
-    )
-  
-    this.bazaarEntranceArrow.setOrigin(0.5)
-  
-    const labelBg = this.add.rectangle(
-      0,
-      0,
-      190,
-      34,
-      0x000000,
-      0.78
-    )
-  
-    labelBg.setStrokeStyle(2, 0xffdd66, 1)
-  
-    this.bazaarEntranceLabelText = this.add.text(
-      0,
-      0,
-      'Enter Bazaar',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '16px',
-        color: '#ffdd66',
-        stroke: '#000000',
-        strokeThickness: 4,
-        fontStyle: 'bold',
-      }
-    )
-  
-    this.bazaarEntranceLabelText.setOrigin(0.5)
-  
-    this.bazaarEntranceLabel = this.add.container(
-      point.x,
-      point.y - 58,
-      [labelBg, this.bazaarEntranceLabelText]
-    )
-  
-    this.bazaarEntranceZone = this.add.zone(
-      point.x,
-      point.y,
-      120,
-      120
-    )
-  
-    this.bazaarEntranceZone.setInteractive({
-      useHandCursor: true,
+
+    const accent = 0x167c78
+    const gold = 0xd5a84b
+
+    this.bazaarEntranceGlow = this.add.ellipse(point.x, point.y, 92, 40, accent, 0.18)
+
+    this.bazaarEntranceRing = this.add.ellipse(point.x, point.y, 72, 30, 0x000000, 0)
+    this.bazaarEntranceRing.setStrokeStyle(3, gold, 0.9)
+
+    this.bazaarEntranceInner = this.add.ellipse(point.x, point.y, 42, 17, 0x0d4f52, 0.72)
+    this.bazaarEntranceInner.setStrokeStyle(2, 0xffdf83, 0.92)
+
+    const orbit = this.add.container(point.x, point.y)
+    const orbitRunes = [
+      { x: 0, y: -18 },
+      { x: 34, y: 0 },
+      { x: 0, y: 18 },
+      { x: -34, y: 0 },
+    ].map(({ x, y }) => {
+      const rune = this.add.rectangle(x, y, 7, 7, gold, 0.95)
+      rune.setAngle(45)
+      return rune
     })
-  
+    orbit.add(orbitRunes)
+
+    const arrowBaseY = point.y + 1
+    this.bazaarEntranceArrow = this.add.text(point.x, arrowBaseY, '▼', {
+      fontFamily: 'Georgia',
+      fontSize: '21px',
+      color: '#ffd166',
+      stroke: '#241408',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
+    this.bazaarEntranceArrow.setOrigin(0.5)
+
+    const labelWidth = 206
+    const labelHeight = 38
+    const labelPlate = this.add.graphics()
+    labelPlate.fillStyle(0x241408, 0.92)
+    labelPlate.fillRoundedRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight, 8)
+    labelPlate.lineStyle(2, gold, 1)
+    labelPlate.strokeRoundedRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight, 8)
+    labelPlate.lineStyle(1, 0x7bc7bd, 0.75)
+    labelPlate.lineBetween(-labelWidth / 2 + 14, 11, labelWidth / 2 - 14, 11)
+
+    const leftDiamond = this.add.rectangle(-87, 0, 8, 8, gold, 1).setAngle(45)
+    const rightDiamond = this.add.rectangle(87, 0, 8, 8, gold, 1).setAngle(45)
+
+    this.bazaarEntranceLabelText = this.add.text(0, -1, 'Enter Bazaar', {
+      fontFamily: 'Georgia',
+      fontSize: '16px',
+      color: '#ffe7a3',
+      stroke: '#120a04',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    this.bazaarEntranceLabelText.setOrigin(0.5)
+
+    this.bazaarEntranceLabel = this.add.container(point.x, point.y - 62, [
+      labelPlate,
+      leftDiamond,
+      rightDiamond,
+      this.bazaarEntranceLabelText,
+    ])
+    this.bazaarEntranceLabel.setAlpha(0.9)
+
+    this.bazaarEntranceZone = this.add.zone(point.x, point.y, 130, 120)
+    this.bazaarEntranceZone.setInteractive({ useHandCursor: true })
     this.bazaarEntranceZone.on('pointerdown', () => {
       if (this.storyStage !== 'bazaarTraining') return
       this.enterBazaarScene()
     })
-  
-    const markerObjects = [
+
+    const motes = Array.from({ length: 7 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 7
+      const mote = this.add.circle(
+        point.x + Math.cos(angle) * 41,
+        point.y + Math.sin(angle) * 15,
+        index % 2 === 0 ? 2.2 : 1.6,
+        index % 2 === 0 ? 0xffd166 : 0x7de0d3,
+        0.72,
+      )
+
+      this.tweens.add({
+        targets: mote,
+        y: mote.y + 17,
+        alpha: 0,
+        scale: 0.45,
+        duration: 1250 + index * 80,
+        delay: index * 110,
+        repeat: -1,
+        ease: 'Sine.easeOut',
+      })
+
+      return mote
+    })
+
+    this.bazaarEntranceDecor = [orbit, ...motes]
+
+    const markerObjects: EntranceDisplayObject[] = [
       this.bazaarEntranceGlow,
       this.bazaarEntranceRing,
       this.bazaarEntranceInner,
+      ...this.bazaarEntranceDecor,
       this.bazaarEntranceArrow,
       this.bazaarEntranceLabel,
       this.bazaarEntranceZone,
     ]
-  
+
     markerObjects.forEach((obj) => {
       obj.setDepth(9500)
       obj.setVisible(false)
+      obj.setActive(false)
     })
-  
+
     this.worldObjects.push(...markerObjects)
-  
+
     this.tweens.add({
       targets: this.bazaarEntranceGlow,
-      scaleX: 1.55,
-      scaleY: 1.55,
-      alpha: 0.1,
-      duration: 750,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-  
-    this.tweens.add({
-      targets: this.bazaarEntranceRing,
       scaleX: 1.18,
       scaleY: 1.18,
-      duration: 650,
+      alpha: 0.08,
+      duration: 1150,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
-  
+
+    this.tweens.add({
+      targets: this.bazaarEntranceRing,
+      scaleX: 1.07,
+      scaleY: 1.07,
+      alpha: 0.52,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: orbit,
+      angle: -360,
+      duration: 7000,
+      repeat: -1,
+      ease: 'Linear',
+    })
+
     this.tweens.add({
       targets: this.bazaarEntranceArrow,
-      y: point.y - 12,
-      duration: 550,
+      y: arrowBaseY + 7,
+      duration: 720,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
-  
+
+    this.tweens.add({
+      targets: [leftDiamond, rightDiamond],
+      alpha: 0.45,
+      scale: 0.78,
+      duration: 850,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
     this.minimap?.ignore(markerObjects)
     this.uiCamera?.ignore(markerObjects)
   }
@@ -2792,6 +2828,7 @@ const y = padding
       this.bazaarEntranceGlow,
       this.bazaarEntranceRing,
       this.bazaarEntranceInner,
+      ...this.bazaarEntranceDecor,
       this.bazaarEntranceArrow,
       this.bazaarEntranceLabel,
       this.bazaarEntranceZone,
@@ -2808,6 +2845,7 @@ const y = padding
       this.bazaarEntranceGlow,
       this.bazaarEntranceRing,
       this.bazaarEntranceInner,
+      ...this.bazaarEntranceDecor,
       this.bazaarEntranceArrow,
       this.bazaarEntranceLabel,
       this.bazaarEntranceZone,
@@ -2820,80 +2858,152 @@ const y = padding
   }
 
   private enterBazaarScene() {
+    if (this.isCutscenePlaying) return
+
+    this.isCutscenePlaying = true
     this.hideBazaarEntranceMarker()
     this.setStoryUIVisible(false)
-  
+    this.player.setVelocity(0)
+    this.player.stop()
+
     const width = this.scale.width
     const height = this.scale.height
-  
-    const overlay = this.add.rectangle(
-      width / 2,
-      height / 2,
-      width,
-      height,
-      0x050505,
-      1
-    )
-  
-    overlay.setScrollFactor(0)
-    overlay.setDepth(90000)
-  
-    const title = this.add.text(
-      width / 2,
-      height / 2 - 36,
-      'BAZAAR DISTRICT',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '42px',
-        color: '#ffd966',
-        stroke: '#000000',
-        strokeThickness: 6,
-        fontStyle: 'bold',
-      }
-    )
-  
+    const panelColor = 0x241408
+    const gold = 0xd5a84b
+
+    const dimmer = this.add.rectangle(width / 2, height / 2, width, height, 0x100904, 0)
+    dimmer.setScrollFactor(0)
+
+    const topPanelBody = this.add.rectangle(0, 0, width, height / 2 + 4, panelColor, 1)
+    topPanelBody.setOrigin(0.5, 0)
+    const topGoldEdge = this.add.rectangle(0, height / 2, width, 6, gold, 1)
+    topGoldEdge.setOrigin(0.5, 1)
+    const topPanel = this.add.container(width / 2, 0, [topPanelBody, topGoldEdge])
+    topPanel.setScale(1, 0)
+    topPanel.setScrollFactor(0)
+
+    const bottomPanelBody = this.add.rectangle(0, 0, width, height / 2 + 4, panelColor, 1)
+    bottomPanelBody.setOrigin(0.5, 1)
+    const bottomGoldEdge = this.add.rectangle(0, -height / 2, width, 6, gold, 1)
+    bottomGoldEdge.setOrigin(0.5, 0)
+    const bottomPanel = this.add.container(width / 2, height, [bottomPanelBody, bottomGoldEdge])
+    bottomPanel.setScale(1, 0)
+    bottomPanel.setScrollFactor(0)
+
+    const title = this.add.text(width / 2, height / 2 - 22, 'BAZAAR GATE', {
+      fontFamily: 'Georgia',
+      fontSize: '38px',
+      color: '#ffe7a3',
+      stroke: '#120a04',
+      strokeThickness: 6,
+      fontStyle: 'bold',
+    })
     title.setOrigin(0.5)
     title.setScrollFactor(0)
-    title.setDepth(90001)
-  
-    const subtitle = this.add.text(
-      width / 2,
-      height / 2 + 28,
-      'Entering the loudest place in Hahaland...',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '20px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 4,
-      }
-    )
-  
+    title.setAlpha(0)
+    title.setScale(0.9)
+
+    const divider = this.add.text(width / 2, height / 2 + 12, '◆  ✦  ◆', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#d5a84b',
+      stroke: '#120a04',
+      strokeThickness: 3,
+    })
+    divider.setOrigin(0.5)
+    divider.setScrollFactor(0)
+    divider.setAlpha(0)
+
+    const subtitle = this.add.text(width / 2, height / 2 + 46, 'Trade, trials and trouble ahead.', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#f4ead5',
+      stroke: '#120a04',
+      strokeThickness: 4,
+    })
     subtitle.setOrigin(0.5)
     subtitle.setScrollFactor(0)
-    subtitle.setDepth(90001)
-  
-    this.cameras.main.fadeOut(650, 0, 0, 0)
-  
+    subtitle.setAlpha(0)
+
+    const motes = Array.from({ length: 10 }, (_, index) => {
+      const mote = this.add.circle(
+        width / 2 + Phaser.Math.Between(-190, 190),
+        height / 2 + Phaser.Math.Between(-55, 70),
+        Phaser.Math.FloatBetween(1.2, 2.5),
+        index % 2 === 0 ? 0xffd166 : 0x7de0d3,
+        0,
+      )
+      mote.setScrollFactor(0)
+      return mote
+    })
+
+    const transitionObjects: EntranceDisplayObject[] = [
+      dimmer,
+      topPanel,
+      bottomPanel,
+      title,
+      divider,
+      subtitle,
+      ...motes,
+    ]
+
+    transitionObjects.forEach((obj) => obj.setDepth(200000))
+    this.cameras.main.ignore(transitionObjects)
+
+    this.tweens.add({
+      targets: dimmer,
+      alpha: 0.72,
+      duration: 300,
+      ease: 'Sine.easeOut',
+    })
+
+    this.tweens.add({
+      targets: [topPanel, bottomPanel],
+      scaleY: 1,
+      duration: 470,
+      ease: 'Cubic.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: [title, divider, subtitle],
+      alpha: 1,
+      scale: 1,
+      duration: 320,
+      delay: 300,
+      ease: 'Back.easeOut',
+    })
+
+    motes.forEach((mote, index) => {
+      this.tweens.add({
+        targets: mote,
+        alpha: { from: 0, to: 0.8 },
+        y: mote.y - 24,
+        duration: 650,
+        delay: 250 + index * 25,
+        ease: 'Sine.easeOut',
+      })
+    })
+
     const existingSave = loadGameProgress()
 
-saveGameProgress({
-  currentScene: 'BazaarScene',
-  coins: this.coins,
-  reputation: this.reputation,
-  remainingSeconds: this.remainingSeconds,
-  completedMarkets: existingSave?.completedMarkets ?? [],
-})
+    saveGameProgress({
+      currentScene: 'BazaarScene',
+      coins: this.coins,
+      reputation: this.reputation,
+      remainingSeconds: this.remainingSeconds,
+      completedMarkets: existingSave?.completedMarkets ?? [],
+    })
 
-    this.time.delayedCall(950, () => {
+    this.time.delayedCall(930, () => {
       this.scene.start('BazaarScene', {
+        fromVillage: true,
         coins: this.coins,
         reputation: this.reputation,
       })
     })
   }
 
- private handleBazaarEntranceInput() {
+private handleBazaarEntranceInput() {
   if (this.storyStage !== 'bazaarTraining') return false
   if (!this.bazaarEntrancePoint) return false
   if (!this.bazaarEntranceGlow?.visible) return false
@@ -2912,10 +3022,28 @@ saveGameProgress({
     playerIsNear ? 'E Enter Bazaar' : 'Enter Bazaar'
   )
 
-  this.bazaarEntranceInner?.setFillStyle(
-    playerIsNear ? 0x00aa44 : 0xff3311,
-    0.9
+  this.bazaarEntranceGlow?.setFillStyle(
+    playerIsNear ? 0x32d6c5 : 0x167c78,
+    playerIsNear ? 0.36 : 0.18
   )
+
+  this.bazaarEntranceRing?.setStrokeStyle(
+    playerIsNear ? 4 : 3,
+    playerIsNear ? 0xffe7a3 : 0xd5a84b,
+    playerIsNear ? 1 : 0.9
+  )
+
+  this.bazaarEntranceInner?.setFillStyle(
+    playerIsNear ? 0x176f72 : 0x0d4f52,
+    playerIsNear ? 0.9 : 0.72
+  )
+
+  this.bazaarEntranceArrow?.setColor(
+    playerIsNear ? '#fff7cf' : '#ffd166'
+  )
+
+  this.bazaarEntranceLabel?.setScale(playerIsNear ? 1.04 : 1)
+  this.bazaarEntranceLabel?.setAlpha(playerIsNear ? 1 : 0.9)
 
   if (
     playerIsNear &&
