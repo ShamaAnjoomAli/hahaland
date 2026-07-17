@@ -173,23 +173,99 @@ export default function Game() {
         <div className="pyramid pyramid-one" />
         <div className="pyramid pyramid-two" />
         <div className="pyramid pyramid-three" />
-
+  
         <section className="how-card">
           <p className="eyebrow">Ancient Egypt Edition</p>
-
-          <h1>How to Play</h1>
-
+  
+          <h1 style={{paddingTop: "10px"}}>How to Play</h1>
+  
+          <p className="hero-copy" style={{paddingTop: "30px"}}>
+            You arrived in Hahaland as a rich tourist looking for a hotel. But after
+            getting tricked, your journey becomes much bigger: earn back your power,
+            gain the trust of the people, complete ancient bazaar trials, uncover
+            secrets, and become the King of Hahaland.
+          </p>
+  
           <div className="how-grid">
-            <HowItem keyName="WASD" title="Move" text="Walk around the city." />
-            <HowItem keyName="E" title="Talk" text="Interact with nearby NPCs." />
-            <HowItem keyName="SPACE" title="Dialogue" text="Continue or close conversations." />
-            <HowItem keyName="!" title="Quest Target" text="Follow the yellow marker." />
-            <HowItem keyName="●" title="Minimap" text="Red is you. Blue dots are NPCs." />
-            <HowItem keyName="◉" title="Objective Dot" text="Yellow dot marks your next NPC." />
-            <HowItem keyName="¢" title="Coins" text="Earn coins by talking to NPCs." />
-            <HowItem keyName="⏱" title="Timer" text="Finish before time runs out." />
+            <HowItem
+              keyName="WASD"
+              title="Move"
+              text="Walk around the city, bazaar, gates, and story areas."
+            />
+  
+            <HowItem
+              keyName="E"
+              title="Interact"
+              text="Talk to NPCs, enter gates, use prompts, and interact with hidden areas."
+            />
+  
+            <HowItem
+              keyName="SPACE"
+              title="Dialogue"
+              text="Continue conversations and story scenes."
+            />
+  
+            <HowItem
+              keyName="!"
+              title="Objective"
+              text="Follow the objective box. It tells you who to talk to or where to go next."
+            />
+  
+            <HowItem
+              keyName="●"
+              title="Minimap"
+              text="Red is you. Blue dots are NPCs. Yellow marks your current story target."
+            />
+  
+            <HowItem
+              keyName="¢"
+              title="Coins / Gold"
+              text="Coins are your money and influence. You can lose them through scams or bad choices, and earn them by winning bazaar trials."
+            />
+  
+            <HowItem
+              keyName="★"
+              title="Reputation"
+              text="Reputation shows how much Hahaland trusts you. Complete trials and make smart choices to earn respect."
+            />
+  
+            <HowItem
+              keyName="♛"
+              title="Become King"
+              text="To become King, you need both wealth and reputation. Gold gives influence. Reputation earns loyalty."
+            />
+  
+            <HowItem
+              keyName="🏨"
+              title="Fake Hotel Scam"
+              text="Your first major story event is the fake hotel scam. After that, your real rise begins."
+            />
+  
+            <HowItem
+              keyName="7"
+              title="Bazaar Trials"
+              text="Complete all 7 merchant trials: map, scale, spice, dates, pottery, donkey, and eagle."
+            />
+  
+            <HowItem
+              keyName="🚪"
+              title="Gates"
+              text="Use entrances and gates to move between areas. The northern bazaar gate leads toward the temple."
+            />
+  
+            <HowItem
+              keyName="⏱"
+              title="Timer"
+              text="Your journey is timed. Keep moving, follow the objective, and build your status before time runs out."
+            />
           </div>
-
+  
+          <p className="hero-copy"  style={{paddingTop: "26px"}}>
+          Remember: talk to people, follow the objective, win coins, build
+  reputation, complete merchant trials, reach the temple, and become
+  King of Hahaland.
+          </p>
+  
           <div className="menu-actions">
             <button
               className="secondary-button"
@@ -200,13 +276,7 @@ export default function Game() {
             >
               Back
             </button>
-
-            <button
-              className="primary-button"
-              onClick={savedProgress ? continueGame : startNewGame}
-            >
-              {savedProgress ? 'Continue' : 'Play'}
-            </button>
+  
           </div>
         </section>
       </main>
@@ -242,8 +312,8 @@ export default function Game() {
         </h2>
 
         <p className="hero-copy">
-          You arrive with <strong>1,000,000 gold</strong>. How you spend it decides who you become.
-        </p>
+  You arrive with <strong>1,000,000 gold</strong>. Lose it, earn it back, build reputation, and rise as King of Hahaland.
+</p>
 
         {savedProgress && (
           <p className="hero-copy">
