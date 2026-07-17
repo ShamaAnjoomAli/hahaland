@@ -1155,7 +1155,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":true,
+         "visible":false,
          "x":0,
          "y":0
         }, 
@@ -1330,10 +1330,23 @@
                  "width":0,
                  "x":1306,
                  "y":1264
+                }, 
+                {
+                 "height":0,
+                 "id":109,
+                 "name":"BazaarNorthReturnSpawn",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"spawn",
+                 "visible":true,
+                 "width":0,
+                 "x":1396,
+                 "y":716
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -1387,7 +1400,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":109,
+ "nextobjectid":110,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",

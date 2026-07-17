@@ -277,6 +277,7 @@ export default class VillageScene extends Phaser.Scene {
   private bazaarEntranceRadius = 95
   
   private returnFromBazaar = false
+  private bazaarReturnMode: 'city' | 'north' = 'city'
 private villageSpawnName = 'PlayerSpawn'
 
 private timerEvent?: Phaser.Time.TimerEvent
@@ -289,6 +290,7 @@ private stopGameTimer?: () => void
 
   init(data?: {
     fromBazaar?: boolean
+    bazaarExit?: 'city' | 'north'
     spawnName?: string
     coins?: number
     reputation?: number
@@ -299,6 +301,11 @@ private stopGameTimer?: () => void
       : null
   
     this.returnFromBazaar = Boolean(data?.fromBazaar)
+    this.bazaarReturnMode =
+      data?.bazaarExit === 'north' ||
+      data?.spawnName === 'BazaarNorthReturnSpawn'
+        ? 'north'
+        : 'city'
     this.villageSpawnName = data?.spawnName ?? 'PlayerSpawn'
   
     if (savedProgress) {
@@ -500,20 +507,37 @@ this.saveProgress()
     if (this.returnFromBazaar) {
       this.isOpeningSequencePlaying = false
       this.isCutscenePlaying = false
-    
+
       this.player.setVisible(true)
       this.player.setPosition(gameplaySpawn.x, gameplaySpawn.y)
       this.player.setVelocity(0)
       this.player.stop()
-    
-      this.storyStage = 'bazaarQuests'
-    
+
       this.setStoryUIVisible(true)
-    
-      this.objectiveBox.setText(
-        'Objective: Continue your journey through Hahaland.'
-      )
-    
+
+      if (this.bazaarReturnMode === 'north') {
+        this.storyStage = 'templeQuest'
+        this.hideBazaarEntranceMarker()
+        this.objectiveBox.setText('Objective: Go to the temple.')
+      } else {
+        // The southern Bazaar entrance remains a two-way route. Returning to
+        // the city must not advance the story to the Temple phase.
+        this.storyStage = 'bazaarTraining'
+        this.storyQuestFlags.metBazaarAuntie = true
+
+        const completedMarkets = loadGameProgress()?.completedMarkets.length ?? 0
+
+        this.objectiveBox.setText(
+          completedMarkets >= 7
+            ? 'Objective: Return to the bazaar and exit through the northern gate.'
+            : 'Objective: Enter the bazaar district.'
+        )
+
+        this.questMarker?.setVisible(false)
+        this.minimapQuestDot?.setVisible(false)
+        this.showBazaarEntranceMarker()
+      }
+
       this.cameras.main.centerOn(gameplaySpawn.x, gameplaySpawn.y)
     } else {
       this.startOpeningSequence()
@@ -2183,6 +2207,14 @@ const y = padding
 
   private updateMinimapQuestDot() {
     if (!this.minimapQuestDot) return
+
+    // At the opening hotel-choice stage every guide is a valid option, so do
+    // not place a yellow quest dot over one merchant. The normal blue NPC dots
+    // remain visible for all hotel guides.
+    if (this.storyStage === 'intro') {
+      this.minimapQuestDot.setVisible(false)
+      return
+    }
 
     if (this.isObjectiveComplete) {
       this.minimapQuestDot.setVisible(false)

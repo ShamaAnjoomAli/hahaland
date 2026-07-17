@@ -103,6 +103,19 @@ export default class BazaarScene extends Phaser.Scene {
   private bazaarExitRadius = 90
   private minimapExitDot?: Phaser.GameObjects.Arc
 
+  // The original southern entrance is always a two-way exit back to the city.
+  private cityExitPoint?: {
+    x: number
+    y: number
+  }
+  private cityExitGlow?: Phaser.GameObjects.Arc
+  private cityExitRing?: Phaser.GameObjects.Arc
+  private cityExitArrow?: Phaser.GameObjects.Text
+  private cityExitLabel?: Phaser.GameObjects.Container
+  private cityExitLabelText?: Phaser.GameObjects.Text
+  private cityExitRadius = 90
+  private minimapCityExitDot?: Phaser.GameObjects.Arc
+
   private gateForeground?: Phaser.GameObjects.Image
   private timerEvent?: Phaser.Time.TimerEvent
   private stopGameTimer?: () => void
@@ -245,7 +258,7 @@ export default class BazaarScene extends Phaser.Scene {
 
     if (this.completedMarkets.size >= 7) {
       this.objectiveBox.setText(
-        'Objective: Exit the bazaar through the entrance gate.',
+        'Objective: Exit the bazaar through the northern gate.',
       )
     } else if (this.completedMarkets.size > 0) {
       this.objectiveBox.setText(
@@ -260,6 +273,7 @@ export default class BazaarScene extends Phaser.Scene {
 
     this.createNPCsFromMap(map)
     this.createCollisionObjects(map)
+    this.createBazaarCityExitMarker(map)
     this.createBazaarExitMarker(map)
     this.createInteractPrompt()
 
@@ -369,6 +383,10 @@ this.saveProgress()
     }
 
     this.updateInteractPrompt()
+
+    if (this.handleBazaarCityExit()) {
+      return
+    }
 
     if (this.handleBazaarExit()) {
       return
@@ -1063,7 +1081,7 @@ this.saveProgress()
 
             if (this.completedMarkets.size >= 7) {
               this.objectiveBox.setText(
-                'Objective: Exit the bazaar through the entrance gate, or replay markets for more gold.'
+                'Objective: Exit the bazaar through the northern gate, or replay markets for more gold.'
               )
             } else {
               this.objectiveBox.setText(
@@ -1072,6 +1090,8 @@ this.saveProgress()
             }
 
             if (newlyCompleted && this.completedMarkets.size >= 7) {
+              this.setNorthernExitVisible(true)
+
               this.dialogue.show(
                 [
                   {
@@ -1091,13 +1111,13 @@ this.saveProgress()
                     portraitKey: 'player',
                   },
                   {
-                    text: 'Find the bazaar entrance and return to the city.',
+                    text: 'Find the northern gate and continue toward the temple.',
                     portraitKey: 'player',
                   },
                 ],
                 () => {
                   this.objectiveBox.setText(
-                    'Objective: Exit the bazaar through the entrance gate.',
+                    'Objective: Exit the bazaar through the northern gate.',
                   )
                 },
                 'player',
@@ -1350,7 +1370,39 @@ this.saveProgress()
     console.log('Bazaar reputation:', this.reputation)
   }
 
+  private handleBazaarCityExit() {
+    if (!this.cityExitPoint) return false
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.cityExitPoint.x,
+      this.cityExitPoint.y,
+    )
+
+    const playerIsNear = distance <= this.cityExitRadius
+
+    this.cityExitLabelText?.setText(
+      playerIsNear ? 'E Return to City' : 'Return to City',
+    )
+
+    this.cityExitGlow?.setFillStyle(
+      playerIsNear ? 0x00ff66 : 0x00aa44,
+      0.25,
+    )
+
+    if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      this.startReturnToVillage('city')
+      return true
+    }
+
+    return false
+  }
+
   private handleBazaarExit() {
+    // The Temple-facing northern route only unlocks after all seven merchant
+    // trials. The city entrance above remains usable at every point.
+    if (this.completedMarkets.size < 7) return false
     if (!this.bazaarExitPoint) return false
 
     const distance = Phaser.Math.Distance.Between(
@@ -1363,13 +1415,13 @@ this.saveProgress()
     const playerIsNear = distance <= this.bazaarExitRadius
 
     this.bazaarExitLabelText?.setText(
-      playerIsNear ? 'E Return to City' : 'Return to City',
+      playerIsNear ? 'E Exit North' : 'Northern Gate',
     )
 
     this.bazaarExitGlow?.setFillStyle(playerIsNear ? 0x00ff66 : 0x00aa44, 0.25)
 
     if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
-      this.startReturnToVillage()
+      this.startReturnToVillage('north')
       return true
     }
 
@@ -1729,6 +1781,13 @@ const y = padding
     this.minimapExitDot.setScrollFactor(0)
     this.minimapExitDot.setDepth(20006)
     this.minimapExitDot.setStrokeStyle(2, 0x000000)
+    this.minimapExitDot.setVisible(this.completedMarkets.size >= 7)
+
+    this.minimapCityExitDot = this.add.circle(x, y, 6, 0x00ff66)
+
+    this.minimapCityExitDot.setScrollFactor(0)
+    this.minimapCityExitDot.setDepth(20005)
+    this.minimapCityExitDot.setStrokeStyle(2, 0x000000)
 
     this.minimapNpcDots = this.npcs.map((npc) => {
       const npcName = npc.getData('npcName') as string
@@ -1775,6 +1834,25 @@ const y = padding
       )
     })
 
+    if (this.minimapCityExitDot && this.cityExitPoint) {
+      const cityX = Phaser.Math.Clamp(
+        this.cityExitPoint.x / this.mapPixelWidth,
+        0,
+        1,
+      )
+
+      const cityY = Phaser.Math.Clamp(
+        this.cityExitPoint.y / this.mapPixelHeight,
+        0,
+        1,
+      )
+
+      this.minimapCityExitDot.setPosition(
+        this.minimapConfig.x + cityX * this.minimapConfig.width,
+        this.minimapConfig.y + cityY * this.minimapConfig.height,
+      )
+    }
+
     if (this.minimapExitDot && this.bazaarExitPoint) {
       const ex = Phaser.Math.Clamp(
         this.bazaarExitPoint.x / this.mapPixelWidth,
@@ -1795,18 +1873,109 @@ const y = padding
     }
   }
 
-  private createBazaarExitMarker(map: Phaser.Tilemaps.Tilemap) {
+  private createBazaarCityExitMarker(map: Phaser.Tilemaps.Tilemap) {
     const point = this.getSpawnPoint(map, 'BazaarExit')
+
+    this.cityExitPoint = point
+
+    this.cityExitGlow = this.add.circle(point.x, point.y, 26, 0x00aa44, 0.25)
+
+    this.cityExitRing = this.add.circle(point.x, point.y, 22, 0x00aa44, 0)
+
+    this.cityExitRing.setStrokeStyle(4, 0xffdd66, 1)
+
+    this.cityExitArrow = this.add.text(point.x, point.y - 5, '↑', {
+      fontFamily: 'Georgia',
+      fontSize: '22px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 5,
+      fontStyle: 'bold',
+    })
+
+    this.cityExitArrow.setOrigin(0.5)
+
+    const labelBg = this.add.rectangle(0, 0, 210, 34, 0x000000, 0.78)
+
+    labelBg.setStrokeStyle(2, 0xffdd66, 1)
+
+    this.cityExitLabelText = this.add.text(0, 0, 'Return to City', {
+      fontFamily: 'Georgia',
+      fontSize: '16px',
+      color: '#ffdd66',
+      stroke: '#000000',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
+
+    this.cityExitLabelText.setOrigin(0.5)
+
+    this.cityExitLabel = this.add.container(point.x, point.y - 58, [
+      labelBg,
+      this.cityExitLabelText,
+    ])
+
+    const objects = [
+      this.cityExitGlow,
+      this.cityExitRing,
+      this.cityExitArrow,
+      this.cityExitLabel,
+    ]
+
+    objects.forEach((obj) => {
+      obj.setDepth(9500)
+    })
+
+    this.worldObjects.push(...objects)
+
+    this.tweens.add({
+      targets: this.cityExitGlow,
+      scaleX: 1.55,
+      scaleY: 1.55,
+      alpha: 0.1,
+      duration: 750,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: this.cityExitRing,
+      scaleX: 1.18,
+      scaleY: 1.18,
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: this.cityExitArrow,
+      y: point.y - 10,
+      duration: 550,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  }
+
+  private createBazaarExitMarker(map: Phaser.Tilemaps.Tilemap) {
+    const point = this.getSpawnPoint(map, 'BazaarNorthExit')
 
     this.bazaarExitPoint = point
 
-    this.bazaarExitGlow = this.add.circle(point.x, point.y, 26, 0x00aa44, 0.25)
+    // Keep the real interaction point at the gate, but render the marker lower
+    // so the fixed objective panel cannot cover it. The visual marker remains
+    // inside the exit interaction radius.
+    const markerY = point.y + 64
 
-    this.bazaarExitRing = this.add.circle(point.x, point.y, 22, 0x00aa44, 0)
+    this.bazaarExitGlow = this.add.circle(point.x, markerY, 26, 0x00aa44, 0.25)
+
+    this.bazaarExitRing = this.add.circle(point.x, markerY, 22, 0x00aa44, 0)
 
     this.bazaarExitRing.setStrokeStyle(4, 0xffdd66, 1)
 
-    this.bazaarExitArrow = this.add.text(point.x, point.y - 5, '↑', {
+    this.bazaarExitArrow = this.add.text(point.x, markerY - 5, '↑', {
       fontFamily: 'Georgia',
       fontSize: '22px',
       color: '#ffffff',
@@ -1821,7 +1990,7 @@ const y = padding
 
     labelBg.setStrokeStyle(2, 0xffdd66, 1)
 
-    this.bazaarExitLabelText = this.add.text(0, 0, 'Return to City', {
+    this.bazaarExitLabelText = this.add.text(0, 0, 'Northern Gate', {
       fontFamily: 'Georgia',
       fontSize: '16px',
       color: '#ffdd66',
@@ -1832,7 +2001,7 @@ const y = padding
 
     this.bazaarExitLabelText.setOrigin(0.5)
 
-    this.bazaarExitLabel = this.add.container(point.x, point.y - 58, [
+    this.bazaarExitLabel = this.add.container(point.x, markerY - 58, [
       labelBg,
       this.bazaarExitLabelText,
     ])
@@ -1844,8 +2013,12 @@ const y = padding
       this.bazaarExitLabel,
     ]
 
+    const unlocked = this.completedMarkets.size >= 7
+
     objects.forEach((obj) => {
       obj.setDepth(9500)
+      obj.setVisible(unlocked)
+      obj.setActive(unlocked)
     })
 
     this.worldObjects.push(...objects)
@@ -1873,7 +2046,7 @@ const y = padding
 
     this.tweens.add({
       targets: this.bazaarExitArrow,
-      y: point.y - 10,
+      y: markerY - 10,
       duration: 550,
       yoyo: true,
       repeat: -1,
@@ -1881,7 +2054,23 @@ const y = padding
     })
   }
 
-  private startReturnToVillage() {
+  private setNorthernExitVisible(visible: boolean) {
+    const objects = [
+      this.bazaarExitGlow,
+      this.bazaarExitRing,
+      this.bazaarExitArrow,
+      this.bazaarExitLabel,
+    ]
+
+    objects.forEach((obj) => {
+      obj?.setVisible(visible)
+      obj?.setActive(visible)
+    })
+
+    this.minimapExitDot?.setVisible(visible)
+  }
+
+  private startReturnToVillage(exitMode: 'city' | 'north') {
     const width = this.scale.width
     const height = this.scale.height
 
@@ -1900,7 +2089,7 @@ const y = padding
     const title = this.add.text(
       width / 2,
       height / 2 - 30,
-      'RETURNING TO CITY',
+      exitMode === 'north' ? 'TEMPLE ROAD AHEAD' : 'RETURNING TO CITY',
       {
         fontFamily: 'Georgia',
         fontSize: '38px',
@@ -1928,7 +2117,11 @@ const y = padding
     this.time.delayedCall(850, () => {
       this.scene.start('VillageScene', {
         fromBazaar: true,
-        spawnName: 'BazaarReturnSpawn',
+        bazaarExit: exitMode,
+        spawnName:
+          exitMode === 'north'
+            ? 'BazaarNorthReturnSpawn'
+            : 'BazaarReturnSpawn',
         coins: this.coins,
         reputation: this.reputation,
       })
@@ -1980,6 +2173,7 @@ const y = padding
     addUIObject(this.minimapBorder)
     addUIObject(this.minimapPlayerDot)
     addUIObject(this.minimapExitDot)
+    addUIObject(this.minimapCityExitDot)
     this.minimapNpcDots.forEach((dot) => {
       addUIObject(dot)
     })

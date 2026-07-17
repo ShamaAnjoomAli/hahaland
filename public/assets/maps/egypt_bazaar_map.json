@@ -489,8 +489,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":794,
-                 "y":796.833333333334
+                 "x":543.333333333333,
+                 "y":184.833333333334
                 }, 
                 {
                  "height":0,
@@ -663,8 +663,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":678.833333333333,
-                 "y":804
+                 "x":354.833333333333,
+                 "y":966.666666666667
                 }, 
                 {
                  "height":0,
@@ -859,6 +859,19 @@
                  "width":0,
                  "x":1032.83333333333,
                  "y":1040.5
+                }, 
+                {
+                 "height":0,
+                 "id":74,
+                 "name":"BazaarNorthExit",
+                 "opacity":1,
+                 "point":true,
+                 "rotation":0,
+                 "type":"spawn",
+                 "visible":true,
+                 "width":0,
+                 "x":744,
+                 "y":92
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -913,7 +926,7 @@
          "y":0
         }],
  "nextlayerid":6,
- "nextobjectid":74,
+ "nextobjectid":75,
  "orientation":"orthogonal",
  "properties":[
         {
