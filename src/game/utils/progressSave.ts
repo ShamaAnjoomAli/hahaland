@@ -9,6 +9,8 @@ export type HahalandProgressSave = {
   reputation: number
   remainingSeconds: number
   completedMarkets: string[]
+  earnedBadges: string[]
+  unseenBadges: string[]
   updatedAt: number
 }
 
@@ -22,6 +24,8 @@ const DEFAULT_SAVE: HahalandProgressSave = {
   reputation: 0,
   remainingSeconds: 3600,
   completedMarkets: [],
+  earnedBadges: [],
+  unseenBadges: [],
   updatedAt: Date.now(),
 }
 
@@ -56,6 +60,16 @@ export function loadGameProgress(): HahalandProgressSave | null {
       ),
       completedMarkets: Array.isArray(parsed.completedMarkets)
         ? parsed.completedMarkets.filter(
+            (value): value is string => typeof value === 'string'
+          )
+        : [],
+      earnedBadges: Array.isArray(parsed.earnedBadges)
+        ? parsed.earnedBadges.filter(
+            (value): value is string => typeof value === 'string'
+          )
+        : [],
+      unseenBadges: Array.isArray(parsed.unseenBadges)
+        ? parsed.unseenBadges.filter(
             (value): value is string => typeof value === 'string'
           )
         : [],
@@ -99,6 +113,10 @@ export function saveGameProgress(
     ),
     completedMarkets:
       patch.completedMarkets ?? current.completedMarkets,
+    earnedBadges:
+      patch.earnedBadges ?? current.earnedBadges,
+    unseenBadges:
+      patch.unseenBadges ?? current.unseenBadges,
     updatedAt: Date.now(),
   }
 

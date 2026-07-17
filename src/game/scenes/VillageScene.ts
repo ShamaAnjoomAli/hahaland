@@ -5,6 +5,7 @@ import Objective from '../script/objectives.json'
 import DialogueBox from '../ui/DialogueBox'
 import ObjectiveBox from '../ui/ObjectiveBox'
 import GameHUD from '../ui/GameHUD'
+import BadgeUI from '../ui/BadgeUI'
 import MinigamePopup, { type MinigameChoice } from '../ui/MinigamePopup'
 import {
   startOrResumeSharedCountdown,
@@ -110,6 +111,7 @@ export default class VillageScene extends Phaser.Scene {
 
   // Timer and gold HUD
   private hud!: GameHUD
+  private badgeUI!: BadgeUI
   private coins = 1000
   private remainingTime = 3600 // in seconds
   private remainingSeconds = 3600
@@ -397,6 +399,28 @@ private stopGameTimer?: () => void
     this.objectiveBox = new ObjectiveBox(this)
     this.objectiveBox.setText(this.getCurrentObjectiveStep()?.objectiveText)
 
+    this.badgeUI = new BadgeUI(
+      this,
+      this.objectiveBox,
+      'fake-hotel',
+      () =>
+        !this.dialogue.isOpen() &&
+        !this.minigame.open() &&
+        !this.isCutscenePlaying &&
+        !this.isOpeningSequencePlaying,
+    )
+
+    // A Bazaar save can only exist after the Fake Hotel chapter. This quietly
+    // migrates older saves that predate the badge system without replaying a
+    // badge-earned toast.
+    const existingBadgeSave = loadGameProgress()
+    if (
+      this.returnFromBazaar ||
+      (existingBadgeSave?.completedMarkets.length ?? 0) > 0
+    ) {
+      this.badgeUI.sync(['fake-hotel-scam-survivor'])
+    }
+
     // Space hides the conversation
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
 
@@ -514,12 +538,14 @@ this.saveProgress()
 
       if (this.bazaarReturnMode === 'north') {
         this.storyStage = 'templeQuest'
+        this.badgeUI.setCategory('temple')
         this.hideBazaarEntranceMarker()
         this.objectiveBox.setText('Objective: Go to the temple.')
       } else {
         // The southern Bazaar entrance remains a two-way route. Returning to
         // the city must not advance the story to the Temple phase.
         this.storyStage = 'bazaarTraining'
+        this.badgeUI.setCategory('bazaar')
         this.storyQuestFlags.metBazaarAuntie = true
 
         const completedMarkets = loadGameProgress()?.completedMarkets.length ?? 0
@@ -791,6 +817,12 @@ this.saveProgress()
       this.minimapNpcDots.forEach((dot) => {
         dot.setVisible(false)
       })
+    }
+
+    if (this.badgeUI?.isCollectionOpen()) {
+      this.player.setVelocity(0)
+      this.player.stop()
+      return
     }
 
     // Block player movement when minigame is open
@@ -1113,6 +1145,7 @@ this.saveProgress()
       () => {
         this.storyQuestFlags.metBazaarAuntie = true
         this.storyStage = 'bazaarTraining'
+        this.badgeUI.setCategory('bazaar')
       
         this.objectiveBox.setText(
           'Objective: Enter the bazaar district.'
@@ -1364,6 +1397,8 @@ this.saveProgress()
     if (objectiveAny?.container) {
       objectiveAny.container.setVisible(visible)
     }
+
+    this.badgeUI?.setVisible(visible)
   }
 
   private walkToFakeHotel(npc: NPC) {
@@ -1980,6 +2015,7 @@ this.saveProgress()
   private finishLeaveFakeHotelSequence() {
     this.isCutscenePlaying = false
     this.setStoryUIVisible(true)
+    this.badgeUI.award('fake-hotel-scam-survivor')
     this.storyStage = 'findRealHotel'
     this.objectiveBox.setText('Objective: Talk to Bazaar Auntie.')
     this.updateQuestMarker()
@@ -2188,6 +2224,7 @@ const y = padding
       this.minimapPlayerDot,
       this.minimapQuestDot,
       ...this.minimapNpcDots,
+      ...this.badgeUI.getCameraObjects(),
     ])
   }
 
@@ -2214,6 +2251,7 @@ const y = padding
       this.minimapPlayerDot,
       this.minimapQuestDot,
       ...this.minimapNpcDots,
+      ...this.badgeUI.getCameraObjects(),
     ]
 
     this.cameras.main.ignore(uiObjects)

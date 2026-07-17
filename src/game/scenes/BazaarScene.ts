@@ -3,6 +3,7 @@ import NPC from '../entities/NPC'
 import DialogueBox from '../ui/DialogueBox'
 import ObjectiveBox from '../ui/ObjectiveBox'
 import GameHUD from '../ui/GameHUD'
+import BadgeUI from '../ui/BadgeUI'
 import BazaarChallengePopup, {
   type BazaarGameId,
   type BazaarMinigameResult,
@@ -58,6 +59,7 @@ export default class BazaarScene extends Phaser.Scene {
   private dialogue!: DialogueBox
   private objectiveBox!: ObjectiveBox
   private hud!: GameHUD
+  private badgeUI!: BadgeUI
   private minigame!: BazaarChallengePopup
   private rewardedFillerBargains = new Set<string>()
   private readonly fillerBargainRegistryKey =
@@ -267,6 +269,24 @@ export default class BazaarScene extends Phaser.Scene {
     this.dialogue = new DialogueBox(this)
     this.objectiveBox = new ObjectiveBox(this)
     this.minigame = new BazaarChallengePopup(this)
+    this.badgeUI = new BadgeUI(
+      this,
+      this.objectiveBox,
+      'bazaar',
+      () =>
+        !this.dialogue.isOpen() &&
+        !this.minigame.open() &&
+        !this.isGateTransitioning,
+    )
+
+    // Migrate completed markets from saves created before badges existed.
+    // The Fake Hotel badge is also a prerequisite for reaching this scene.
+    this.badgeUI.sync([
+      'fake-hotel-scam-survivor',
+      ...[...this.completedMarkets]
+        .map((npcName) => this.getBazaarBadgeId(npcName))
+        .filter((badgeId): badgeId is string => Boolean(badgeId)),
+    ])
 
     if (this.completedMarkets.size >= 7) {
       this.objectiveBox.setText(
@@ -384,6 +404,12 @@ this.saveProgress()
     this.updateBazaarMinimap()
 
     if (this.isGateTransitioning) {
+      this.player.setVelocity(0)
+      this.player.stop()
+      return
+    }
+
+    if (this.badgeUI?.isCollectionOpen()) {
       this.player.setVelocity(0)
       this.player.stop()
       return
@@ -1100,6 +1126,11 @@ this.saveProgress()
               this.saveCompletedMarkets()
               this.refreshMerchantHighlight(npcName)
               this.refreshMinimapNpcDot(npcName)
+
+              const badgeId = this.getBazaarBadgeId(npcName)
+              if (badgeId) {
+                this.badgeUI.award(badgeId)
+              }
             }
 
             if (this.completedMarkets.size >= 7) {
@@ -1348,6 +1379,20 @@ this.saveProgress()
     ])
     this.saveProgress()
 
+  }
+
+  private getBazaarBadgeId(npcName: string): string | null {
+    const badges: Record<string, string> = {
+      NPC_3: 'bazaar-map',
+      NPC_4: 'bazaar-grain',
+      NPC_8: 'bazaar-spice',
+      NPC_7: 'bazaar-date',
+      NPC_10: 'bazaar-pottery',
+      NPC_11: 'bazaar-donkey',
+      NPC_15: 'bazaar-eagle',
+    }
+
+    return badges[npcName] ?? null
   }
 
   private getBazaarGameId(npcName: string): BazaarGameId | null {
@@ -2328,6 +2373,9 @@ const y = padding
     addUIObject(this.objectiveBox?.container)
     addUIObject(this.hud?.container)
     addUIObject(this.minigame?.container)
+    this.badgeUI.getCameraObjects().forEach((obj) => {
+      addUIObject(obj)
+    })
 
     addUIObject(this.minimapBackground)
     addUIObject(this.minimapBorder)

@@ -1,5 +1,7 @@
 import Phaser from 'phaser'
 
+export const OBJECTIVE_BOX_LAYOUT_EVENT = 'objective-box-layout-changed'
+
 export default class ObjectiveBox {
   public container: Phaser.GameObjects.Container
 
@@ -7,6 +9,9 @@ export default class ObjectiveBox {
   private bg: Phaser.GameObjects.Rectangle
   private text: Phaser.GameObjects.Text
   private currentText = 'Objective loading...'
+  private currentBoxWidth = 1
+  private currentBoxHeight = 1
+  private rightAccessoryWidth = 0
 
   private readonly boxX = 12
   private readonly boxY = 12
@@ -50,6 +55,25 @@ export default class ObjectiveBox {
     this.layout()
   }
 
+  getScreenBounds() {
+    return {
+      x: this.boxX,
+      y: this.boxY,
+      width: this.currentBoxWidth,
+      height: this.currentBoxHeight,
+      bottom: this.boxY + this.currentBoxHeight,
+    }
+  }
+
+  setRightAccessoryWidth(width: number) {
+    const safeWidth = Math.max(0, Math.floor(width))
+
+    if (this.rightAccessoryWidth == safeWidth) return
+
+    this.rightAccessoryWidth = safeWidth
+    this.layout()
+  }
+
   hide() {
     this.container.setVisible(false)
   }
@@ -75,13 +99,22 @@ export default class ObjectiveBox {
     const innerPaddingY = 7
 
     this.text.setPosition(this.boxX + innerPaddingX, this.boxY + innerPaddingY)
-    this.text.setWordWrapWidth(Math.max(120, boxWidth - innerPaddingX * 2))
+    this.text.setWordWrapWidth(
+      Math.max(
+        120,
+        boxWidth - innerPaddingX * 2 - this.rightAccessoryWidth,
+      ),
+    )
     this.text.setText(this.currentText)
 
     const boxHeight = Math.max(32, Math.ceil(this.text.height + innerPaddingY * 2))
 
     this.bg.setPosition(this.boxX, this.boxY)
     this.bg.setSize(boxWidth, boxHeight)
+
+    this.currentBoxWidth = boxWidth
+    this.currentBoxHeight = boxHeight
+    this.scene.events.emit(OBJECTIVE_BOX_LAYOUT_EVENT)
   }
 
   private handleResize() {
