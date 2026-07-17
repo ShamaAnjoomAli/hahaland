@@ -315,13 +315,13 @@ export default function Game() {
   You arrive with <strong>1,000,000 gold</strong>. Lose it, earn it back, build reputation, and rise as King of Hahaland.
 </p>
 
-        {savedProgress && (
+        {/* {savedProgress && (
           <p className="hero-copy">
             Saved progress: <strong>{savedProgress.coins} gold</strong> •{' '}
             <strong>{savedProgress.reputation} rep</strong> •{' '}
             <strong>{savedProgress.completedMarkets.length}/7 markets</strong>
           </p>
-        )}
+        )} */}
 
         <div className="menu-actions">
           <button
