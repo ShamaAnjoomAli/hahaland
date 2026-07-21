@@ -1707,12 +1707,32 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     create('granary-mouse-panic', 'granary_friends_mouse', [54, 55, 56, 57, 58], 14)
 
     // Merchant sheet: 6 columns x 6 rows.
-    create('granary-merchant-idle', 'granary_friends_merchant', [0, 1, 2, 3, 4, 5], 4)
-    create('granary-merchant-walk', 'granary_friends_merchant', [6, 7, 8, 9, 10, 11], 8)
-    create('granary-merchant-inspect', 'granary_friends_merchant', [12, 13, 14, 15, 16, 17], 6, 0, true)
-    create('granary-merchant-notice', 'granary_friends_merchant', [18, 19, 20, 21, 22], 8, 0)
-    create('granary-merchant-angry', 'granary_friends_merchant', [24, 25, 26, 27, 28], 9, 0, true)
-    create('granary-merchant-chase', 'granary_friends_merchant', [30, 31, 32, 33, 34, 35], 11)
+    // Remove stale merchant animations first. Vite hot reload / repeated popup
+    // openings can leave older definitions in Phaser's global animation manager,
+    // which makes the merchant briefly show frames from the wrong row.
+    ;[
+      'granary-merchant-idle',
+      'granary-merchant-walk',
+      'granary-merchant-inspect',
+      'granary-merchant-notice',
+      'granary-merchant-angry',
+      'granary-merchant-chase',
+    ].forEach((key) => {
+      if (this.scene.anims.exists(key)) {
+        this.scene.anims.remove(key)
+      }
+    })
+
+    // Use the clean first four frames of each row. The last cells on the
+    // merchant sheet can visually bleed into the next pose, so keeping the
+    // animation shorter makes the entrance smooth and prevents the next
+    // merchant/action from flashing during the walk-in.
+    create('granary-merchant-idle', 'granary_friends_merchant', [0, 1, 2, 3], 4)
+    create('granary-merchant-walk', 'granary_friends_merchant', [6, 7, 8, 9], 8)
+    create('granary-merchant-inspect', 'granary_friends_merchant', [12, 13, 14, 15], 6, 0, true)
+    create('granary-merchant-notice', 'granary_friends_merchant', [18, 19, 20, 21], 8, 0)
+    create('granary-merchant-angry', 'granary_friends_merchant', [24, 25, 26, 27], 9, 0, true)
+    create('granary-merchant-chase', 'granary_friends_merchant', [6, 7, 8, 9], 12)
 
     create('granary-effect-dust', 'granary_friends_effects', [0, 1, 2, 3, 4, 5, 6, 7], 12, 0)
     create('granary-effect-sparkle', 'granary_friends_effects', [8, 9, 10, 11, 12, 13, 14, 15], 12, 0)
@@ -1998,6 +2018,37 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
     )
     merchantSprite.setScale(0.43)
     merchantSprite.setVisible(false)
+
+    const resetMerchantSprite = (visible = false) => {
+      this.scene.tweens.killTweensOf(merchantSprite)
+      merchantSprite.stop()
+      merchantSprite.setTexture('granary_friends_merchant')
+      merchantSprite.setFrame(6)
+      merchantSprite.setScale(0.43)
+      merchantSprite.setAlpha(1)
+      merchantSprite.setAngle(0)
+      merchantSprite.setFlipX(false)
+      merchantSprite.setPosition(stageRight + 80, stageBottom - 91)
+      merchantSprite.setVisible(visible)
+    }
+
+    const startMerchantEntrance = (
+      targetX: number,
+      onComplete: () => void
+    ) => {
+      resetMerchantSprite(true)
+      merchantSprite.setFlipX(true)
+      merchantSprite.play('granary-merchant-walk', true)
+      refreshGranaryLayerOrder()
+
+      this.addTween({
+        targets: merchantSprite,
+        x: targetX,
+        duration: 900,
+        ease: 'Sine.easeInOut',
+        onComplete,
+      })
+    }
 
     ;[
       stageShadow,
@@ -2326,7 +2377,9 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
 
       catSprite.play('granary-cat-panic', true)
       mouseSprite.play('granary-mouse-panic', true)
-      merchantSprite.setVisible(true)
+      resetMerchantSprite(true)
+      merchantSprite.setPosition(stageRight - 70, stageBottom - 91)
+      merchantSprite.setFlipX(false)
       merchantSprite.play('granary-merchant-chase', true)
       refreshGranaryLayerOrder()
       statusText.setText('The merchant saw everything. Run!')
@@ -2421,18 +2474,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
         () => undefined
       )
 
-      merchantSprite.setVisible(true)
-      merchantSprite.setPosition(stageRight + 78, stageBottom - 91)
-      merchantSprite.setFlipX(true)
-      merchantSprite.play('granary-merchant-walk', true)
-      refreshGranaryLayerOrder()
-
-      this.addTween({
-        targets: merchantSprite,
-        x: stageRight - 110,
-        duration: 900,
-        ease: 'Sine.easeInOut',
-        onComplete: () => {
+      startMerchantEntrance(stageRight - 110, () => {
           merchantSprite.setFlipX(false)
           merchantSprite.play('granary-merchant-inspect')
           statusText.setText('He checks the room... and notices absolutely nothing.')
@@ -2481,8 +2523,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
               3400
             )
           })
-        },
-      })
+        })
     }
 
     const startRound = () => {
@@ -2504,7 +2545,7 @@ Copy the reed_marsh_trial folder into public/assets/minigames/.`,
       mouseSprite.setPosition(mouseHomeX, mouseHomeY)
       mouseSprite.setFlipX(false)
       mouseSprite.play('granary-mouse-idle-stable', true)
-      merchantSprite.setVisible(false)
+      resetMerchantSprite(false)
       refreshGranaryLayerOrder()
 
       const shuffledTypes = Phaser.Utils.Array.Shuffle([...containerTypes])
@@ -5257,6 +5298,15 @@ ${roundSettings.introText}`, {
       ajwa: 'Ajwa',
     }
 
+    const seedFacts: Record<PalmSeed, string> = {
+      majdoul:
+        'Majdoul dates are large, soft, and naturally rich. They are often called the king of dates because of their size and caramel-like taste.',
+      sukkari:
+        'Sukkari dates are golden, soft, and very sweet. The name comes from sukkar, meaning sugar, because of their natural sweetness.',
+      ajwa:
+        'Ajwa dates are small, dark, and deeply valued in Arabian tradition. They are known for their rich taste and soft texture.',
+    }
+
     const growthSheetKey = (seed: PalmSeed) =>
       `date_palm6_growth_${seed}_sheet`
 
@@ -5748,6 +5798,122 @@ ${roundSettings.introText}`, {
       )
     }
 
+    const showSeedInfoCard = (
+      seed: PalmSeed,
+      onContinue: () => void
+    ) => {
+      const infoObjects: Phaser.GameObjects.GameObject[] = []
+
+      // Compact, readable learning card. Keep the title, fact, and button in
+      // separate vertical zones so text never overlaps the heading.
+      const cardWidth = Math.min(560, this.panelWidth - 74)
+      const cardHeight = compactLayout ? 154 : 168
+      const cardX = width / 2
+      const cardY = playCenterY + (compactLayout ? 4 : 6)
+
+      const overlay = this.scene.add.rectangle(
+        cardX,
+        playCenterY,
+        playWidth,
+        playHeight,
+        0x000000,
+        0.48
+      )
+
+      const card = this.scene.add.rectangle(
+        cardX,
+        cardY,
+        cardWidth,
+        cardHeight,
+        0xead8aa,
+        0.98
+      )
+      card.setStrokeStyle(4, 0xd4af37, 1)
+
+      const titleY = cardY - cardHeight / 2 + 28
+      const factY = cardY - 12
+      const buttonY = cardY + cardHeight / 2 - 28
+
+      const title = this.scene.add.text(
+        cardX,
+        titleY,
+        `${seedNames[seed]} Date`,
+        {
+          fontFamily: 'Georgia',
+          fontSize: compactLayout ? '18px' : '20px',
+          color: '#74420d',
+          stroke: '#fff4cf',
+          strokeThickness: 2,
+          fontStyle: 'bold',
+          align: 'center',
+        }
+      )
+      title.setOrigin(0.5)
+
+      const divider = this.scene.add.rectangle(
+        cardX,
+        titleY + 24,
+        cardWidth - 76,
+        2,
+        0xd4af37,
+        0.55
+      )
+
+      const fact = this.scene.add.text(
+        cardX,
+        factY,
+        seedFacts[seed],
+        {
+          fontFamily: 'Georgia',
+          fontSize: compactLayout ? '12px' : '13px',
+          color: '#245d78',
+          stroke: '#ffffff',
+          strokeThickness: 1,
+          fontStyle: 'bold',
+          align: 'center',
+          lineSpacing: compactLayout ? 1 : 2,
+          wordWrap: {
+            width: cardWidth - 58,
+            useAdvancedWrap: true,
+          },
+        }
+      )
+      fact.setOrigin(0.5)
+
+      const continueButton = this.createButton(
+        cardX,
+        buttonY,
+        170,
+        34,
+        'CONTINUE',
+        () => {
+          infoObjects.forEach((object) => {
+            if (object.active) object.destroy()
+          })
+          onContinue()
+        },
+        0x27633a,
+        14
+      )
+
+      infoObjects.push(
+        overlay,
+        card,
+        title,
+        divider,
+        fact,
+        continueButton.bg,
+        continueButton.text
+      )
+
+      infoObjects.forEach((object) => {
+        if (object !== continueButton.bg && object !== continueButton.text) {
+          this.addObject(object)
+        }
+        this.container.bringToTop(object)
+      })
+    }
+
     const clearChoices = () => {
       choiceHandles.forEach((choice) => choice.destroy())
       choiceHandles.length = 0
@@ -6029,15 +6195,17 @@ ${roundSettings.introText}`, {
         palmSprite.setAlpha(1)
         harvestBasket.setTexture(harvestIconKey(selectedSeed))
 
-        playAction('date-palm-farmer-plant', () => {
-          // After the seed is planted, show a tiny first sprout so round 2
-          // no longer looks identical to the untouched seed pit.
-          palmFrame = 1
-          palmSprite.anims.stop()
-          palmSprite.setTexture(growthSheetKey(selectedSeed))
-          palmSprite.setFrame(1)
-          playSparkle()
-          this.schedule(900, advanceRound)
+        showSeedInfoCard(selectedSeed, () => {
+          playAction('date-palm-farmer-plant', () => {
+            // After the seed is planted, show a tiny first sprout so round 2
+            // no longer looks identical to the untouched seed pit.
+            palmFrame = 1
+            palmSprite.anims.stop()
+            palmSprite.setTexture(growthSheetKey(selectedSeed))
+            palmSprite.setFrame(1)
+            playSparkle()
+            this.schedule(900, advanceRound)
+          })
         })
 
         return
@@ -11539,5 +11707,4 @@ ${roundSettings.introText}`, {
   
     this.container.add([bg, text])
   }
-
 }
