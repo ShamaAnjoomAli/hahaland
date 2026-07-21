@@ -587,113 +587,384 @@ export default class TempleChallengePopup {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    type Round = {
+    type TruthRound = {
       title: string
-      clues: string[]
+      imageKey: string
+      watchLine: string
+      question: string
       tablets: [string, string, string]
       correctIndex: number
+      truthReaction: string
     }
 
-    const rounds: Round[] = [
+    const rounds: TruthRound[] = [
       {
-        title: 'The Golden Scarab',
-        clues: ['1 golden scarab', '2 Anubis statues', '3 candles'],
-        tablets: ['There are three Anubis statues.', 'The scarab is golden.', 'There are five candles.'],
-        correctIndex: 1,
-      },
-      {
-        title: 'The Candle Count',
-        clues: ['4 candles', '1 blue vase', '2 cracked stones'],
-        tablets: ['Four candles burn in this chamber.', 'The vase is red.', 'There are three cracked stones.'],
+        title: 'Round 1 — The Golden Scarab',
+        imageKey: 'temple-truth-round-1',
+        watchLine: 'Look for the candles, vases, statues, chest, and golden scarab.',
+        question: 'Which tablet tells the truth?',
+        tablets: [
+          'There are three burning candles.',
+          'The blue vase is on the right side.',
+          'There are no jackal statues.',
+        ],
         correctIndex: 0,
+        truthReaction: 'Correct. Three candles were burning in the chamber.',
       },
       {
-        title: 'The Wall Sign',
-        clues: ['Sun symbol on the left wall', 'Moon symbol on the right wall', 'Scarab tile in the center'],
-        tablets: ['The sun is painted on the right wall.', 'The moon is painted on the left wall.', 'The scarab tile is in the center.'],
-        correctIndex: 2,
-      },
-      {
-        title: 'The Broken Vase',
-        clues: ['Broken vase near the door', '1 torch is unlit', '2 gold bowls'],
-        tablets: ['The broken vase was near the door.', 'Both torches were burning.', 'There are three gold bowls.'],
+        title: 'Round 2 — The Twin Scarabs',
+        imageKey: 'temple-truth-round-2',
+        watchLine: 'Look for the two floor scarabs, the jars, and the wall torches.',
+        question: 'Which tablet tells the truth?',
+        tablets: [
+          'Two golden scarabs sit on the floor.',
+          'The green jar is on the left side.',
+          'There are no stone tablets on the wall.',
+        ],
         correctIndex: 0,
+        truthReaction: 'Correct. Two golden scarabs were on the floor.',
       },
       {
-        title: 'The Final Judgment',
-        clues: ['2 jackal statues', '4 burning candles', '1 blue scarab'],
-        tablets: ['Four candles are burning.', 'Three jackals guard the door.', 'The scarab is gold.'],
+        title: 'Round 3 — The Bowl of Light',
+        imageKey: 'temple-truth-round-3',
+        watchLine: 'Look for the cat statue, coin stack, blue vase, and golden bowl.',
+        question: 'Choose the true tablet.',
+        tablets: [
+          'A black cat statue is near the front right.',
+          'The coin stack is on the left side.',
+          'The blue vase is on the right side.',
+        ],
         correctIndex: 0,
+        truthReaction: 'Correct. The black cat statue guarded the front-right step.',
+      },
+      {
+        title: 'Round 4 — The Eye Floor',
+        imageKey: 'temple-truth-round-4',
+        watchLine: 'Look for the chest, purple vase, fire bowls, and Eye symbol.',
+        question: 'Which statement is true?',
+        tablets: [
+          'The treasure chest is on the left side.',
+          'The purple vase is on the left side.',
+          'There are no fire bowls in the chamber.',
+        ],
+        correctIndex: 0,
+        truthReaction: 'Correct. The treasure chest was on the left side.',
+      },
+      {
+        title: 'Round 5 — Final Judgment',
+        imageKey: 'temple-truth-round-5',
+        watchLine: 'Final round. Remember the red vase, blue vase, chest, and scarabs.',
+        question: 'Only one tablet is true. Which one?',
+        tablets: [
+          'The red vase is on the left side.',
+          'The blue vase is on the left side.',
+          'There are no scarabs on the floor.',
+        ],
+        correctIndex: 0,
+        truthReaction: 'Correct. The red vase was on the left side.',
       },
     ]
 
     this.addTitle(TRIAL_TITLES['truth-gate'])
-    this.addInstruction('Observe the chamber. Three tablets speak. Only one tells the truth.', top + 88)
+    this.addInstruction(
+      'Observe the chamber for 8 seconds. Then the image will disappear and three stone tablets will appear.',
+      top + 86,
+    )
 
     let roundIndex = 0
     let hearts = 3
     let score = 0
-    let buttons: ButtonHandle[] = []
+    let answerButtons: ButtonHandle[] = []
+    let phaseObjects: Phaser.GameObjects.GameObject[] = []
+    let countdownTimer: Phaser.Time.TimerEvent | undefined
 
-    const hud = this.addStatusText('', top + 126)
-    const chamber = this.scene.add.rectangle(width / 2, top + 226, this.panelWidth - 92, 172, 0x241507, 1)
-    chamber.setStrokeStyle(4, 0xd4af37, 1)
-    this.addObject(chamber)
+    const hud = this.addStatusText('', top + 121)
 
-    const clueTitle = this.scene.add.text(width / 2, top + 166, '', {
-      fontFamily: 'Georgia',
-      fontSize: '17px',
-      color: '#ffe7a3',
-      stroke: '#000000',
-      strokeThickness: 4,
-      fontStyle: 'bold',
-      align: 'center',
-    })
-    clueTitle.setOrigin(0.5)
-    this.addObject(clueTitle)
+    const titleY = top + 151
+    const visualTop = top + 180
+    const buttonHeight = 72
+    const buttonY = bottom - 76
+    const buttonTop = buttonY - buttonHeight / 2
+    const statusY = buttonTop - 20
 
-    const clueText = this.scene.add.text(width / 2, top + 232, '', {
-      fontFamily: 'Georgia',
-      fontSize: '18px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-      lineSpacing: 7,
-      align: 'center',
-      wordWrap: { width: this.panelWidth - 140 },
-    })
-    clueText.setOrigin(0.5)
-    this.addObject(clueText)
+    // Observation hint goes in the empty bottom area BELOW the image frame.
+    // It should never cover the chamber image.
+    const captionY = buttonY
+    const imageBottom = statusY - 20
+    const imageWidth = this.panelWidth - 72
+    const imageHeight = Math.max(236, imageBottom - visualTop)
+    const imageX = width / 2
+    const imageY = visualTop + imageHeight / 2
 
-    const status = this.addStatusText('Choose the truthful tablet.', bottom - 178, '#ffd966')
+    const imageFrame = this.scene.add.rectangle(
+      imageX,
+      imageY,
+      imageWidth + 10,
+      imageHeight + 10,
+      0x0f0802,
+      1,
+    )
+    imageFrame.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(imageFrame)
 
-    const destroyButtons = () => {
-      buttons.forEach((button) => button.destroy())
-      buttons = []
+    const status = this.addStatusText('', statusY, '#ffd966')
+
+    const addPhaseObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+      this.addObject(object)
+      phaseObjects.push(object)
+      return object
     }
 
-    const render = () => {
-      destroyButtons()
+    const destroyPhaseObjects = () => {
+      countdownTimer?.remove(false)
+      countdownTimer = undefined
+
+      answerButtons.forEach((button) => button.destroy())
+      answerButtons = []
+
+      phaseObjects.forEach((object) => {
+        if (object.active) object.destroy()
+      })
+      phaseObjects = []
+    }
+
+    const setHud = () => {
+      hud.setText(
+        `ROUND ${roundIndex + 1} / ${rounds.length}     HEARTS ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`,
+      )
+    }
+
+    const createLargeObservationImage = (round: TruthRound) => {
+      const hasTexture = this.scene.textures.exists(round.imageKey)
+
+      if (!hasTexture) {
+        const fallback = addPhaseObject(
+          this.scene.add.rectangle(imageX, imageY, imageWidth, imageHeight, 0x241507, 1),
+        )
+        fallback.setStrokeStyle(2, 0x8f5b20, 1)
+
+        const fallbackText = addPhaseObject(
+          this.scene.add.text(imageX, imageY, `Missing image asset\n${round.imageKey}`, {
+            fontFamily: 'Georgia',
+            fontSize: '18px',
+            color: '#ffd966',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center',
+          }),
+        )
+        fallbackText.setOrigin(0.5)
+        return
+      }
+
+      const image = addPhaseObject(this.scene.add.image(imageX, imageY, round.imageKey))
+      const source = this.scene.textures.get(round.imageKey).getSourceImage() as HTMLImageElement
+      const sourceWidth = source.width || image.width || 1
+      const sourceHeight = source.height || image.height || 1
+      const scale = Math.min(imageWidth / sourceWidth, imageHeight / sourceHeight)
+
+      image.setDisplaySize(sourceWidth * scale, sourceHeight * scale)
+
+      // Keep the hint BELOW the image, not on top of it.
+      const captionBg = addPhaseObject(
+        this.scene.add.rectangle(
+          imageX,
+          captionY,
+          imageWidth - 36,
+          34,
+          0x120a04,
+          0.92,
+        ),
+      )
+      captionBg.setStrokeStyle(2, 0xd4af37, 0.75)
+
+      const caption = addPhaseObject(
+        this.scene.add.text(imageX, captionY, round.watchLine, {
+          fontFamily: 'Georgia',
+          fontSize: '14px',
+          color: '#fff7cf',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+          align: 'center',
+          wordWrap: { width: imageWidth - 78, useAdvancedWrap: true },
+        }),
+      )
+      caption.setOrigin(0.5)
+    }
+
+    const showObservation = () => {
+      destroyPhaseObjects()
+      setHud()
+
       const round = rounds[roundIndex]
-      hud.setText(`ROUND ${roundIndex + 1} / ${rounds.length}     HEARTS ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`)
-      clueTitle.setText(round.title)
-      clueText.setText(round.clues.map((clue) => `◆ ${clue}`).join('\n'))
-      status.setText('Choose the only truthful tablet.')
+      status.setText('OBSERVE CAREFULLY...')
       status.setColor('#ffd966')
 
-      const gap = 12
-      const buttonWidth = Math.min(210, (this.panelWidth - 92 - gap * 2) / 3)
-      const y = bottom - 100
-      const xs = [width / 2 - buttonWidth - gap, width / 2, width / 2 + buttonWidth + gap]
+      const roundTitle = addPhaseObject(
+        this.scene.add.text(imageX, titleY, round.title, {
+          fontFamily: 'Georgia',
+          fontSize: '18px',
+          color: '#ffe7a3',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+          align: 'center',
+        }),
+      )
+      roundTitle.setOrigin(0.5)
 
-      buttons = round.tablets.map((label, index) =>
+      createLargeObservationImage(round)
+
+      const countdownBg = addPhaseObject(
+        this.scene.add.circle(
+          imageX + imageWidth / 2 - 42,
+          imageY - imageHeight / 2 + 42,
+          28,
+          0x120a04,
+          0.9,
+        ),
+      )
+      countdownBg.setStrokeStyle(3, 0xffd966, 0.95)
+
+      const countdownText = addPhaseObject(
+        this.scene.add.text(countdownBg.x, countdownBg.y, '8', {
+          fontFamily: 'Georgia',
+          fontSize: '28px',
+          color: '#fff7cf',
+          stroke: '#000000',
+          strokeThickness: 5,
+          fontStyle: 'bold',
+        }),
+      )
+      countdownText.setOrigin(0.5)
+
+      this.addTween({
+        targets: countdownBg,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        alpha: 0.72,
+        duration: 520,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      let secondsLeft = 8
+
+      countdownTimer = this.addLoop(1000, () => {
+        secondsLeft -= 1
+        countdownText.setText(String(Math.max(0, secondsLeft)))
+
+        this.addTween({
+          targets: countdownText,
+          scaleX: 1.25,
+          scaleY: 1.25,
+          duration: 130,
+          yoyo: true,
+          ease: 'Sine.easeOut',
+        })
+
+        if (secondsLeft <= 0) {
+          countdownTimer?.remove(false)
+          countdownTimer = undefined
+          showQuestion()
+        }
+      })
+    }
+
+    const showQuestion = () => {
+      // Fully remove the observation image before showing answers.
+      destroyPhaseObjects()
+      setHud()
+
+      const round = rounds[roundIndex]
+
+      const roundTitle = addPhaseObject(
+        this.scene.add.text(imageX, titleY, round.title, {
+          fontFamily: 'Georgia',
+          fontSize: '18px',
+          color: '#ffe7a3',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+          align: 'center',
+        }),
+      )
+      roundTitle.setOrigin(0.5)
+
+      const questionPanel = addPhaseObject(
+        this.scene.add.rectangle(imageX, imageY, imageWidth, imageHeight, 0x120a04, 0.98),
+      )
+      questionPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+      const hiddenIcon = addPhaseObject(
+        this.scene.add.text(imageX, imageY - 62, '𓂀', {
+          fontFamily: 'Georgia',
+          fontSize: '46px',
+          color: '#ffd966',
+          stroke: '#000000',
+          strokeThickness: 6,
+          fontStyle: 'bold',
+        }),
+      )
+      hiddenIcon.setOrigin(0.5)
+
+      const question = addPhaseObject(
+        this.scene.add.text(imageX, imageY - 8, round.question, {
+          fontFamily: 'Georgia',
+          fontSize: '21px',
+          color: '#ffe7a3',
+          stroke: '#000000',
+          strokeThickness: 5,
+          fontStyle: 'bold',
+          align: 'center',
+          wordWrap: { width: imageWidth - 90, useAdvancedWrap: true },
+        }),
+      )
+      question.setOrigin(0.5)
+
+      const hint = addPhaseObject(
+        this.scene.add.text(imageX, imageY + 58, 'The chamber is hidden. Choose the one true memory.', {
+          fontFamily: 'Georgia',
+          fontSize: '15px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4,
+          align: 'center',
+          wordWrap: { width: imageWidth - 90, useAdvancedWrap: true },
+        }),
+      )
+      hint.setOrigin(0.5)
+
+      this.addTween({
+        targets: [hiddenIcon, question, hint],
+        alpha: { from: 0, to: 1 },
+        y: '-=6',
+        duration: 320,
+        ease: 'Sine.easeOut',
+      })
+
+      status.setText('Choose the truthful tablet.')
+      status.setColor('#ffd966')
+
+      const gap = 10
+      const buttonWidth = Math.min(215, (this.panelWidth - 94 - gap * 2) / 3)
+      const xs = [
+        width / 2 - buttonWidth - gap,
+        width / 2,
+        width / 2 + buttonWidth + gap,
+      ]
+
+      answerButtons = round.tablets.map((label, index) =>
         this.createButton({
           x: xs[index],
-          y,
+          y: buttonY,
           width: buttonWidth,
-          height: 88,
+          height: buttonHeight,
           label,
           fontSize: 12,
+          color: 0x4d2d10,
           onClick: () => choose(index),
         }),
       )
@@ -701,55 +972,66 @@ export default class TempleChallengePopup {
 
     const choose = (index: number) => {
       const round = rounds[roundIndex]
-      buttons.forEach((button) => button.setEnabled(false))
+      answerButtons.forEach((button) => button.setEnabled(false))
 
       if (index === round.correctIndex) {
-        score += 100 + roundIndex * 20
-        status.setText('Truth chosen. The gate glows wider.')
+        score += 120 + roundIndex * 35
+        status.setText(round.truthReaction)
         status.setColor('#72ff9b')
-        this.scene.cameras.main.shake(80, 0.001)
+        this.scene.cameras.main.shake(80, 0.0012)
+
         if (roundIndex >= rounds.length - 1) {
           const reward = this.baseReward('truth-gate', true, score)
-          this.complete({
-            trialId: 'truth-gate',
-            success: true,
-            response: 'You saw truth through noise and lies. A ruler must see clearly before choosing power.',
-            ...reward,
-          }, 900)
+          this.complete(
+            {
+              trialId: 'truth-gate',
+              success: true,
+              response:
+                'You saw truth through noise and lies. A ruler must observe before judging, and remember before choosing.',
+              ...reward,
+            },
+            1050,
+          )
           return
         }
+
         roundIndex += 1
-        this.schedule(900, render)
+        this.schedule(1150, showObservation)
         return
       }
 
       hearts -= 1
-      status.setText('That tablet lied. The chamber shakes.')
+      status.setText('That tablet lied. The chamber rejects careless judgment.')
       status.setColor('#ff7770')
-      this.scene.cameras.main.shake(160, 0.004)
-      hud.setText(`ROUND ${roundIndex + 1} / ${rounds.length}     HEARTS ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`)
+      setHud()
+      this.scene.cameras.main.shake(170, 0.004)
 
       if (hearts <= 0) {
         const reward = this.baseReward('truth-gate', false, score)
-        this.complete({
-          trialId: 'truth-gate',
-          success: false,
-          response: 'The temple does not punish mistakes. It punishes blindness. Look again and return sharper.',
-          ...reward,
-        }, 900)
+        this.complete(
+          {
+            trialId: 'truth-gate',
+            success: false,
+            response:
+              'The temple does not punish mistakes. It punishes blindness. Observe again and return sharper.',
+            ...reward,
+          },
+          1000,
+        )
         return
       }
 
-      this.schedule(850, render)
+      this.schedule(1050, showObservation)
     }
 
-    render()
+    showObservation()
   }
 
   // ---------------------------------------------------------------------------
   // 2. CANDLE OF RA
   // ---------------------------------------------------------------------------
-  private createCandleOfRa() {
+
+private createCandleOfRa() {
     const width = this.scene.scale.width
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()

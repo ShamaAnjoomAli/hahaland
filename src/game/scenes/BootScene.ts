@@ -80,6 +80,26 @@ const IMAGES: ImageAsset[] = [
     path: 'assets/maps/temple_final_background.png',
   },
   {
+    key: 'temple-truth-round-1',
+    path: 'assets/minigames/temple_truth/truth_round_1.png',
+  },
+  {
+    key: 'temple-truth-round-2',
+    path: 'assets/minigames/temple_truth/truth_round_2.png',
+  },
+  {
+    key: 'temple-truth-round-3',
+    path: 'assets/minigames/temple_truth/truth_round_3.png',
+  },
+  {
+    key: 'temple-truth-round-4',
+    path: 'assets/minigames/temple_truth/truth_round_4.png',
+  },
+  {
+    key: 'temple-truth-round-5',
+    path: 'assets/minigames/temple_truth/truth_round_5.png',
+  },
+  {
     key: 'badge-fake-hotel',
     path: 'assets/ui/badges/badge_fake_hotel.png',
   },

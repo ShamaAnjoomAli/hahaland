@@ -122,7 +122,7 @@
                  "y":1456
                 }, 
                 {
-                 "height":66.5,
+                 "height":59,
                  "id":10,
                  "name":"TruthTabletCenter",
                  "opacity":1,
@@ -137,7 +137,7 @@
                  "visible":true,
                  "width":66,
                  "x":476.666666666667,
-                 "y":1465.5
+                 "y":1473
                 }, 
                 {
                  "height":77.3333333333333,
@@ -705,8 +705,8 @@
                  "rotation":0,
                  "type":"Decor",
                  "visible":true,
-                 "width":254.5,
-                 "x":586.5,
+                 "width":245.5,
+                 "x":595.5,
                  "y":1366.66666666667
                 }, 
                 {
@@ -967,8 +967,8 @@
                  "type":"Trial",
                  "visible":true,
                  "width":0,
-                 "x":512,
-                 "y":1240
+                 "x":509,
+                 "y":1240.5
                 }, 
                 {
                  "height":0,
