@@ -22,6 +22,64 @@ import {
 
 type CanOpenCollection = () => boolean
 
+const BADGE_ICON_ASSETS = [
+  ['badge-fake-hotel', 'assets/ui/badges/badge_fake_hotel.png'],
+  ['badge-bazaar-date', 'assets/ui/badges/badge_bazaar_date.png'],
+  ['badge-bazaar-eagle', 'assets/ui/badges/badge_bazaar_eagle.png'],
+  ['badge-bazaar-donkey', 'assets/ui/badges/badge_bazaar_donkey.png'],
+  ['badge-bazaar-grain', 'assets/ui/badges/badge_bazaar_grain.png'],
+  ['badge-bazaar-spice', 'assets/ui/badges/badge_bazaar_spice.png'],
+  ['badge-bazaar-pottery', 'assets/ui/badges/badge_bazaar_pottery.png'],
+  ['badge-bazaar-archery', 'assets/ui/badges/badge_bazaar_archery.png'],
+  ['badge-bazaar-finish', 'assets/ui/badges/badge_bazaar_finish.png'],
+  ['badge-temple-gate-truth', 'assets/ui/badges/badge_temple_gate_truth.png'],
+  ['badge-temple-candle-ra', 'assets/ui/badges/badge_temple_candle_ra.png'],
+  ['badge-temple-hieroglyphs', 'assets/ui/badges/badge_temple_hieroglyphs.png'],
+  ['badge-temple-false-gold', 'assets/ui/badges/badge_temple_false_gold.png'],
+  ['badge-temple-painted-prophecy', 'assets/ui/badges/badge_temple_painted_prophecy.png'],
+  ['badge-temple-scarab-board', 'assets/ui/badges/badge_temple_scarab_board.png'],
+  ['badge-temple-stairway-sun', 'assets/ui/badges/badge_temple_stairway_sun.png'],
+  ['badge-temple-finish', 'assets/ui/badges/badge_temple_finish.png'],
+] as const
+
+
+function createBadgeIcon(
+  scene: Phaser.Scene,
+  badge: BadgeDefinition | undefined,
+  x: number,
+  y: number,
+  size: number,
+  earned = true,
+): Phaser.GameObjects.Image | Phaser.GameObjects.Text {
+  if (badge?.iconKey && scene.textures.exists(badge.iconKey)) {
+    const icon = scene.add.image(x, y, badge.iconKey)
+
+    icon.setDisplaySize(size, size)
+    icon.setOrigin(0.5)
+
+    if (!earned) {
+      // Keep locked artwork recognizable instead of turning it into an
+      // almost-black silhouette. The reduced saturation/alpha still makes
+      // its locked state obvious.
+      icon.setTint(0x9a8d7c)
+      icon.setAlpha(0.62)
+    }
+
+    return icon
+  }
+
+  const symbol = scene.add.text(x, y, badge?.symbol ?? '◆', {
+    fontFamily: 'Georgia',
+    fontSize: `${Math.max(8, Math.round(size * 0.44))}px`,
+    color: earned ? '#fff7cf' : '#8f867c',
+    fontStyle: 'bold',
+  })
+
+  symbol.setOrigin(0.5)
+  return symbol
+}
+
+
 class BadgeTracker {
   public readonly container: Phaser.GameObjects.Container
 
@@ -195,18 +253,14 @@ class BadgeTracker {
     buttonInner.setInteractive({ useHandCursor: true })
     buttonInner.on('pointerdown', this.onOpen)
 
-    const buttonSymbol = this.scene.add.text(
+    const buttonSymbol = createBadgeIcon(
+      this.scene,
+      questBadge,
       buttonX,
       buttonY,
-      questBadge?.symbol ?? '◆',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '9px',
-        color: '#fff7cf',
-        fontStyle: 'bold',
-      },
+      18,
+      true,
     )
-    buttonSymbol.setOrigin(0.5)
     buttonSymbol.setInteractive({ useHandCursor: true })
     buttonSymbol.on('pointerdown', this.onOpen)
 
@@ -342,13 +396,14 @@ class BadgeTracker {
 
         slot.setStrokeStyle(1.5, stroke, 1)
 
-        const symbol = this.scene.add.text(x, y, badge.symbol, {
-          fontFamily: 'Georgia',
-          fontSize: categoryBadges.length > 5 ? '8px' : '9px',
-          color: isEarned ? '#fff7cf' : '#8f867c',
-          fontStyle: 'bold',
-        })
-        symbol.setOrigin(0.5)
+        const symbol = createBadgeIcon(
+          this.scene,
+          badge,
+          x,
+          y,
+          isMajor ? 22 : 20,
+          isEarned,
+        )
 
         slotObjects.push(slot, symbol)
       })
@@ -567,47 +622,77 @@ class BadgeCollectionPopup {
         },
       )
 
-      const slotAreaX = panelX + 170
-      const slotAreaWidth = panelWidth - 210
-      const slotGap = badges.length > 1
-        ? Math.min(43, slotAreaWidth / (badges.length - 1))
-        : 0
+      const slotAreaX = panelX + 172
+      const slotAreaWidth = panelWidth - 214
+      const slotGap =
+        badges.length > 1
+          ? Math.min(62, slotAreaWidth / (badges.length - 1))
+          : 0
+      const groupWidth = slotGap * Math.max(0, badges.length - 1)
+      const firstSlotX =
+        badges.length === 1
+          ? slotAreaX
+          : slotAreaX + (slotAreaWidth - groupWidth) / 2
 
       const badgeObjects: Phaser.GameObjects.GameObject[] = []
 
       badges.forEach((badge, index) => {
-        const slotX = slotAreaX + index * slotGap
+        const slotX = firstSlotX + index * slotGap
         const slotY = rowY + Math.floor((rowHeight - 6) / 2)
         const isEarned = earned.has(badge.id)
         const isSelected = this.selectedBadgeId === badge.id
         const isMajor = badge.kind === 'quest'
-        const fill = isEarned ? info.accent : 0x302b26
-        const stroke = isSelected
-          ? 0xffffff
-          : isEarned
-            ? 0xffdf83
-            : 0x70675f
+        const iconSize = Math.max(
+          40,
+          Math.min(isMajor ? 62 : 56, rowHeight - 18),
+        )
+        const hitSize = Math.max(48, iconSize + 8)
 
-        const slot = isMajor
-          ? this.scene.add.rectangle(slotX, slotY, 27, 27, fill, 1).setAngle(45)
-          : this.scene.add.circle(slotX, slotY, 15, fill, 1)
-
-        slot.setStrokeStyle(isSelected ? 3 : 2, stroke, 1)
-        slot.setInteractive({ useHandCursor: true })
-        slot.on('pointerdown', () => {
+        // The PNG already contains its own gold medallion frame. Use an
+        // invisible hit area rather than drawing a second circle/diamond
+        // around it.
+        const hitArea = this.scene.add.rectangle(
+          slotX,
+          slotY,
+          hitSize,
+          hitSize,
+          0x000000,
+          0.001,
+        )
+        hitArea.setInteractive({ useHandCursor: true })
+        hitArea.on('pointerdown', () => {
           this.selectedBadgeId = badge.id
           this.scene.time.delayedCall(0, () => this.render())
         })
 
-        const symbol = this.scene.add.text(slotX, slotY, badge.symbol, {
-          fontFamily: 'Georgia',
-          fontSize: '13px',
-          color: isEarned ? '#fff7cf' : '#8f867c',
-          fontStyle: 'bold',
-        })
-        symbol.setOrigin(0.5)
+        const selectionGlow = this.scene.add.circle(
+          slotX,
+          slotY,
+          iconSize * 0.47,
+          isEarned ? info.accent : 0x5d554c,
+          isSelected ? 0.2 : 0,
+        )
+        selectionGlow.setStrokeStyle(
+          isSelected ? 2 : 0,
+          isEarned ? 0xffdf83 : 0xb0a79d,
+          isSelected ? 0.95 : 0,
+        )
 
-        badgeObjects.push(slot, symbol)
+        const symbol = createBadgeIcon(
+          this.scene,
+          badge,
+          slotX,
+          slotY,
+          iconSize,
+          isEarned,
+        )
+        symbol.setInteractive({ useHandCursor: true })
+        symbol.on('pointerdown', () => {
+          this.selectedBadgeId = badge.id
+          this.scene.time.delayedCall(0, () => this.render())
+        })
+
+        badgeObjects.push(selectionGlow, hitArea, symbol)
       })
 
       rowObjects.push(rowBg, rowTitle, progress, ...badgeObjects)
@@ -775,18 +860,14 @@ class BadgeToast {
       0.82,
     )
 
-    const symbol = this.scene.add.text(
+    const symbol = createBadgeIcon(
+      this.scene,
+      badge,
       -width / 2 + 43,
       43,
-      badge.symbol,
-      {
-        fontFamily: 'Georgia',
-        fontSize: '18px',
-        color: '#fff7cf',
-        fontStyle: 'bold',
-      },
+      54,
+      true,
     )
-    symbol.setOrigin(0.5)
 
     const heading = this.scene.add.text(
       -width / 2 + 80,
@@ -882,6 +963,7 @@ export default class BadgeUI {
   private readonly tracker: BadgeTracker
   private readonly collection: BadgeCollectionPopup
   private readonly toast: BadgeToast
+  private badgeIconsLoading = false
   private visible = true
 
   constructor(
@@ -921,6 +1003,62 @@ export default class BadgeUI {
     scene.input.keyboard?.on('keydown-ESC', this.closeCollection, this)
     scene.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this)
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this)
+
+    this.ensureBadgeIconsLoaded()
+  }
+
+  private ensureBadgeIconsLoaded() {
+    if (this.badgeIconsLoading) return
+
+    const missingAssets = BADGE_ICON_ASSETS.filter(
+      ([key]) => !this.scene.textures.exists(key),
+    )
+
+    if (missingAssets.length === 0) {
+      this.refreshBadgeViews()
+      return
+    }
+
+    this.badgeIconsLoading = true
+
+    missingAssets.forEach(([key, path]) => {
+      this.scene.load.image(key, path)
+    })
+
+    const handleLoadError = (file: Phaser.Loader.File) => {
+      if (!String(file.key).startsWith('badge-')) return
+
+      console.error(
+        `Badge icon failed to load: ${file.key}`,
+        file.src,
+      )
+    }
+
+    this.scene.load.on(
+      Phaser.Loader.Events.FILE_LOAD_ERROR,
+      handleLoadError,
+    )
+
+    this.scene.load.once(
+      Phaser.Loader.Events.COMPLETE,
+      () => {
+        this.badgeIconsLoading = false
+        this.scene.load.off(
+          Phaser.Loader.Events.FILE_LOAD_ERROR,
+          handleLoadError,
+        )
+        this.refreshBadgeViews()
+      },
+    )
+
+    if (!this.scene.load.isLoading()) {
+      this.scene.load.start()
+    }
+  }
+
+  private refreshBadgeViews() {
+    this.tracker.refresh()
+    this.collection.refresh()
   }
 
   award(badgeId: string) {

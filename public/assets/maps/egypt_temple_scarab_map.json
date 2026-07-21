@@ -1,0 +1,816 @@
+{
+  "compressionlevel": -1,
+  "height": 96,
+  "infinite": false,
+  "layers": [
+    {
+      "id": 1,
+      "name": "Background",
+      "type": "imagelayer",
+      "image": "temple_scarab_background.png",
+      "offsetx": 0,
+      "offsety": 0,
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 2,
+      "name": "CollisionObjects",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 1,
+          "name": "LeftOuterWall",
+          "type": "",
+          "x": 0.0,
+          "y": 0.0,
+          "width": 38.0,
+          "height": 1536.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 2,
+          "name": "RightOuterWall",
+          "type": "",
+          "x": 498.0,
+          "y": 0.0,
+          "width": 38.0,
+          "height": 1536.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 3,
+          "name": "TopOuterWall",
+          "type": "",
+          "x": 0.0,
+          "y": 0.0,
+          "width": 536.0,
+          "height": 26.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 4,
+          "name": "BottomOuterWall",
+          "type": "",
+          "x": 0.0,
+          "y": 1512.0,
+          "width": 536.0,
+          "height": 24.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 5,
+          "name": "LeftAnubisStatue",
+          "type": "",
+          "x": 92.0,
+          "y": 1262.0,
+          "width": 95.0,
+          "height": 160.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 6,
+          "name": "RightAnubisStatue",
+          "type": "",
+          "x": 350.0,
+          "y": 1262.0,
+          "width": 95.0,
+          "height": 160.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 7,
+          "name": "EntranceLeftTorchBlock",
+          "type": "",
+          "x": 112.0,
+          "y": 1420.0,
+          "width": 60.0,
+          "height": 74.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 8,
+          "name": "EntranceRightTorchBlock",
+          "type": "",
+          "x": 366.0,
+          "y": 1420.0,
+          "width": 60.0,
+          "height": 74.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 9,
+          "name": "TruthTabletLeft",
+          "type": "",
+          "x": 132.0,
+          "y": 1094.0,
+          "width": 78.0,
+          "height": 96.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 10,
+          "name": "TruthTabletCenter",
+          "type": "",
+          "x": 229.0,
+          "y": 1088.0,
+          "width": 78.0,
+          "height": 100.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 11,
+          "name": "TruthTabletRight",
+          "type": "",
+          "x": 326.0,
+          "y": 1094.0,
+          "width": 78.0,
+          "height": 96.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 12,
+          "name": "CandleLeftVent",
+          "type": "",
+          "x": 54.0,
+          "y": 820.0,
+          "width": 85.0,
+          "height": 110.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 13,
+          "name": "CandleRightVent",
+          "type": "",
+          "x": 397.0,
+          "y": 820.0,
+          "width": 85.0,
+          "height": 110.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 14,
+          "name": "GlyphLeftPillar",
+          "type": "",
+          "x": 92.0,
+          "y": 760.0,
+          "width": 54.0,
+          "height": 95.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 15,
+          "name": "GlyphRightPillar",
+          "type": "",
+          "x": 392.0,
+          "y": 760.0,
+          "width": 54.0,
+          "height": 95.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 16,
+          "name": "TreasuryLeftTable",
+          "type": "",
+          "x": 92.0,
+          "y": 616.0,
+          "width": 110.0,
+          "height": 95.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 17,
+          "name": "TreasuryRightTable",
+          "type": "",
+          "x": 336.0,
+          "y": 616.0,
+          "width": 110.0,
+          "height": 95.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 18,
+          "name": "TreasuryLeftPile",
+          "type": "",
+          "x": 72.0,
+          "y": 548.0,
+          "width": 90.0,
+          "height": 76.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 19,
+          "name": "TreasuryRightPile",
+          "type": "",
+          "x": 372.0,
+          "y": 548.0,
+          "width": 90.0,
+          "height": 76.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 20,
+          "name": "ProphecyLeftDecor",
+          "type": "",
+          "x": 70.0,
+          "y": 430.0,
+          "width": 80.0,
+          "height": 104.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 21,
+          "name": "ProphecyRightDecor",
+          "type": "",
+          "x": 388.0,
+          "y": 430.0,
+          "width": 80.0,
+          "height": 104.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 22,
+          "name": "ScarabBoard",
+          "type": "Board",
+          "x": 116.0,
+          "y": 318.0,
+          "width": 304.0,
+          "height": 166.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 23,
+          "name": "SunLeftStatue",
+          "type": "",
+          "x": 86.0,
+          "y": 120.0,
+          "width": 88.0,
+          "height": 130.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 24,
+          "name": "SunRightStatue",
+          "type": "",
+          "x": 362.0,
+          "y": 120.0,
+          "width": 88.0,
+          "height": 130.0,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 25,
+          "name": "SunAltar",
+          "type": "",
+          "x": 218.0,
+          "y": 28.0,
+          "width": 100.0,
+          "height": 70.0,
+          "rotation": 0,
+          "visible": true
+        }
+      ],
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 3,
+      "name": "Spawns",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 26,
+          "name": "TemplePlayerSpawn",
+          "type": "Spawn",
+          "x": 268.0,
+          "y": 1460.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 27,
+          "name": "TempleEntrance",
+          "type": "Entrance",
+          "x": 268.0,
+          "y": 1430.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 28,
+          "name": "HighPriest",
+          "type": "NPC",
+          "x": 268.0,
+          "y": 1370.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "spriteKey",
+              "type": "string",
+              "value": "npc16"
+            }
+          ]
+        },
+        {
+          "id": 29,
+          "name": "TrialTruthGate",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 1138.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "truth-gate"
+            }
+          ]
+        },
+        {
+          "id": 30,
+          "name": "TrialCandleOfRa",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 885.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "candle-of-ra"
+            }
+          ]
+        },
+        {
+          "id": 31,
+          "name": "TrialGlyphMemory",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 790.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "glyph-memory"
+            }
+          ]
+        },
+        {
+          "id": 32,
+          "name": "TrialFalseGold",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 650.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "false-gold"
+            }
+          ]
+        },
+        {
+          "id": 33,
+          "name": "TrialPaintedProphecy",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 525.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "painted-prophecy"
+            }
+          ]
+        },
+        {
+          "id": 34,
+          "name": "TrialScarabBoard",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 400.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "scarab-board"
+            }
+          ]
+        },
+        {
+          "id": 35,
+          "name": "TrialStairwaySun",
+          "type": "Trial",
+          "x": 268.0,
+          "y": 110.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "stairway-sun"
+            }
+          ]
+        },
+        {
+          "id": 36,
+          "name": "PyramidExit",
+          "type": "Exit",
+          "x": 268.0,
+          "y": 42.0,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "targetScene",
+              "type": "string",
+              "value": "PyramidScene"
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 4,
+      "name": "TrialZones",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 37,
+          "name": "TruthGateZone",
+          "type": "TrialZone",
+          "x": 92.0,
+          "y": 1060.0,
+          "width": 352.0,
+          "height": 170.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "truth-gate"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "id": 38,
+          "name": "CandleOfRaZone",
+          "type": "TrialZone",
+          "x": 56.0,
+          "y": 835.0,
+          "width": 424.0,
+          "height": 148.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "candle-of-ra"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "id": 39,
+          "name": "GlyphMemoryZone",
+          "type": "TrialZone",
+          "x": 96.0,
+          "y": 752.0,
+          "width": 344.0,
+          "height": 120.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "glyph-memory"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": 40,
+          "name": "FalseGoldZone",
+          "type": "TrialZone",
+          "x": 58.0,
+          "y": 585.0,
+          "width": 420.0,
+          "height": 170.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "false-gold"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 4
+            }
+          ]
+        },
+        {
+          "id": 41,
+          "name": "PaintedProphecyZone",
+          "type": "TrialZone",
+          "x": 65.0,
+          "y": 460.0,
+          "width": 406.0,
+          "height": 130.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "painted-prophecy"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 42,
+          "name": "ScarabBoardZone",
+          "type": "TrialZone",
+          "x": 88.0,
+          "y": 290.0,
+          "width": 360.0,
+          "height": 222.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "scarab-board"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "id": 43,
+          "name": "StairwaySunZone",
+          "type": "TrialZone",
+          "x": 132.0,
+          "y": 0.0,
+          "width": 274.0,
+          "height": 246.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "trialId",
+              "type": "string",
+              "value": "stairway-sun"
+            },
+            {
+              "name": "order",
+              "type": "int",
+              "value": 7
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 5,
+      "name": "LockedDoors",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 44,
+          "name": "DoorAfterTruth",
+          "type": "LockedDoor",
+          "x": 175.0,
+          "y": 1024.0,
+          "width": 186.0,
+          "height": 20.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "requiresTrial",
+              "type": "string",
+              "value": "truth-gate"
+            }
+          ]
+        },
+        {
+          "id": 45,
+          "name": "DoorAfterCandle",
+          "type": "LockedDoor",
+          "x": 175.0,
+          "y": 804.0,
+          "width": 186.0,
+          "height": 20.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "requiresTrial",
+              "type": "string",
+              "value": "candle-of-ra"
+            }
+          ]
+        },
+        {
+          "id": 46,
+          "name": "DoorAfterGlyph",
+          "type": "LockedDoor",
+          "x": 175.0,
+          "y": 738.0,
+          "width": 186.0,
+          "height": 20.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "requiresTrial",
+              "type": "string",
+              "value": "glyph-memory"
+            }
+          ]
+        },
+        {
+          "id": 47,
+          "name": "DoorAfterTreasury",
+          "type": "LockedDoor",
+          "x": 175.0,
+          "y": 572.0,
+          "width": 186.0,
+          "height": 20.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "requiresTrial",
+              "type": "string",
+              "value": "false-gold"
+            }
+          ]
+        },
+        {
+          "id": 48,
+          "name": "DoorAfterProphecy",
+          "type": "LockedDoor",
+          "x": 175.0,
+          "y": 446.0,
+          "width": 186.0,
+          "height": 20.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "requiresTrial",
+              "type": "string",
+              "value": "painted-prophecy"
+            }
+          ]
+        },
+        {
+          "id": 49,
+          "name": "DoorAfterScarab",
+          "type": "LockedDoor",
+          "x": 175.0,
+          "y": 266.0,
+          "width": 186.0,
+          "height": 20.0,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "requiresTrial",
+              "type": "string",
+              "value": "scarab-board"
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextlayerid": 6,
+  "nextobjectid": 50,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.10.2",
+  "tileheight": 16,
+  "tilewidth": 16,
+  "type": "map",
+  "version": "1.10",
+  "width": 34
+}

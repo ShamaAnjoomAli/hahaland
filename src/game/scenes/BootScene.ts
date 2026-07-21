@@ -71,6 +71,74 @@ const IMAGES: ImageAsset[] = [
     key: 'egypt-city-gate-foreground',
     path: 'assets/maps/egypt_city_gate_foreground.png',
   },
+  {
+    key: 'badge-fake-hotel',
+    path: 'assets/ui/badges/badge_fake_hotel.png',
+  },
+  {
+    key: 'badge-bazaar-date',
+    path: 'assets/ui/badges/badge_bazaar_date.png',
+  },
+  {
+    key: 'badge-bazaar-eagle',
+    path: 'assets/ui/badges/badge_bazaar_eagle.png',
+  },
+  {
+    key: 'badge-bazaar-donkey',
+    path: 'assets/ui/badges/badge_bazaar_donkey.png',
+  },
+  {
+    key: 'badge-bazaar-grain',
+    path: 'assets/ui/badges/badge_bazaar_grain.png',
+  },
+  {
+    key: 'badge-bazaar-spice',
+    path: 'assets/ui/badges/badge_bazaar_spice.png',
+  },
+  {
+    key: 'badge-bazaar-pottery',
+    path: 'assets/ui/badges/badge_bazaar_pottery.png',
+  },
+  {
+    key: 'badge-bazaar-archery',
+    path: 'assets/ui/badges/badge_bazaar_archery.png',
+  },
+  {
+    key: 'badge-bazaar-finish',
+    path: 'assets/ui/badges/badge_bazaar_finish.png',
+  },
+  {
+    key: 'badge-temple-gate-truth',
+    path: 'assets/ui/badges/badge_temple_gate_truth.png',
+  },
+  {
+    key: 'badge-temple-candle-ra',
+    path: 'assets/ui/badges/badge_temple_candle_ra.png',
+  },
+  {
+    key: 'badge-temple-hieroglyphs',
+    path: 'assets/ui/badges/badge_temple_hieroglyphs.png',
+  },
+  {
+    key: 'badge-temple-false-gold',
+    path: 'assets/ui/badges/badge_temple_false_gold.png',
+  },
+  {
+    key: 'badge-temple-painted-prophecy',
+    path: 'assets/ui/badges/badge_temple_painted_prophecy.png',
+  },
+  {
+    key: 'badge-temple-scarab-board',
+    path: 'assets/ui/badges/badge_temple_scarab_board.png',
+  },
+  {
+    key: 'badge-temple-stairway-sun',
+    path: 'assets/ui/badges/badge_temple_stairway_sun.png',
+  },
+  {
+    key: 'badge-temple-finish',
+    path: 'assets/ui/badges/badge_temple_finish.png',
+  },
 ]
 
 const SPRITESHEETS: SpriteSheetAsset[] = [
