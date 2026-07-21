@@ -4,6 +4,7 @@ import Phaser from 'phaser'
 import BootScene from './game/scenes/BootScene'
 import VillageScene from './game/scenes/VillageScene'
 import BazaarScene from './game/scenes/BazaarScene'
+import TempleScene from './game/scenes/TempleScene'
 
 import {
   clearGameProgress,
@@ -133,6 +134,7 @@ export default function Game() {
         BootScene,
         VillageScene,
         BazaarScene,
+        TempleScene,
       ],
       scale: {
         mode: Phaser.Scale.FIT,
@@ -306,9 +308,9 @@ export default function Game() {
         <h1>HAHALAND</h1>
 
         <h2>
-          Build Others.
+          Lose Gold.
           <br />
-          Become Legend.
+          Become King.
         </h2>
 
         <p className="hero-copy">

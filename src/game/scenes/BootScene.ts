@@ -60,6 +60,10 @@ const TILEMAPS: TilemapAsset[] = [
     key: 'egypt_city',
     path: 'assets/maps/egypt_city_starter_map.json',
   },
+  {
+    key: 'egypt_temple_final',
+    path: 'assets/maps/egypt_temple_final_map.json',
+  },
 ]
 
 const IMAGES: ImageAsset[] = [
@@ -70,6 +74,10 @@ const IMAGES: ImageAsset[] = [
   {
     key: 'egypt-city-gate-foreground',
     path: 'assets/maps/egypt_city_gate_foreground.png',
+  },
+  {
+    key: 'temple-final-background',
+    path: 'assets/maps/temple_final_background.png',
   },
   {
     key: 'badge-fake-hotel',

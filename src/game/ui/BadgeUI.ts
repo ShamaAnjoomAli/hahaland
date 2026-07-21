@@ -570,8 +570,8 @@ class BadgeCollectionPopup {
     const categoryOrder: BadgeCategory[] = [
       'fake-hotel',
       'bazaar',
-      'pyramid',
       'temple',
+      'pyramid',
     ]
 
     const rowStartY = panelY + 76

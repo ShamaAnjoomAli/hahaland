@@ -283,8 +283,30 @@ export default class VillageScene extends Phaser.Scene {
   private bazaarEntranceDecor: EntranceDisplayObject[] = []
   
   private bazaarEntranceRadius = 95
+
+
+  private templeEntrancePoint?: {
+    x: number
+    y: number
+  }
+  private templeEntranceGlow?: Phaser.GameObjects.Ellipse
+  private templeEntranceRing?: Phaser.GameObjects.Ellipse
+  private templeEntranceArrow?: Phaser.GameObjects.Text
+  private templeEntranceLabel?: Phaser.GameObjects.Container
+  private templeEntranceLabelText?: Phaser.GameObjects.Text
+  private templeEntranceDecor: EntranceDisplayObject[] = []
+  private templeEntranceRadius = 95
+  private templeGuideLight?: Phaser.GameObjects.Container
+  private templeGuideSparkleTimer?: Phaser.Time.TimerEvent
+  private templeGuidePathPoints: Phaser.Math.Vector2[] = []
+  private templeGuidePathIndex = 0
+  private templeGuideSpeed = 70
+  private templeGuideWaitDistance = 260
+  private templeGuideResumeDistance = 190
+  private templeGuideIsWaiting = false
   
   private returnFromBazaar = false
+  private returnFromTemple = false
   private bazaarReturnMode: 'city' | 'north' = 'city'
 private villageSpawnName = 'PlayerSpawn'
 
@@ -298,28 +320,46 @@ private stopGameTimer?: () => void
 
   init(data?: {
     fromBazaar?: boolean
+    fromTemple?: boolean
     bazaarExit?: 'city' | 'north'
     spawnName?: string
     coins?: number
     reputation?: number
+    remainingSeconds?: number
     resume?: boolean
   }) {
     const savedProgress = data?.resume
       ? loadGameProgress()
       : null
   
-    this.returnFromBazaar = Boolean(data?.fromBazaar)
+    this.returnFromTemple = Boolean(data?.fromTemple)
+    this.returnFromBazaar = Boolean(data?.fromBazaar || data?.fromTemple)
     this.bazaarReturnMode =
+      data?.fromTemple ||
       data?.bazaarExit === 'north' ||
       data?.spawnName === 'BazaarNorthReturnSpawn'
         ? 'north'
         : 'city'
-    this.villageSpawnName = data?.spawnName ?? 'PlayerSpawn'
+    this.villageSpawnName =
+      data?.spawnName ??
+      (data?.fromTemple ? 'TempleEntrance' : 'PlayerSpawn')
   
     if (savedProgress) {
       this.coins = savedProgress.coins
       this.reputation = savedProgress.reputation
       this.remainingSeconds = savedProgress.remainingSeconds
+
+      const shouldResumeTempleRoad =
+        savedProgress.currentScene === 'VillageScene' &&
+        savedProgress.completedMarkets.length >= 7 &&
+        savedProgress.completedTempleTrials.length === 0
+
+      if (shouldResumeTempleRoad) {
+        this.returnFromBazaar = true
+        this.bazaarReturnMode = 'north'
+        this.villageSpawnName = 'BazaarNorthReturnSpawn'
+      }
+
       return
     }
   
@@ -330,6 +370,10 @@ private stopGameTimer?: () => void
     if (typeof data?.reputation === 'number') {
       this.reputation = data.reputation
     }
+
+    if (typeof data?.remainingSeconds === 'number') {
+      this.remainingSeconds = data.remainingSeconds
+    }
   }
 
   /**
@@ -338,6 +382,7 @@ private stopGameTimer?: () => void
    */
   create() {
     this.bazaarEntranceDecor = []
+    this.templeEntranceDecor = []
 
     // --- Tilemap setup ---
     // Load the village tilemap exported from Tiled and bind it to the loaded tileset image.
@@ -464,6 +509,8 @@ const gameplaySpawn = this.getSpawnPoint(
     this.createQuestMarker()
     this.createInteractPrompt()
     this.createBazaarEntranceMarker(map)
+    this.createTempleEntranceMarker(map)
+    this.readTempleGuidePath(map)
     // --- Collision objects ---
     // Read invisible collision rectangles from the Tiled object layer and turn them into static physics bodies.
     const collisionObjects = map.getObjectLayer('CollisionObjects')
@@ -540,7 +587,12 @@ this.saveProgress()
         this.storyStage = 'templeQuest'
         this.badgeUI.setCategory('temple')
         this.hideBazaarEntranceMarker()
-        this.objectiveBox.setText('Objective: Go to the temple.')
+        this.objectiveBox.setText(
+          this.returnFromTemple
+            ? 'Objective: Enter the temple.'
+            : 'Objective: Follow the golden light to the temple.'
+        )
+        this.showTempleGuideLight(this.returnFromTemple)
       } else {
         // The southern Bazaar entrance remains a two-way route. Returning to
         // the city must not advance the story to the Temple phase.
@@ -783,6 +835,36 @@ this.saveProgress()
       })
     }
 
+    // B to go to bazaar
+    // if (
+    //   Phaser.Input.Keyboard.JustDown(
+    //     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
+    //   )
+    // ) {
+    //   this.scene.start('BazaarScene', {
+    //     coins: this.coins,
+    //     reputation: this.reputation,
+    //   })
+    // }
+
+    // B to go to north gate of bazaar
+    // if (
+    
+    if (
+      Phaser.Input.Keyboard.JustDown(
+        this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
+      )
+    ) {
+      this.scene.start('TempleScene', {
+        coins: this.coins,
+        reputation: this.reputation,
+        remainingSeconds: this.remainingSeconds,
+        fromDebug: true,
+      })
+    
+      return
+    }
+
     if (
       Phaser.Input.Keyboard.JustDown(
         this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
@@ -804,6 +886,7 @@ this.saveProgress()
 
     if (this.isStoryUIVisible) {
       this.updateInteractPrompt()
+      this.updateTempleGuideLight()
       this.updateQuestMarker()
       this.updateMinimapPlayerDot()
       this.updateMinimapNpcDots()
@@ -881,6 +964,10 @@ this.saveProgress()
 
     // NPC interaction
     if (this.handleBazaarEntranceInput()) {
+      return
+    }
+
+    if (this.handleTempleEntranceInput()) {
       return
     }
     
@@ -3050,6 +3137,605 @@ const y = padding
         fromVillage: true,
         coins: this.coins,
         reputation: this.reputation,
+      })
+    })
+  }
+
+
+  private createTempleEntranceMarker(map: Phaser.Tilemaps.Tilemap) {
+    const point = this.getOptionalSpawnPoint(map, 'TempleEntrance') ?? {
+      x: 2254,
+      y: 560,
+    }
+
+    this.templeEntrancePoint = point
+
+    const gold = 0xd5a84b
+    const teal = 0x32d6c5
+
+    this.templeEntranceGlow = this.add.ellipse(
+      point.x,
+      point.y,
+      120,
+      62,
+      teal,
+      0.18,
+    )
+    this.templeEntranceGlow.setDepth(9400)
+
+    this.templeEntranceRing = this.add.ellipse(
+      point.x,
+      point.y,
+      98,
+      44,
+      0x000000,
+      0,
+    )
+    this.templeEntranceRing.setStrokeStyle(3, gold, 0.9)
+    this.templeEntranceRing.setDepth(9401)
+
+    this.templeEntranceArrow = this.add.text(point.x, point.y - 6, '▲', {
+      fontFamily: 'Georgia',
+      fontSize: '24px',
+      color: '#ffd166',
+      stroke: '#241408',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
+    this.templeEntranceArrow.setOrigin(0.5)
+    this.templeEntranceArrow.setDepth(9402)
+
+    const labelWidth = 220
+    const labelHeight = 38
+    const labelBg = this.add.rectangle(0, 0, labelWidth, labelHeight, 0x241408, 0.92)
+    labelBg.setStrokeStyle(2, gold, 1)
+
+    this.templeEntranceLabelText = this.add.text(0, -1, 'Temple Entrance', {
+      fontFamily: 'Georgia',
+      fontSize: '15px',
+      color: '#ffe7a3',
+      stroke: '#120a04',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    this.templeEntranceLabelText.setOrigin(0.5)
+
+    this.templeEntranceLabel = this.add.container(point.x, point.y - 62, [
+      labelBg,
+      this.templeEntranceLabelText,
+    ])
+    this.templeEntranceLabel.setDepth(9403)
+
+    const motes = Array.from({ length: 9 }, (_value, index) => {
+      const angle = (Math.PI * 2 * index) / 9
+      const mote = this.add.circle(
+        point.x + Math.cos(angle) * 46,
+        point.y + Math.sin(angle) * 22,
+        index % 2 === 0 ? 2.3 : 1.7,
+        index % 2 === 0 ? 0xffd166 : 0x7de0d3,
+        0.72,
+      )
+      mote.setDepth(9402)
+
+      this.tweens.add({
+        targets: mote,
+        y: mote.y - 18,
+        alpha: 0,
+        scale: 0.45,
+        duration: 1200 + index * 65,
+        delay: index * 115,
+        repeat: -1,
+        ease: 'Sine.easeOut',
+      })
+
+      return mote
+    })
+
+    this.templeEntranceDecor = motes
+
+    const objects: EntranceDisplayObject[] = [
+      this.templeEntranceGlow,
+      this.templeEntranceRing,
+      this.templeEntranceArrow,
+      this.templeEntranceLabel,
+      ...this.templeEntranceDecor,
+    ]
+
+    objects.forEach((obj) => {
+      obj.setVisible(false)
+      obj.setActive(false)
+    })
+
+    this.worldObjects.push(...objects)
+
+    this.tweens.add({
+      targets: this.templeEntranceGlow,
+      scaleX: 1.18,
+      scaleY: 1.18,
+      alpha: 0.08,
+      duration: 1100,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: this.templeEntranceRing,
+      scaleX: 1.06,
+      scaleY: 1.06,
+      alpha: 0.55,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: this.templeEntranceArrow,
+      y: point.y - 13,
+      duration: 720,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.minimap?.ignore(objects)
+    this.uiCamera?.ignore(objects)
+  }
+
+  private readTempleGuidePath(map: Phaser.Tilemaps.Tilemap) {
+    const spawnsLayer = map.getObjectLayer('Spawns')
+
+    const pathPoints =
+      spawnsLayer?.objects
+        .filter(
+          (object) =>
+            typeof object.name === 'string' &&
+            object.name.startsWith('TempleGuidePath_'),
+        )
+        .sort((a, b) => {
+          const aNumber = Number(a.name.replace('TempleGuidePath_', ''))
+          const bNumber = Number(b.name.replace('TempleGuidePath_', ''))
+
+          return aNumber - bNumber
+        })
+        .map(
+          (object) =>
+            new Phaser.Math.Vector2(object.x ?? 0, object.y ?? 0),
+        ) ?? []
+
+    if (this.templeEntrancePoint) {
+      pathPoints.push(
+        new Phaser.Math.Vector2(
+          this.templeEntrancePoint.x,
+          this.templeEntrancePoint.y,
+        ),
+      )
+    }
+
+    this.templeGuidePathPoints = pathPoints
+    this.templeGuidePathIndex = 0
+  }
+
+  private showTempleGuideLight(startAtTempleEntrance = false) {
+    if (!this.templeEntrancePoint) return
+
+    const templeObjects = [
+      this.templeEntranceGlow,
+      this.templeEntranceRing,
+      this.templeEntranceArrow,
+      this.templeEntranceLabel,
+      ...this.templeEntranceDecor,
+    ]
+
+    templeObjects.forEach((obj) => {
+      obj?.setVisible(true)
+      obj?.setActive(true)
+    })
+
+    this.templeGuidePathIndex = startAtTempleEntrance
+      ? Math.max(0, this.templeGuidePathPoints.length - 1)
+      : 0
+    this.templeGuideIsWaiting = false
+
+    if (this.templeGuidePathPoints.length === 0) {
+      this.templeGuidePathPoints.push(
+        new Phaser.Math.Vector2(
+          this.templeEntrancePoint.x,
+          this.templeEntrancePoint.y,
+        ),
+      )
+    }
+
+    const startX = startAtTempleEntrance
+      ? this.templeEntrancePoint.x
+      : this.player.x
+    const startY = startAtTempleEntrance
+      ? this.templeEntrancePoint.y - 42
+      : this.player.y - 42
+
+    if (!this.templeGuideLight) {
+      const outerGlow = this.add.circle(0, 0, 34, 0xffc95c, 0.14)
+      const aquaGlow = this.add.circle(0, -1, 24, 0x79efe0, 0.16)
+      const halo = this.add.circle(0, 0, 18, 0x000000, 0)
+      halo.setStrokeStyle(2, 0xffe6a3, 0.95)
+
+      const innerHalo = this.add.circle(0, 0, 11, 0x000000, 0)
+      innerHalo.setStrokeStyle(2, 0x7ee7de, 0.9)
+
+      const core = this.add.circle(0, 0, 8, 0xfff2b3, 0.98)
+      const coreHotspot = this.add.circle(0, -1, 4, 0xffffff, 0.96)
+
+      const tailA = this.add.circle(0, 12, 5, 0xffe099, 0.5)
+      const tailB = this.add.circle(0, 21, 3.5, 0x8dece1, 0.35)
+      const tailC = this.add.circle(0, 29, 2.5, 0xffd56d, 0.2)
+
+      const orbitContainer = this.add.container(0, 0)
+      const orbitSparkA = this.add.circle(0, -15, 2.5, 0xffffff, 0.95)
+      const orbitSparkB = this.add.circle(12, 0, 2.3, 0xffd56d, 0.92)
+      const orbitSparkC = this.add.circle(0, 15, 2.1, 0x8dece1, 0.9)
+      const orbitSparkD = this.add.circle(-12, 0, 2.3, 0xfff1ad, 0.92)
+      orbitContainer.add([orbitSparkA, orbitSparkB, orbitSparkC, orbitSparkD])
+
+      const pointer = this.add.text(0, 28, '✦', {
+        fontFamily: 'Georgia',
+        fontSize: '16px',
+        color: '#fff3bb',
+        stroke: '#7a4e00',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      })
+      pointer.setOrigin(0.5)
+
+      this.templeGuideLight = this.add.container(startX, startY, [
+        outerGlow,
+        aquaGlow,
+        halo,
+        innerHalo,
+        orbitContainer,
+        tailA,
+        tailB,
+        tailC,
+        core,
+        coreHotspot,
+        pointer,
+      ])
+      this.templeGuideLight.setDepth(9500)
+      this.worldObjects.push(this.templeGuideLight)
+      this.uiCamera?.ignore(this.templeGuideLight)
+      this.minimap?.ignore(this.templeGuideLight)
+
+      this.tweens.add({
+        targets: [outerGlow, aquaGlow],
+        scaleX: 1.16,
+        scaleY: 1.16,
+        alpha: 0.24,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.tweens.add({
+        targets: [halo, innerHalo, orbitContainer, core, coreHotspot, tailA, tailB, tailC, pointer],
+        y: '-=7',
+        duration: 760,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.tweens.add({
+        targets: orbitContainer,
+        angle: 360,
+        duration: 2600,
+        repeat: -1,
+        ease: 'Linear',
+      })
+
+      this.tweens.add({
+        targets: [core, coreHotspot],
+        scaleX: 1.18,
+        scaleY: 1.18,
+        duration: 520,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.tweens.add({
+        targets: [pointer, orbitSparkA, orbitSparkB, orbitSparkC, orbitSparkD],
+        alpha: 0.45,
+        duration: 460,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+    } else {
+      this.templeGuideLight.setPosition(startX, startY)
+    }
+
+    this.templeGuideLight.setVisible(true)
+    this.templeGuideLight.setActive(true)
+
+    this.templeGuideSparkleTimer?.remove(false)
+    this.templeGuideSparkleTimer = this.time.addEvent({
+      delay: 150,
+      loop: true,
+      callback: () => {
+        if (this.storyStage !== 'templeQuest' || !this.templeGuideLight?.visible) return
+
+        const particle = this.add.circle(
+          this.templeGuideLight.x + Phaser.Math.Between(-10, 10),
+          this.templeGuideLight.y + Phaser.Math.Between(10, 20),
+          Phaser.Math.FloatBetween(1.2, 2.7),
+          Phaser.Math.RND.pick([0xffd166, 0x7de0d3, 0xfff1ad, 0xffffff]),
+          0.78,
+        )
+        particle.setDepth(9490)
+        this.worldObjects.push(particle)
+        this.uiCamera?.ignore(particle)
+        this.minimap?.ignore(particle)
+
+        this.tweens.add({
+          targets: particle,
+          alpha: 0,
+          x: particle.x + Phaser.Math.Between(-14, 14),
+          y: particle.y + Phaser.Math.Between(12, 28),
+          scale: 0.28,
+          duration: 560,
+          ease: 'Sine.easeOut',
+          onComplete: () => particle.destroy(),
+        })
+      },
+    })
+  }
+
+  private updateTempleGuideLight(delta = this.game.loop.delta) {
+    if (this.storyStage !== 'templeQuest') return
+    if (!this.templeGuideLight) return
+    if (this.templeGuidePathPoints.length === 0) return
+
+    const light = this.templeGuideLight
+    const targetPoint = this.templeGuidePathPoints[this.templeGuidePathIndex]
+    if (!targetPoint) return
+
+    const targetX = targetPoint.x
+    const targetY = targetPoint.y - 26
+
+    const playerDistanceToLight = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      light.x,
+      light.y,
+    )
+
+    const lightDistanceToTarget = Phaser.Math.Distance.Between(
+      light.x,
+      light.y,
+      targetX,
+      targetY,
+    )
+
+    const playerDistanceToTarget = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      targetX,
+      targetY,
+    )
+
+    // Wait only when the player is actually behind the light. If the player
+    // runs ahead toward the next point, the light keeps moving instead of
+    // freezing behind them forever.
+    const playerIsBehindLight = playerDistanceToTarget > lightDistanceToTarget + 70
+
+    if (playerDistanceToLight > this.templeGuideWaitDistance && playerIsBehindLight) {
+      this.templeGuideIsWaiting = true
+    }
+
+    if (playerDistanceToLight < this.templeGuideResumeDistance || !playerIsBehindLight) {
+      this.templeGuideIsWaiting = false
+    }
+
+    if (this.templeGuideIsWaiting) {
+      light.setDepth(light.y + 50)
+      return
+    }
+
+    if (lightDistanceToTarget < 10) {
+      if (this.templeGuidePathIndex < this.templeGuidePathPoints.length - 1) {
+        this.templeGuidePathIndex += 1
+      }
+      light.setDepth(light.y + 50)
+      return
+    }
+
+    const angle = Phaser.Math.Angle.Between(
+      light.x,
+      light.y,
+      targetX,
+      targetY,
+    )
+
+    const step = (this.templeGuideSpeed * delta) / 1000
+    const safeStep = Math.min(step, lightDistanceToTarget)
+
+    light.x += Math.cos(angle) * safeStep
+    light.y += Math.sin(angle) * safeStep
+    light.setDepth(light.y + 50)
+  }
+
+  private hideTempleGuideLight() {
+    this.templeGuideSparkleTimer?.remove(false)
+    this.templeGuideSparkleTimer = undefined
+    this.templeGuideLight?.setVisible(false)
+    this.templeGuideLight?.setActive(false)
+  }
+
+  private handleTempleEntranceInput() {
+    if (this.storyStage !== 'templeQuest') return false
+    if (!this.templeEntrancePoint) return false
+
+    this.updateTempleGuideLight()
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.templeEntrancePoint.x,
+      this.templeEntrancePoint.y,
+    )
+
+    const playerIsNear = distance <= this.templeEntranceRadius
+
+    this.templeEntranceLabelText?.setText(
+      playerIsNear ? 'E Enter Temple' : 'Temple Entrance',
+    )
+
+    this.templeEntranceGlow?.setFillStyle(
+      playerIsNear ? 0x32d6c5 : 0xffd166,
+      playerIsNear ? 0.34 : 0.18,
+    )
+
+    this.templeEntranceRing?.setStrokeStyle(
+      playerIsNear ? 4 : 3,
+      playerIsNear ? 0xffe7a3 : 0xd5a84b,
+      playerIsNear ? 1 : 0.9,
+    )
+
+    this.templeEntranceArrow?.setColor(playerIsNear ? '#fff7cf' : '#ffd166')
+    this.templeEntranceLabel?.setScale(playerIsNear ? 1.04 : 1)
+    this.templeEntranceLabel?.setAlpha(playerIsNear ? 1 : 0.9)
+
+    if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      this.enterTempleScene()
+      return true
+    }
+
+    return false
+  }
+
+  private enterTempleScene() {
+    if (this.isCutscenePlaying) return
+
+    this.isCutscenePlaying = true
+    this.hideTempleGuideLight()
+    this.setStoryUIVisible(false)
+    this.player.setVelocity(0)
+    this.player.stop()
+
+    const width = this.scale.width
+    const height = this.scale.height
+    const panelColor = 0x241408
+    const gold = 0xd5a84b
+
+    const dimmer = this.add.rectangle(width / 2, height / 2, width, height, 0x100904, 0)
+    dimmer.setScrollFactor(0)
+
+    const topPanelBody = this.add.rectangle(0, 0, width, height / 2 + 4, panelColor, 1)
+    topPanelBody.setOrigin(0.5, 0)
+    const topGoldEdge = this.add.rectangle(0, height / 2, width, 6, gold, 1)
+    topGoldEdge.setOrigin(0.5, 1)
+    const topPanel = this.add.container(width / 2, 0, [topPanelBody, topGoldEdge])
+    topPanel.setScale(1, 0)
+    topPanel.setScrollFactor(0)
+
+    const bottomPanelBody = this.add.rectangle(0, 0, width, height / 2 + 4, panelColor, 1)
+    bottomPanelBody.setOrigin(0.5, 1)
+    const bottomGoldEdge = this.add.rectangle(0, -height / 2, width, 6, gold, 1)
+    bottomGoldEdge.setOrigin(0.5, 0)
+    const bottomPanel = this.add.container(width / 2, height, [bottomPanelBody, bottomGoldEdge])
+    bottomPanel.setScale(1, 0)
+    bottomPanel.setScrollFactor(0)
+
+    const title = this.add.text(width / 2, height / 2 - 22, 'TEMPLE OF RA', {
+      fontFamily: 'Georgia',
+      fontSize: '38px',
+      color: '#ffe7a3',
+      stroke: '#120a04',
+      strokeThickness: 6,
+      fontStyle: 'bold',
+    })
+    title.setOrigin(0.5)
+    title.setScrollFactor(0)
+    title.setAlpha(0)
+    title.setScale(0.9)
+
+    const divider = this.add.text(width / 2, height / 2 + 12, '◆  ✦  ◆', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#d5a84b',
+      stroke: '#120a04',
+      strokeThickness: 3,
+    })
+    divider.setOrigin(0.5)
+    divider.setScrollFactor(0)
+    divider.setAlpha(0)
+
+    const subtitle = this.add.text(width / 2, height / 2 + 46, 'Seven royal trials await.', {
+      fontFamily: 'Georgia',
+      fontSize: '18px',
+      color: '#f4ead5',
+      stroke: '#120a04',
+      strokeThickness: 4,
+    })
+    subtitle.setOrigin(0.5)
+    subtitle.setScrollFactor(0)
+    subtitle.setAlpha(0)
+
+    const transitionObjects: EntranceDisplayObject[] = [
+      dimmer,
+      topPanel,
+      bottomPanel,
+      title,
+      divider,
+      subtitle,
+    ]
+
+    transitionObjects.forEach((obj) => obj.setDepth(200000))
+    this.cameras.main.ignore(transitionObjects)
+
+    this.tweens.add({
+      targets: dimmer,
+      alpha: 0.74,
+      duration: 300,
+      ease: 'Sine.easeOut',
+    })
+
+    this.tweens.add({
+      targets: [topPanel, bottomPanel],
+      scaleY: 1,
+      duration: 470,
+      ease: 'Cubic.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: [title, divider, subtitle],
+      alpha: 1,
+      scale: 1,
+      duration: 320,
+      delay: 300,
+      ease: 'Back.easeOut',
+    })
+
+    const existingSave = loadGameProgress()
+
+    saveGameProgress({
+      currentScene: 'TempleScene',
+      coins: this.coins,
+      reputation: this.reputation,
+      remainingSeconds: this.remainingSeconds,
+      completedMarkets: existingSave?.completedMarkets ?? [],
+      completedTempleTrials: existingSave?.completedTempleTrials ?? [],
+      earnedBadges: existingSave?.earnedBadges ?? [],
+      unseenBadges: existingSave?.unseenBadges ?? [],
+    })
+
+    this.time.delayedCall(930, () => {
+      this.scene.start('TempleScene', {
+        fromVillage: true,
+        coins: this.coins,
+        reputation: this.reputation,
+        remainingSeconds: this.remainingSeconds,
       })
     })
   }

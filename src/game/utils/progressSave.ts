@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 
-export type HahalandSceneKey = 'VillageScene' | 'BazaarScene'
+export type HahalandSceneKey = 'VillageScene' | 'BazaarScene' | 'TempleScene'
 
 export type HahalandProgressSave = {
   version: 1
@@ -9,6 +9,7 @@ export type HahalandProgressSave = {
   reputation: number
   remainingSeconds: number
   completedMarkets: string[]
+  completedTempleTrials: string[]
   earnedBadges: string[]
   unseenBadges: string[]
   updatedAt: number
@@ -24,6 +25,7 @@ const DEFAULT_SAVE: HahalandProgressSave = {
   reputation: 0,
   remainingSeconds: 3600,
   completedMarkets: [],
+  completedTempleTrials: [],
   earnedBadges: [],
   unseenBadges: [],
   updatedAt: Date.now(),
@@ -31,6 +33,18 @@ const DEFAULT_SAVE: HahalandProgressSave = {
 
 const canUseStorage = () => {
   return typeof window !== 'undefined' && Boolean(window.localStorage)
+}
+
+const cleanStringArray = (value: unknown): string[] => {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
+}
+
+const cleanSceneKey = (value: unknown): HahalandSceneKey => {
+  if (value === 'BazaarScene') return 'BazaarScene'
+  if (value === 'TempleScene') return 'TempleScene'
+  return 'VillageScene'
 }
 
 export function loadGameProgress(): HahalandProgressSave | null {
@@ -52,31 +66,17 @@ export function loadGameProgress(): HahalandProgressSave | null {
       reputation: Phaser.Math.Clamp(
         Math.floor(Number(parsed.reputation ?? 0)),
         0,
-        100
+        100,
       ),
       remainingSeconds: Math.max(
         0,
-        Math.ceil(Number(parsed.remainingSeconds ?? 3600))
+        Math.ceil(Number(parsed.remainingSeconds ?? 3600)),
       ),
-      completedMarkets: Array.isArray(parsed.completedMarkets)
-        ? parsed.completedMarkets.filter(
-            (value): value is string => typeof value === 'string'
-          )
-        : [],
-      earnedBadges: Array.isArray(parsed.earnedBadges)
-        ? parsed.earnedBadges.filter(
-            (value): value is string => typeof value === 'string'
-          )
-        : [],
-      unseenBadges: Array.isArray(parsed.unseenBadges)
-        ? parsed.unseenBadges.filter(
-            (value): value is string => typeof value === 'string'
-          )
-        : [],
-      currentScene:
-        parsed.currentScene === 'BazaarScene'
-          ? 'BazaarScene'
-          : 'VillageScene',
+      completedMarkets: cleanStringArray(parsed.completedMarkets),
+      completedTempleTrials: cleanStringArray(parsed.completedTempleTrials),
+      earnedBadges: cleanStringArray(parsed.earnedBadges),
+      unseenBadges: cleanStringArray(parsed.unseenBadges),
+      currentScene: cleanSceneKey(parsed.currentScene),
       updatedAt: Number(parsed.updatedAt ?? Date.now()),
     }
   } catch {
@@ -89,7 +89,7 @@ export function hasGameProgress() {
 }
 
 export function saveGameProgress(
-  patch: Partial<Omit<HahalandProgressSave, 'version' | 'updatedAt'>>
+  patch: Partial<Omit<HahalandProgressSave, 'version' | 'updatedAt'>>,
 ) {
   if (!canUseStorage()) return
 
@@ -99,32 +99,27 @@ export function saveGameProgress(
     ...current,
     ...patch,
     version: 1,
+    currentScene: cleanSceneKey(patch.currentScene ?? current.currentScene),
     coins: Math.max(0, Math.floor(Number(patch.coins ?? current.coins))),
     reputation: Phaser.Math.Clamp(
       Math.floor(Number(patch.reputation ?? current.reputation)),
       0,
-      100
+      100,
     ),
     remainingSeconds: Math.max(
       0,
-      Math.ceil(
-        Number(patch.remainingSeconds ?? current.remainingSeconds)
-      )
+      Math.ceil(Number(patch.remainingSeconds ?? current.remainingSeconds)),
     ),
-    completedMarkets:
-      patch.completedMarkets ?? current.completedMarkets,
-    earnedBadges:
-      patch.earnedBadges ?? current.earnedBadges,
-    unseenBadges:
-      patch.unseenBadges ?? current.unseenBadges,
+    completedMarkets: patch.completedMarkets ?? current.completedMarkets,
+    completedTempleTrials:
+      patch.completedTempleTrials ?? current.completedTempleTrials,
+    earnedBadges: patch.earnedBadges ?? current.earnedBadges,
+    unseenBadges: patch.unseenBadges ?? current.unseenBadges,
     updatedAt: Date.now(),
   }
 
   window.localStorage.setItem(SAVE_KEY, JSON.stringify(next))
-  window.localStorage.setItem(
-    TIMER_KEY,
-    String(next.remainingSeconds)
-  )
+  window.localStorage.setItem(TIMER_KEY, String(next.remainingSeconds))
 }
 
 export function clearGameProgress() {

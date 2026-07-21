@@ -1,8 +1,8 @@
 export type BadgeCategory =
   | 'fake-hotel'
   | 'bazaar'
-  | 'pyramid'
   | 'temple'
+  | 'pyramid'
 
 export type BadgeKind = 'trial' | 'quest'
 
@@ -44,19 +44,20 @@ export const BADGE_CATEGORIES: Record<
     description: 'Complete every merchant challenge in the Bazaar.',
     accent: 0x29b7b2,
   },
-  pyramid: {
-    id: 'pyramid',
-    title: 'Pyramid Quest',
-    shortTitle: 'PYRAMID',
-    description: 'Solve the secrets hidden inside the ancient pyramid.',
-    accent: 0xd5a84b,
-  },
+ 
   temple: {
     id: 'temple',
     title: 'Temple Trials',
     shortTitle: 'TEMPLE',
     description: 'Complete the seven sacred Temple trials.',
     accent: 0x4aa7d8,
+  },
+  pyramid: {
+    id: 'pyramid',
+    title: 'Pyramid Quest',
+    shortTitle: 'PYRAMID',
+    description: 'Solve the secrets hidden inside the ancient pyramid.',
+    accent: 0xd5a84b,
   },
 }
 
