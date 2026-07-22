@@ -480,6 +480,18 @@ const IMAGES: ImageAsset[] = [
     path: 'assets/minigames/temple_false_gold/tool_sound_coin_waves.png',
   },
   {
+    key: 'painted-prophecy-round-1',
+    path: 'assets/minigames/painted_prophecy/painted-prophecy-round-1.png',
+  },
+  {
+    key: 'painted-prophecy-round-2',
+    path: 'assets/minigames/painted_prophecy/painted-prophecy-round-2.png',
+  },
+  {
+    key: 'painted-prophecy-round-3',
+    path: 'assets/minigames/painted_prophecy/painted-prophecy-round-3.png',
+  },
+  {
     key: 'badge-fake-hotel',
     path: 'assets/ui/badges/badge_fake_hotel.png',
   },

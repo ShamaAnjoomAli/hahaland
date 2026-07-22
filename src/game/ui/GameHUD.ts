@@ -108,7 +108,7 @@ export default class GameHUD {
     })
     this.timerText.setOrigin(0, 0.5)
 
-    this.reputationLabel = scene.add.text(12, 39, 'REP', {
+    this.reputationLabel = scene.add.text(12, 39, 'EXP', {
       fontFamily: 'Arial',
       fontSize: '11px',
       color: '#ffd966',
@@ -190,7 +190,7 @@ export default class GameHUD {
       )
     }
 
-    this.reputationLabel.setText('REP')
+    this.reputationLabel.setText('EXP')
   }
 
   private handleResize(gameSize: { width: number }) {

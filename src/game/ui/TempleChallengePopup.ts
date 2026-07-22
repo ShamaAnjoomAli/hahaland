@@ -877,7 +877,7 @@ export default class TempleChallengePopup {
     this.addObject(statusPanel)
 
     const status = this.addStatusText('', statusY, '#ffd966')
-    status.setFontSize(14)
+    status.setFontSize(13)
 
     const addRoundObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
       this.addObject(object)
@@ -4020,106 +4020,952 @@ if (checkpoint.id !== 'altar') {
   }
 
   // ---------------------------------------------------------------------------
-  // 5. PAINTED PROPHECY
+  // 5. PAINTED PROPHECY — MURAL TILE PUZZLE
   // ---------------------------------------------------------------------------
   private createPaintedProphecy() {
     const width = this.scene.scale.width
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle(TRIAL_TITLES['painted-prophecy'])
-    this.addInstruction('Restore the mural in the correct story order.', top + 88)
+    type PuzzleRound = {
+      title: string
+      textureKey: string
+      gridSize: number
+      timeLimitMs: number
+      previewMs: number
+      shuffleSwaps: number
+    }
 
-    const correctOrder = [
-      'Tourist arrives with gold',
-      'Fake hotel steals comfort',
-      'Bazaar teaches trade',
-      'Temple tests the heart',
-      'Pyramid opens the crown road',
+    type PuzzleTile = {
+      pieceIndex: number
+      slotIndex: number
+      container: Phaser.GameObjects.Container
+      image?: Phaser.GameObjects.Image
+      fallback?: Phaser.GameObjects.Rectangle
+      fallbackText?: Phaser.GameObjects.Text
+      border: Phaser.GameObjects.Rectangle
+      hitZone: Phaser.GameObjects.Rectangle
+    }
+
+    const rounds: PuzzleRound[] = [
+      {
+        title: 'Round 1 — Broken Scarab Mural',
+        textureKey: 'painted-prophecy-round-1',
+        gridSize: 3,
+        timeLimitMs: 60000,
+        previewMs: 3000,
+        shuffleSwaps: 14,
+      },
+      {
+        title: 'Round 2 — Prophecy of the Pharaoh',
+        textureKey: 'painted-prophecy-round-2',
+        gridSize: 3,
+        timeLimitMs: 50000,
+        previewMs: 3000,
+        shuffleSwaps: 20,
+      },
+      {
+        title: 'Round 3 — Ascension of Ra',
+        textureKey: 'painted-prophecy-round-3',
+        gridSize: 4,
+        timeLimitMs: 75000,
+        previewMs: 3200,
+        shuffleSwaps: 34,
+      },
     ]
-    const options = Phaser.Utils.Array.Shuffle([...correctOrder])
-    let nextIndex = 0
-    let mistakes = 0
+
+    this.addTitle(TRIAL_TITLES['painted-prophecy'])
+    this.addInstruction(
+      'Memorize the mural, then tap two tiles to swap them back into place.',
+      top + 84,
+    )
+
+    let roundIndex = 0
+    let hearts = 3
+    let moves = 0
+    let totalMoves = 0
     let score = 0
-    let buttons: ButtonHandle[] = []
+    let remainingMs = rounds[0].timeLimitMs
+    let phase: 'preview' | 'playing' | 'swapping' | 'finished' = 'preview'
+    let roundTimer: Phaser.Time.TimerEvent | undefined
+    let roundObjects: Phaser.GameObjects.GameObject[] = []
+    let tiles: PuzzleTile[] = []
+    let slotToTile: PuzzleTile[] = []
+    let selectedTile: PuzzleTile | undefined
+    let previewObjects: Phaser.GameObjects.GameObject[] = []
 
-    const mural = this.scene.add.rectangle(width / 2, top + 235, this.panelWidth - 110, 210, 0xead8aa, 1)
-    mural.setStrokeStyle(4, 0xd4af37, 1)
-    this.addObject(mural)
+    const hudWidth = this.panelWidth - 82
+    const hudGap = 6
+    const hudCardWidth = (hudWidth - hudGap * 4) / 5
+    const hudStartX = width / 2 - hudWidth / 2 + hudCardWidth / 2
+    const hudY = top + 126
 
-    const muralText = this.scene.add.text(width / 2, top + 235, 'The prophecy wall is broken.\nSelect each missing scene in order.', {
-      fontFamily: 'Georgia',
-      fontSize: '18px',
-      color: '#74420d',
-      stroke: '#fff4cf',
-      strokeThickness: 2,
-      fontStyle: 'bold',
-      align: 'center',
-      lineSpacing: 6,
-      wordWrap: { width: this.panelWidth - 170 },
+    const roundHud = this.createCompactHudCard({
+      x: hudStartX,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'ROUND',
+      bandColor: 0x245d78,
     })
-    muralText.setOrigin(0.5)
-    this.addObject(muralText)
 
-    const status = this.addStatusText('', top + 128)
+    const livesHud = this.createCompactHudCard({
+      x: hudStartX + hudCardWidth + hudGap,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'LIVES',
+      bandColor: 0x8f2d2d,
+      valueColor: '#8f2d2d',
+    })
 
-    const finish = (success: boolean) => {
-      const reward = this.baseReward('painted-prophecy', success, score)
-      this.complete({
-        trialId: 'painted-prophecy',
-        success,
-        response: success
-          ? 'The painted prophecy is restored. A ruler must understand the story before writing the ending.'
-          : 'The mural rejects the order. History cannot be forced into a lie.',
-        ...reward,
+    const movesHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 2,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'MOVES',
+      bandColor: 0x5b3c88,
+    })
+
+    const scoreHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 3,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'SCORE',
+      bandColor: 0x8b6b1f,
+    })
+
+    const timerHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 4,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'TIME',
+      bandColor: 0x8f2d2d,
+      showProgress: true,
+    })
+
+    const boardTop = top + 174
+
+    // Reserve a dedicated footer lane for the status message.
+    // Do not force a minimum board size: on shorter screens that minimum
+    // pushed the puzzle underneath the footer panel.
+    const statusPanelHeight = 30
+    const statusY = bottom - 17
+    const statusTop = statusY - statusPanelHeight / 2
+    const boardBottom = statusTop - 22
+    const availableBoardHeight = Math.max(180, boardBottom - boardTop)
+    const boardSize = Math.min(
+      this.panelWidth - 112,
+      availableBoardHeight,
+      340,
+    )
+    const boardX = width / 2
+    const boardY = boardTop + boardSize / 2
+
+    const boardShadow = this.scene.add.rectangle(
+      boardX + 7,
+      boardY + 8,
+      boardSize + 22,
+      boardSize + 22,
+      0x000000,
+      0.42,
+    )
+
+    const boardFrame = this.scene.add.rectangle(
+      boardX,
+      boardY,
+      boardSize + 22,
+      boardSize + 22,
+      0x211107,
+      1,
+    )
+    boardFrame.setStrokeStyle(4, 0xd4af37, 1)
+
+    const boardInner = this.scene.add.rectangle(
+      boardX,
+      boardY,
+      boardSize + 8,
+      boardSize + 8,
+      0x0d0703,
+      1,
+    )
+    boardInner.setStrokeStyle(2, 0x4aa7a3, 0.72)
+
+    this.addObject(boardShadow)
+    this.addObject(boardFrame)
+    this.addObject(boardInner)
+
+    const roundTitle = this.scene.add.text(
+      width / 2,
+      boardTop - 13,
+      '',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+        align: 'center',
+      },
+    )
+    roundTitle.setOrigin(0.5)
+    this.addObject(roundTitle)
+
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 104,
+      statusPanelHeight,
+      0x211107,
+      0.96,
+    )
+    statusPanel.setStrokeStyle(2, 0xd4af37, 0.82)
+    this.addObject(statusPanel)
+
+    const status = this.addStatusText('', statusY, '#ffd966')
+    status.setFontSize(14)
+
+    const addRoundObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+      this.addObject(object)
+      roundObjects.push(object)
+      return object
+    }
+
+    const clearRoundTimer = () => {
+      roundTimer?.remove(false)
+      roundTimer = undefined
+    }
+
+    const clearRoundObjects = () => {
+      selectedTile = undefined
+      previewObjects = []
+
+      roundObjects.forEach((object) => {
+        if (object.active) object.destroy()
+      })
+
+      roundObjects = []
+      tiles = []
+      slotToTile = []
+    }
+
+    const getRound = () => rounds[roundIndex]
+
+    const getSlotPosition = (
+      slotIndex: number,
+      gridSize: number,
+      tileSize: number,
+    ) => {
+      const column = slotIndex % gridSize
+      const row = Math.floor(slotIndex / gridSize)
+
+      return {
+        x: boardX - boardSize / 2 + column * tileSize + tileSize / 2,
+        y: boardY - boardSize / 2 + row * tileSize + tileSize / 2,
+      }
+    }
+
+    const updateTimerHud = () => {
+      const round = getRound()
+      const ratio = Phaser.Math.Clamp(
+        remainingMs / round.timeLimitMs,
+        0,
+        1,
+      )
+
+      if (phase === 'preview') {
+        timerHud.setValue('LOOK')
+        timerHud.setProgress(1)
+        return
+      }
+
+      timerHud.setValue(`${Math.max(0, Math.ceil(remainingMs / 1000))}s`)
+      timerHud.setProgress(ratio, ratio <= 0.25)
+    }
+
+    const updateHud = () => {
+      roundHud.setValue(`${roundIndex + 1} / ${rounds.length}`)
+      livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
+      movesHud.setValue(String(moves))
+      scoreHud.setValue(String(score))
+      updateTimerHud()
+    }
+
+    const setTileBorder = (
+      tile: PuzzleTile,
+      mode: 'normal' | 'selected' | 'correct',
+    ) => {
+      if (mode === 'selected') {
+        tile.border.setFillStyle(0x2a190c, 0.08)
+        tile.border.setStrokeStyle(4, 0x4de0d2, 1)
+        tile.container.setScale(1.045)
+        return
+      }
+
+      if (mode === 'correct') {
+        tile.border.setFillStyle(0x236d3a, 0.16)
+        tile.border.setStrokeStyle(3, 0x72ff9b, 0.9)
+        tile.container.setScale(1)
+        return
+      }
+
+      tile.border.setFillStyle(0x000000, 0)
+      tile.border.setStrokeStyle(2, 0xd4af37, 0.74)
+      tile.container.setScale(1)
+    }
+
+    const refreshTileStates = () => {
+      tiles.forEach((tile) => {
+        if (selectedTile === tile) {
+          setTileBorder(tile, 'selected')
+          return
+        }
+
+        setTileBorder(
+          tile,
+          tile.pieceIndex === tile.slotIndex ? 'correct' : 'normal',
+        )
       })
     }
 
-    const render = () => {
-      buttons.forEach((button) => button.destroy())
-      buttons = []
-      status.setText(`PLACE ${nextIndex + 1} / ${correctOrder.length}     MISTAKES ${mistakes} / 3`)
-      muralText.setText(`Restored mural:\n${correctOrder.slice(0, nextIndex).map((item, idx) => `${idx + 1}. ${item}`).join('\n') || 'No scenes restored yet.'}`)
+    const isSolved = () =>
+      tiles.length > 0 &&
+      tiles.every((tile) => tile.pieceIndex === tile.slotIndex)
 
-      const available = options.filter((item) => !correctOrder.slice(0, nextIndex).includes(item))
-      const buttonYStart = bottom - 150
-      const gapY = 47
-      buttons = available.map((label, index) =>
-        this.createButton({
-          x: width / 2,
-          y: buttonYStart + index * gapY,
-          width: Math.min(500, this.panelWidth - 120),
-          height: 39,
-          label,
-          fontSize: 13,
-          onClick: () => choose(label),
-        }),
+    const createFallbackTile = (
+      tile: PuzzleTile,
+      pieceIndex: number,
+      tileSize: number,
+      gridSize: number,
+    ) => {
+      const colors = [
+        0xd5a84b,
+        0x2f8b84,
+        0x8b5a2b,
+        0xb86b35,
+        0x5b3c88,
+        0x27633a,
+      ]
+
+      const fallback = this.scene.add.rectangle(
+        0,
+        0,
+        tileSize - 5,
+        tileSize - 5,
+        colors[pieceIndex % colors.length],
+        0.96,
+      )
+      fallback.setStrokeStyle(1, 0xffe7a3, 0.6)
+
+      const symbol = this.scene.add.text(
+        0,
+        0,
+        `${pieceIndex + 1}`,
+        {
+          fontFamily: 'Georgia',
+          fontSize: `${Math.max(16, Math.round(tileSize * 0.3))}px`,
+          color: '#fff7cf',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        },
+      )
+      symbol.setOrigin(0.5)
+
+      const row = Math.floor(pieceIndex / gridSize)
+      const column = pieceIndex % gridSize
+      const cornerMark = this.scene.add.text(
+        -tileSize * 0.31,
+        -tileSize * 0.31,
+        `${row + 1}-${column + 1}`,
+        {
+          fontFamily: 'Arial',
+          fontSize: `${Math.max(7, Math.round(tileSize * 0.1))}px`,
+          color: '#211107',
+          fontStyle: 'bold',
+        },
+      )
+      cornerMark.setOrigin(0.5)
+
+      tile.container.add([fallback, symbol, cornerMark])
+      tile.fallback = fallback
+      tile.fallbackText = symbol
+    }
+
+    const createPuzzleTiles = (order: number[]) => {
+      const round = getRound()
+      const gridSize = round.gridSize
+      const tileSize = boardSize / gridSize
+      const textureExists = this.scene.textures.exists(round.textureKey)
+
+      const sourceFrame = textureExists
+        ? this.scene.textures.getFrame(round.textureKey)
+        : undefined
+
+      const sourceWidth =
+        sourceFrame?.realWidth ??
+        sourceFrame?.width ??
+        1024
+
+      const sourceHeight =
+        sourceFrame?.realHeight ??
+        sourceFrame?.height ??
+        1024
+
+      tiles = []
+      slotToTile = []
+
+      order.forEach((pieceIndex, slotIndex) => {
+        const position = getSlotPosition(slotIndex, gridSize, tileSize)
+        const container = addRoundObject(
+          this.scene.add.container(position.x, position.y),
+        )
+
+        const border = this.scene.add.rectangle(
+          0,
+          0,
+          tileSize - 2,
+          tileSize - 2,
+          0x000000,
+          0,
+        )
+        border.setStrokeStyle(2, 0xd4af37, 0.74)
+
+        const hitZone = this.scene.add.rectangle(
+          0,
+          0,
+          tileSize - 2,
+          tileSize - 2,
+          0xffffff,
+          0.001,
+        )
+        hitZone.setInteractive({ useHandCursor: true })
+
+        const tile: PuzzleTile = {
+          pieceIndex,
+          slotIndex,
+          container,
+          border,
+          hitZone,
+        }
+
+        if (textureExists) {
+          const sourceColumn = pieceIndex % gridSize
+          const sourceRow = Math.floor(pieceIndex / gridSize)
+
+          // Build a true Phaser frame for this mural section. Using setCrop()
+          // and then setDisplaySize() scales against the full mural dimensions,
+          // which makes the visible cropped section appear tiny inside its tile.
+          const cropX = Math.round(
+            sourceColumn * sourceWidth / gridSize,
+          )
+          const cropY = Math.round(
+            sourceRow * sourceHeight / gridSize,
+          )
+          const cropRight = Math.round(
+            (sourceColumn + 1) * sourceWidth / gridSize,
+          )
+          const cropBottom = Math.round(
+            (sourceRow + 1) * sourceHeight / gridSize,
+          )
+          const cropWidth = Math.max(1, cropRight - cropX)
+          const cropHeight = Math.max(1, cropBottom - cropY)
+          const frameName = `painted-prophecy-${gridSize}x${gridSize}-piece-${pieceIndex}`
+          const texture = this.scene.textures.get(round.textureKey)
+
+          if (!texture.has(frameName)) {
+            texture.add(
+              frameName,
+              0,
+              cropX,
+              cropY,
+              cropWidth,
+              cropHeight,
+            )
+          }
+
+          const image = this.scene.add.image(
+            0,
+            0,
+            round.textureKey,
+            frameName,
+          )
+          image.setDisplaySize(tileSize - 5, tileSize - 5)
+          container.add(image)
+          tile.image = image
+        } else {
+          createFallbackTile(tile, pieceIndex, tileSize, gridSize)
+        }
+
+        container.add([border, hitZone])
+        container.bringToTop(border)
+        container.bringToTop(hitZone)
+
+        hitZone.on('pointerover', () => {
+          if (phase !== 'playing' || selectedTile === tile) return
+
+          if (tile.pieceIndex !== tile.slotIndex) {
+            border.setStrokeStyle(3, 0xffd966, 1)
+          }
+        })
+
+        hitZone.on('pointerout', () => {
+          if (phase !== 'playing') return
+          refreshTileStates()
+        })
+
+        hitZone.on('pointerdown', () => {
+          chooseTile(tile)
+        })
+
+        tiles.push(tile)
+        slotToTile[slotIndex] = tile
+      })
+
+      refreshTileStates()
+    }
+
+    const createShuffledOrder = (
+      pieceCount: number,
+      shuffleSwaps: number,
+    ) => {
+      const order = Array.from({ length: pieceCount }, (_value, index) => index)
+
+      for (let swap = 0; swap < shuffleSwaps; swap += 1) {
+        const first = Phaser.Math.Between(0, pieceCount - 1)
+        let second = Phaser.Math.Between(0, pieceCount - 1)
+
+        while (second === first) {
+          second = Phaser.Math.Between(0, pieceCount - 1)
+        }
+
+        ;[order[first], order[second]] = [order[second], order[first]]
+      }
+
+      const solved = order.every((pieceIndex, slotIndex) => pieceIndex === slotIndex)
+
+      if (solved && pieceCount > 1) {
+        ;[order[0], order[1]] = [order[1], order[0]]
+      }
+
+      return order
+    }
+
+    const finishTrial = (success: boolean) => {
+      if (phase === 'finished') return
+
+      phase = 'finished'
+      clearRoundTimer()
+
+      const finalScore = Math.max(
+        0,
+        score + hearts * 120 - Math.max(0, totalMoves - 24) * 2,
+      )
+
+      const reward = this.baseReward(
+        'painted-prophecy',
+        success,
+        finalScore,
+      )
+
+      this.complete(
+        {
+          trialId: 'painted-prophecy',
+          success,
+          response: success
+            ? 'You restored every shattered mural. A ruler must see how separate pieces become one history.'
+            : 'The prophecy remains broken. Return with patience and rebuild the mural piece by piece.',
+          ...reward,
+        },
+        success ? 1100 : 850,
       )
     }
 
-    const choose = (label: string) => {
-      if (label === correctOrder[nextIndex]) {
-        nextIndex += 1
-        score += 70
-        if (nextIndex >= correctOrder.length) {
-          finish(true)
-          return
-        }
-        render()
-        return
-      }
+    const showRoundCompleteEffect = () => {
+      const glow = addRoundObject(
+        this.scene.add.rectangle(
+          boardX,
+          boardY,
+          boardSize + 8,
+          boardSize + 8,
+          0x72ff9b,
+          0.12,
+        ),
+      )
+      glow.setStrokeStyle(6, 0xffd966, 0.9)
 
-      mistakes += 1
-      this.scene.cameras.main.shake(120, 0.004)
-      if (mistakes >= 3) {
-        finish(false)
-        return
-      }
-      render()
+      const message = addRoundObject(
+        this.scene.add.text(
+          boardX,
+          boardY,
+          'MURAL RESTORED',
+          {
+            fontFamily: 'Georgia',
+            fontSize: '28px',
+            color: '#72ff9b',
+            stroke: '#000000',
+            strokeThickness: 6,
+            fontStyle: 'bold',
+            align: 'center',
+          },
+        ),
+      )
+      message.setOrigin(0.5)
+      message.setScale(0.6)
+
+      const sparklePositions = [
+        [-boardSize * 0.38, -boardSize * 0.34],
+        [boardSize * 0.39, -boardSize * 0.31],
+        [-boardSize * 0.37, boardSize * 0.33],
+        [boardSize * 0.38, boardSize * 0.34],
+      ]
+
+      sparklePositions.forEach(([offsetX, offsetY], index) => {
+        const sparkle = addRoundObject(
+          this.scene.add.text(
+            boardX + offsetX,
+            boardY + offsetY,
+            '✦',
+            {
+              fontFamily: 'Georgia',
+              fontSize: '23px',
+              color: '#ffd966',
+              stroke: '#000000',
+              strokeThickness: 4,
+              fontStyle: 'bold',
+            },
+          ),
+        )
+        sparkle.setOrigin(0.5)
+        sparkle.setScale(0)
+
+        this.addTween({
+          targets: sparkle,
+          scaleX: 1.25,
+          scaleY: 1.25,
+          alpha: 0,
+          y: sparkle.y - 14,
+          delay: index * 80,
+          duration: 760,
+          ease: 'Sine.easeOut',
+        })
+      })
+
+      this.addTween({
+        targets: [glow, message],
+        scaleX: 1.08,
+        scaleY: 1.08,
+        duration: 360,
+        yoyo: true,
+        repeat: 1,
+        ease: 'Sine.easeInOut',
+      })
     }
 
-    render()
+    const completeRound = () => {
+      if (phase === 'finished') return
+
+      phase = 'swapping'
+      clearRoundTimer()
+      selectedTile = undefined
+      refreshTileStates()
+
+      const round = getRound()
+      const timeBonus = Math.max(0, Math.ceil(remainingMs / 100))
+      const moveTarget = round.gridSize === 3 ? 18 : 38
+      const moveBonus = Math.max(0, (moveTarget - moves) * 8)
+
+      score += 250 + timeBonus + moveBonus
+      updateHud()
+
+      status.setText('The mural is whole again!')
+      status.setColor('#72ff9b')
+      showRoundCompleteEffect()
+
+      if (roundIndex >= rounds.length - 1) {
+        this.schedule(1200, () => finishTrial(true))
+        return
+      }
+
+      this.schedule(1250, () => {
+        roundIndex += 1
+        startRound()
+      })
+    }
+
+    const swapTiles = (
+      firstTile: PuzzleTile,
+      secondTile: PuzzleTile,
+    ) => {
+      if (phase !== 'playing') return
+
+      phase = 'swapping'
+      selectedTile = undefined
+
+      const firstSlot = firstTile.slotIndex
+      const secondSlot = secondTile.slotIndex
+      const round = getRound()
+      const tileSize = boardSize / round.gridSize
+      const firstTarget = getSlotPosition(secondSlot, round.gridSize, tileSize)
+      const secondTarget = getSlotPosition(firstSlot, round.gridSize, tileSize)
+
+      firstTile.slotIndex = secondSlot
+      secondTile.slotIndex = firstSlot
+      slotToTile[firstSlot] = secondTile
+      slotToTile[secondSlot] = firstTile
+
+      moves += 1
+      totalMoves += 1
+      score = Math.max(0, score - 2)
+      updateHud()
+
+      let completedTweens = 0
+      const finishSwapAnimation = () => {
+        completedTweens += 1
+        if (completedTweens < 2) return
+
+        phase = 'playing'
+        refreshTileStates()
+
+        if (isSolved()) {
+          completeRound()
+        } else {
+          status.setText('Choose another pair of tiles.')
+          status.setColor('#ffd966')
+        }
+      }
+
+      this.addTween({
+        targets: firstTile.container,
+        x: firstTarget.x,
+        y: firstTarget.y,
+        duration: 250,
+        ease: 'Sine.easeInOut',
+        onComplete: finishSwapAnimation,
+      })
+
+      this.addTween({
+        targets: secondTile.container,
+        x: secondTarget.x,
+        y: secondTarget.y,
+        duration: 250,
+        ease: 'Sine.easeInOut',
+        onComplete: finishSwapAnimation,
+      })
+    }
+
+    const chooseTile = (tile: PuzzleTile) => {
+      if (phase !== 'playing' || this.resultLocked) return
+
+      if (!selectedTile) {
+        selectedTile = tile
+        refreshTileStates()
+        status.setText('Now tap the tile you want to swap with it.')
+        status.setColor('#4de0d2')
+        return
+      }
+
+      if (selectedTile === tile) {
+        selectedTile = undefined
+        refreshTileStates()
+        status.setText('Selection cleared. Choose a tile.')
+        status.setColor('#ffd966')
+        return
+      }
+
+      const firstTile = selectedTile
+      swapTiles(firstTile, tile)
+    }
+
+    const startRoundTimer = () => {
+      clearRoundTimer()
+
+      const round = getRound()
+      remainingMs = round.timeLimitMs
+      updateTimerHud()
+
+      roundTimer = this.addLoop(100, () => {
+        if (phase !== 'playing') return
+
+        remainingMs -= 100
+        updateTimerHud()
+
+        if (remainingMs > 0) return
+
+        clearRoundTimer()
+        hearts -= 1
+        score = Math.max(0, score - 100)
+        updateHud()
+
+        if (hearts <= 0) {
+          status.setText('The prophecy fades before the mural is restored.')
+          status.setColor('#ff7770')
+          finishTrial(false)
+          return
+        }
+
+        phase = 'swapping'
+        selectedTile = undefined
+        status.setText('Time expired. One life lost — the mural reshuffles.')
+        status.setColor('#ffbd63')
+        this.scene.cameras.main.shake(160, 0.004)
+
+        this.schedule(850, () => {
+          startRound(false)
+        })
+      })
+    }
+
+    const showPreview = () => {
+      const round = getRound()
+
+      phase = 'preview'
+      remainingMs = round.timeLimitMs
+      roundTitle.setText(round.title)
+      status.setText('Memorize the complete mural...')
+      status.setColor('#ffd966')
+      updateHud()
+
+      if (this.scene.textures.exists(round.textureKey)) {
+        const preview = addRoundObject(
+          this.scene.add.image(boardX, boardY, round.textureKey),
+        )
+        preview.setDisplaySize(boardSize, boardSize)
+        previewObjects.push(preview)
+      } else {
+        const missingPanel = addRoundObject(
+          this.scene.add.rectangle(
+            boardX,
+            boardY,
+            boardSize,
+            boardSize,
+            0x3c2209,
+            1,
+          ),
+        )
+        missingPanel.setStrokeStyle(3, 0xd4af37, 1)
+
+        const missingText = addRoundObject(
+          this.scene.add.text(
+            boardX,
+            boardY,
+            `Missing mural asset
+${round.textureKey}
+
+The numbered fallback puzzle will still work.`,
+            {
+              fontFamily: 'Georgia',
+              fontSize: '17px',
+              color: '#ffe7a3',
+              stroke: '#000000',
+              strokeThickness: 4,
+              fontStyle: 'bold',
+              align: 'center',
+              lineSpacing: 5,
+              wordWrap: { width: boardSize - 46, useAdvancedWrap: true },
+            },
+          ),
+        )
+        missingText.setOrigin(0.5)
+        previewObjects.push(missingPanel, missingText)
+      }
+
+      const previewShade = addRoundObject(
+        this.scene.add.rectangle(
+          boardX,
+          boardY + boardSize / 2 - 22,
+          boardSize,
+          44,
+          0x120904,
+          0.82,
+        ),
+      )
+
+      const previewCountdown = addRoundObject(
+        this.scene.add.text(
+          boardX,
+          boardY + boardSize / 2 - 22,
+          'STUDY THE MURAL',
+          {
+            fontFamily: 'Georgia',
+            fontSize: '15px',
+            color: '#fff7cf',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold',
+          },
+        ),
+      )
+      previewCountdown.setOrigin(0.5)
+      previewObjects.push(previewShade, previewCountdown)
+
+      this.schedule(round.previewMs, () => {
+        if (phase !== 'preview') return
+
+        const objectsToRemove = [...previewObjects]
+        objectsToRemove.forEach((object) => {
+          if (object.active) object.destroy()
+        })
+
+        roundObjects = roundObjects.filter(
+          (object) => !objectsToRemove.includes(object),
+        )
+        previewObjects = []
+
+        const pieceCount = round.gridSize * round.gridSize
+        const order = createShuffledOrder(
+          pieceCount,
+          round.shuffleSwaps,
+        )
+
+        createPuzzleTiles(order)
+        phase = 'playing'
+        status.setText('Tap one tile, then another tile, to swap them.')
+        status.setColor('#ffd966')
+        startRoundTimer()
+        updateHud()
+      })
+    }
+
+    const startRound = (showFullPreview = true) => {
+      clearRoundTimer()
+      clearRoundObjects()
+
+      moves = 0
+      selectedTile = undefined
+      remainingMs = getRound().timeLimitMs
+      phase = showFullPreview ? 'preview' : 'swapping'
+
+      roundTitle.setText(getRound().title)
+      updateHud()
+
+      if (showFullPreview) {
+        showPreview()
+        return
+      }
+
+      const round = getRound()
+      const pieceCount = round.gridSize * round.gridSize
+      const order = createShuffledOrder(
+        pieceCount,
+        round.shuffleSwaps,
+      )
+
+      createPuzzleTiles(order)
+      phase = 'playing'
+      status.setText('The mural has reshuffled. Rebuild it before time runs out.')
+      status.setColor('#ffd966')
+      startRoundTimer()
+      updateHud()
+    }
+
+    this.runtimeCleanups.push(() => {
+      clearRoundTimer()
+      clearRoundObjects()
+    })
+
+    startRound()
   }
+
 
   // ---------------------------------------------------------------------------
   // 6. SACRED SCARAB BOARD
