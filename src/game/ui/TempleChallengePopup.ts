@@ -348,6 +348,130 @@ export default class TempleChallengePopup {
     return this.addObject(text)
   }
 
+  /**
+   * Compact parchment HUD card used across the temple trials.
+   * It mirrors the clean Bazaar HUD: pale card, coloured top band,
+   * small label, bold value, and an optional timer/progress bar.
+   */
+  private createCompactHudCard(config: {
+    x: number
+    y: number
+    width: number
+    label: string
+    value?: string
+    bandColor?: number
+    valueColor?: string
+    showProgress?: boolean
+  }) {
+    const height = 46
+    const bandColor = config.bandColor ?? 0x245d78
+
+    const shadow = this.scene.add.rectangle(
+      config.x + 3,
+      config.y + 3,
+      config.width,
+      height,
+      0x000000,
+      0.3,
+    )
+
+    const card = this.scene.add.rectangle(
+      config.x,
+      config.y,
+      config.width,
+      height,
+      0xead8aa,
+      1,
+    )
+    card.setStrokeStyle(3, 0xb8862e, 1)
+
+    const band = this.scene.add.rectangle(
+      config.x,
+      config.y - height / 2 + 5,
+      config.width - 10,
+      7,
+      bandColor,
+      1,
+    )
+
+    const label = this.scene.add.text(
+      config.x,
+      config.y - (config.showProgress ? 10 : 9),
+      config.label,
+      {
+        fontFamily: 'Georgia',
+        fontSize: '10px',
+        color: '#6f4512',
+        fontStyle: 'bold',
+        align: 'center',
+      },
+    )
+    label.setOrigin(0.5)
+
+    const valueText = this.scene.add.text(
+      config.x,
+      config.y + (config.showProgress ? 1 : 9),
+      config.value ?? '',
+      {
+        fontFamily: 'Georgia',
+        fontSize: config.showProgress ? '14px' : '16px',
+        color: config.valueColor ?? '#3b2b1a',
+        stroke: '#fff6d8',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+        align: 'center',
+      },
+    )
+    valueText.setOrigin(0.5)
+
+    this.addObject(shadow)
+    this.addObject(card)
+    this.addObject(band)
+    this.addObject(label)
+    this.addObject(valueText)
+
+    let progressFill: Phaser.GameObjects.Rectangle | undefined
+
+    if (config.showProgress) {
+      const progressWidth = Math.max(30, config.width - 22)
+      const progressY = config.y + 15
+
+      const progressTrack = this.scene.add.rectangle(
+        config.x,
+        progressY,
+        progressWidth,
+        7,
+        0x3b2b1a,
+        0.78,
+      )
+      progressTrack.setStrokeStyle(1, 0xffffff, 0.35)
+
+      progressFill = this.scene.add.rectangle(
+        config.x - progressWidth / 2,
+        progressY,
+        progressWidth,
+        7,
+        0xffd966,
+        1,
+      )
+      progressFill.setOrigin(0, 0.5)
+
+      this.addObject(progressTrack)
+      this.addObject(progressFill)
+    }
+
+    return {
+      valueText,
+      setValue: (value: string) => valueText.setText(value),
+      setProgress: (ratio: number, danger = false) => {
+        if (!progressFill) return
+        const safeRatio = Phaser.Math.Clamp(ratio, 0, 1)
+        progressFill.displayWidth = Math.max(0.01, (config.width - 22) * safeRatio)
+        progressFill.setFillStyle(danger ? 0xc94b3e : 0xd8a92e, 1)
+      },
+    }
+  }
+
   private createButton(config: TempleButtonConfig): ButtonHandle {
     const color = config.color ?? 0x5c3713
     const fontSize = config.fontSize ?? 14
@@ -678,10 +802,37 @@ export default class TempleChallengePopup {
     let phaseObjects: Phaser.GameObjects.GameObject[] = []
     let countdownTimer: Phaser.Time.TimerEvent | undefined
 
-    const hud = this.addStatusText('', top + 121)
+    const gateHudWidth = this.panelWidth - 82
+    const gateHudGap = 9
+    const gateHudCardWidth = (gateHudWidth - gateHudGap * 2) / 3
+    const gateHudStartX = width / 2 - gateHudWidth / 2 + gateHudCardWidth / 2
+    const gateHudY = top + 127
 
-    const titleY = top + 151
-    const visualTop = top + 180
+    const roundHud = this.createCompactHudCard({
+      x: gateHudStartX,
+      y: gateHudY,
+      width: gateHudCardWidth,
+      label: 'ROUND',
+      bandColor: 0x245d78,
+    })
+    const livesHud = this.createCompactHudCard({
+      x: gateHudStartX + gateHudCardWidth + gateHudGap,
+      y: gateHudY,
+      width: gateHudCardWidth,
+      label: 'LIVES',
+      bandColor: 0x8f2d2d,
+      valueColor: '#8f2d2d',
+    })
+    const scoreHud = this.createCompactHudCard({
+      x: gateHudStartX + (gateHudCardWidth + gateHudGap) * 2,
+      y: gateHudY,
+      width: gateHudCardWidth,
+      label: 'SCORE',
+      bandColor: 0x8b6b1f,
+    })
+
+    const titleY = top + 164
+    const visualTop = top + 192
     const buttonHeight = 72
     const buttonY = bottom - 76
     const buttonTop = buttonY - buttonHeight / 2
@@ -729,9 +880,9 @@ export default class TempleChallengePopup {
     }
 
     const setHud = () => {
-      hud.setText(
-        `ROUND ${roundIndex + 1} / ${rounds.length}     HEARTS ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`,
-      )
+      roundHud.setValue(`${roundIndex + 1} / ${rounds.length}`)
+      livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
+      scoreHud.setValue(String(score))
     }
 
     const createLargeObservationImage = (round: TruthRound) => {
@@ -1192,7 +1343,7 @@ private createCandleOfRa() {
         const key = `candle-player-${rowName}`
         if (this.scene.anims.exists(key)) this.scene.anims.remove(key)
       })
-
+    
       if (individualPlayerFramesReady()) {
         rowNames.forEach((rowName) => {
           const key = `candle-player-${rowName}`
@@ -1242,8 +1393,12 @@ private createCandleOfRa() {
       top + 86,
     )
 
-    const contentTop = top + 126
     const gameplayWidth = this.panelWidth - 72
+    const candleHudY = top + 127
+    const candleHudGap = 7
+    const candleHudCardWidth = (gameplayWidth - candleHudGap * 3) / 4
+    const candleHudStartX = width / 2 - gameplayWidth / 2 + candleHudCardWidth / 2
+    const contentTop = top + 166
     const optionButtonWidth = 116
     const optionButtonHeight = 42
     const buttonGapX = 10
@@ -1257,9 +1412,36 @@ private createCandleOfRa() {
     const gameplayX = width / 2
     const gameplayY = contentTop + gameplayHeight / 2
     const buttonTopY = topButtonRowY
-    const timerBarWidth = 126
-    const timerX = gameplayX + gameplayWidth / 2 - 92
-    const timerY = gameplayY - gameplayHeight / 2 + 28
+    const checkpointHud = this.createCompactHudCard({
+      x: candleHudStartX,
+      y: candleHudY,
+      width: candleHudCardWidth,
+      label: 'CHECKPOINT',
+      bandColor: 0x245d78,
+    })
+    const flameHud = this.createCompactHudCard({
+      x: candleHudStartX + candleHudCardWidth + candleHudGap,
+      y: candleHudY,
+      width: candleHudCardWidth,
+      label: 'FLAME',
+      bandColor: 0xc36b22,
+      valueColor: '#9b2d24',
+    })
+    const scoreHud = this.createCompactHudCard({
+      x: candleHudStartX + (candleHudCardWidth + candleHudGap) * 2,
+      y: candleHudY,
+      width: candleHudCardWidth,
+      label: 'SCORE',
+      bandColor: 0x8b6b1f,
+    })
+    const timerHud = this.createCompactHudCard({
+      x: candleHudStartX + (candleHudCardWidth + candleHudGap) * 3,
+      y: candleHudY,
+      width: candleHudCardWidth,
+      label: 'TIME',
+      bandColor: 0x8f2d2d,
+      showProgress: true,
+    })
 
     let phase: CandlePhase = 'walking'
     let checkpointIndex = 0
@@ -1404,36 +1586,6 @@ private createCandleOfRa() {
       checkpointMarkerObjects.push({ container, circle, number })
     })
 
-    const timerPanel = this.scene.add.rectangle(timerX, timerY, 154, 46, 0x000000, 0.58)
-    timerPanel.setStrokeStyle(2, 0xd4af37, 0.85)
-    this.addObject(timerPanel)
-
-    const timerText = this.scene.add.text(timerX, timerY - 11, '', {
-      fontFamily: 'Georgia',
-      fontSize: '15px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-      fontStyle: 'bold',
-      align: 'center',
-    })
-    timerText.setOrigin(0.5)
-    this.addObject(timerText)
-
-    const timerBg = this.scene.add.rectangle(timerX, timerY + 13, timerBarWidth, 10, 0x000000, 0.72)
-    timerBg.setStrokeStyle(1, 0xffffff, 0.45)
-    this.addObject(timerBg)
-
-    const timerFill = this.scene.add.rectangle(
-      timerX - timerBarWidth / 2,
-      timerY + 13,
-      timerBarWidth,
-      10,
-      0xffd966,
-      0.95,
-    )
-    timerFill.setOrigin(0, 0.5)
-    this.addObject(timerFill)
 
     const promptPanel = this.scene.add.rectangle(
       gameplayX,
@@ -1459,24 +1611,6 @@ private createCandleOfRa() {
     })
     promptText.setOrigin(0.5)
     this.addObject(promptText)
-
-    const status = this.scene.add.text(
-      gameplayX - gameplayWidth / 2 + 18,
-      gameplayY - gameplayHeight / 2 + 24,
-      '',
-      {
-        fontFamily: 'Georgia',
-        fontSize: '15px',
-        color: '#ffd966',
-        stroke: '#000000',
-        strokeThickness: 4,
-        fontStyle: 'bold',
-        align: 'left',
-        wordWrap: { width: gameplayWidth - 190, useAdvancedWrap: true },
-      },
-    )
-    status.setOrigin(0, 0.5)
-    this.addObject(status)
 
     const gameplayMessage = this.scene.add.text(
       gameplayX - gameplayWidth / 2 + 18,
@@ -1682,17 +1816,16 @@ private createCandleOfRa() {
     }
 
     const updateStatus = () => {
-      status.setText(
-        `CHECKPOINT ${checkpointIndex + 1} / ${checkpoints.length}     FLAME ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`,
-      )
+      checkpointHud.setValue(`${Math.min(checkpointIndex + 1, checkpoints.length)} / ${checkpoints.length}`)
+      flameHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
+      scoreHud.setValue(String(score))
     }
 
     const updateTimer = () => {
       const maxMs = 12000
       const ratio = Phaser.Math.Clamp(remainingMs / maxMs, 0, 1)
-      timerText.setText(phase === 'awaiting' ? `${Math.ceil(remainingMs / 1000)}s` : '')
-      timerFill.displayWidth = timerBarWidth * ratio
-      timerFill.setFillStyle(ratio <= 0.25 ? 0xff7770 : 0xffd966, 0.95)
+      timerHud.setValue(phase === 'awaiting' ? `${Math.ceil(remainingMs / 1000)}s` : '—')
+      timerHud.setProgress(ratio, ratio <= 0.25)
     }
 
     const startChoiceTimer = () => {
@@ -1762,8 +1895,7 @@ private createCandleOfRa() {
 
       if (key) {
         const fx = this.scene.add.image(playerGroup.x + 34, playerGroup.y - 36, key)
-        const effectSize = success ? 62 : 78
-        fx.setDisplaySize(effectSize, effectSize)
+        fx.setDisplaySize(success ? 108 : 94, success ? 108 : 94)
         fx.setAlpha(0.92)
         this.addObject(fx)
         currentFeedback.push(fx)
@@ -2006,8 +2138,8 @@ private createCandleOfRa() {
       const checkpoint = checkpoints[checkpointIndex]
       gameplayMessage.setText(`Walking to ${checkpoint.title}...`)
       promptText.setText('The player carries the sacred candle through the corridor.')
-      timerText.setText('')
-      timerFill.displayWidth = 0
+      timerHud.setValue('—')
+      timerHud.setProgress(0)
 
       checkpointStates.forEach((state, index) => {
         if (index === checkpointIndex) {
@@ -2119,6 +2251,7 @@ private createCandleOfRa() {
         score += 130 + Math.ceil(remainingMs / 100)
         playPlayerAnimation(checkpoint.actionAnim, true)
         gameplayMessage.setText(checkpoint.successText)
+
         if (checkpoint.id === 'weak') {
           updateFlameFromHearts()
         }
@@ -2206,11 +2339,48 @@ private createCandleOfRa() {
     let hearts = 3
     let buttons: ButtonHandle[] = []
 
-    const wall = this.scene.add.rectangle(width / 2, top + 240, this.panelWidth - 100, 206, 0x221608, 1)
+    const glyphHudWidth = this.panelWidth - 82
+    const glyphHudGap = 7
+    const glyphHudCardWidth = (glyphHudWidth - glyphHudGap * 3) / 4
+    const glyphHudStartX = width / 2 - glyphHudWidth / 2 + glyphHudCardWidth / 2
+    const glyphHudY = top + 127
+
+    const roundHud = this.createCompactHudCard({
+      x: glyphHudStartX,
+      y: glyphHudY,
+      width: glyphHudCardWidth,
+      label: 'ROUND',
+      bandColor: 0x245d78,
+    })
+    const livesHud = this.createCompactHudCard({
+      x: glyphHudStartX + glyphHudCardWidth + glyphHudGap,
+      y: glyphHudY,
+      width: glyphHudCardWidth,
+      label: 'LIVES',
+      bandColor: 0x8f2d2d,
+      valueColor: '#8f2d2d',
+    })
+    const scoreHud = this.createCompactHudCard({
+      x: glyphHudStartX + (glyphHudCardWidth + glyphHudGap) * 2,
+      y: glyphHudY,
+      width: glyphHudCardWidth,
+      label: 'SCORE',
+      bandColor: 0x8b6b1f,
+    })
+    const sequenceHud = this.createCompactHudCard({
+      x: glyphHudStartX + (glyphHudCardWidth + glyphHudGap) * 3,
+      y: glyphHudY,
+      width: glyphHudCardWidth,
+      label: 'SEQUENCE',
+      bandColor: 0x5b3c88,
+    })
+
+    const wallY = top + 270
+    const wall = this.scene.add.rectangle(width / 2, wallY, this.panelWidth - 100, 190, 0x221608, 1)
     wall.setStrokeStyle(4, 0xd4af37, 1)
     this.addObject(wall)
 
-    const sequenceText = this.scene.add.text(width / 2, top + 218, '', {
+    const sequenceText = this.scene.add.text(width / 2, wallY - 14, '', {
       fontFamily: 'Georgia',
       fontSize: '38px',
       color: '#ffe7a3',
@@ -2221,11 +2391,13 @@ private createCandleOfRa() {
     sequenceText.setOrigin(0.5)
     this.addObject(sequenceText)
 
-    const status = this.addStatusText('', top + 354)
-    const hud = this.addStatusText('', top + 128)
+    const status = this.addStatusText('', top + 390)
 
     const updateHud = () => {
-      hud.setText(`ROUND ${round} / 5     HEARTS ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`)
+      roundHud.setValue(`${round} / 5`)
+      livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
+      scoreHud.setValue(String(score))
+      sequenceHud.setValue(String(round + 1))
     }
 
     const destroyButtons = () => {
@@ -2267,6 +2439,7 @@ private createCandleOfRa() {
       if (symbol === sequence[inputIndex]) {
         inputIndex += 1
         score += 40
+        updateHud()
         if (inputIndex >= sequence.length) {
           status.setText('Correct. The wall remembers you.')
           status.setColor('#72ff9b')
@@ -2292,6 +2465,7 @@ private createCandleOfRa() {
       }
 
       hearts -= 1
+      updateHud()
       status.setText('Wrong glyph. The chamber groans.')
       status.setColor('#ff7770')
       this.scene.cameras.main.shake(140, 0.004)
