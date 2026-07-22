@@ -2519,18 +2519,25 @@ if (checkpoint.id !== 'altar') {
 
     type GlyphOption = {
       id: string
-      symbol: string
+      label: string
+      imageKey: string
+      fallback: string
+    }
+
+    type GlyphButtonHandle = {
+      setEnabled: (enabled: boolean) => void
+      destroy: () => void
     }
 
     this.addTitle(TRIAL_TITLES['glyph-memory'])
-    this.addInstruction('Watch the glowing symbols. Repeat the sequence to awaken the wall.', top + 88)
+    this.addInstruction('Watch the glowing temple emblems. Repeat the sequence to awaken the wall.', top + 88)
 
     const glyphs: GlyphOption[] = [
-      { id: 'sun', symbol: '☀' },
-      { id: 'eye', symbol: '𓂀' },
-      { id: 'scarab', symbol: '𓆣' },
-      { id: 'falcon', symbol: '𓅓' },
-      { id: 'ankh', symbol: '𓋹' },
+      { id: 'sun', label: 'Sun', imageKey: 'temple-glyph-sun', fallback: '☀' },
+      { id: 'eye', label: 'Eye', imageKey: 'temple-glyph-eye', fallback: '𓂀' },
+      { id: 'scarab', label: 'Scarab', imageKey: 'temple-glyph-scarab', fallback: '𓆣' },
+      { id: 'falcon', label: 'Falcon', imageKey: 'temple-glyph-falcon', fallback: '𓅓' },
+      { id: 'ankh', label: 'Ankh', imageKey: 'temple-glyph-ankh', fallback: '𓋹' },
     ]
 
     let round = 1
@@ -2538,12 +2545,8 @@ if (checkpoint.id !== 'altar') {
     let sequence: GlyphOption[] = []
     let score = 0
     let hearts = 3
-    let buttons: ButtonHandle[] = []
+    let buttons: GlyphButtonHandle[] = []
     let sequenceObjects: Phaser.GameObjects.GameObject[] = []
-
-    // Keep only the final round easier.
-    // Old final round had 6 symbols. New final round has 4.
-    const getSequenceLength = () => (round >= 5 ? 5 : round + 1)
 
     const glyphHudWidth = this.panelWidth - 82
     const glyphHudGap = 7
@@ -2595,7 +2598,7 @@ if (checkpoint.id !== 'altar') {
     innerWall.setStrokeStyle(2, 0x8f5b20, 0.8)
     this.addObject(innerWall)
 
-    const wallTitle = this.scene.add.text(width / 2, wallY - 66, 'MEMORIZE THE SYMBOLS', {
+    const wallTitle = this.scene.add.text(width / 2, wallY - 66, 'MEMORIZE THE EMBLEMS', {
       fontFamily: 'Georgia',
       fontSize: '18px',
       color: '#ffe7a3',
@@ -2625,7 +2628,7 @@ if (checkpoint.id !== 'altar') {
       roundHud.setValue(`${round} / 5`)
       livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
       scoreHud.setValue(String(score))
-      sequenceHud.setValue(String(getSequenceLength()))
+      sequenceHud.setValue(String(round + 1))
     }
 
     const clearSequenceObjects = () => {
@@ -2641,29 +2644,36 @@ if (checkpoint.id !== 'altar') {
       return object
     }
 
-    const addSymbolVisual = (
+    const addGlyphVisual = (
       glyph: GlyphOption,
       x: number,
       y: number,
       size: number,
       alpha = 1,
     ) => {
-      const symbol = this.scene.add.text(x, y, glyph.symbol, {
+      if (this.scene.textures.exists(glyph.imageKey)) {
+        const image = this.scene.add.image(x, y, glyph.imageKey)
+        image.setDisplaySize(size, size)
+        image.setAlpha(alpha)
+        return image
+      }
+
+      const fallback = this.scene.add.text(x, y, glyph.fallback, {
         fontFamily: 'Georgia',
-        fontSize: `${Math.round(size)}px`,
+        fontSize: `${Math.round(size * 0.72)}px`,
         color: '#ffe7a3',
         stroke: '#000000',
         strokeThickness: 5,
         fontStyle: 'bold',
       })
-      symbol.setOrigin(0.5)
-      symbol.setAlpha(alpha)
-      return symbol
+      fallback.setOrigin(0.5)
+      fallback.setAlpha(alpha)
+      return fallback
     }
 
     const showGlyphSequence = (items: GlyphOption[]) => {
       clearSequenceObjects()
-      wallTitle.setText('MEMORIZE THE SYMBOLS')
+      wallTitle.setText('MEMORIZE THE EMBLEMS')
 
       if (items.length === 0) return
 
@@ -2679,7 +2689,8 @@ if (checkpoint.id !== 'altar') {
         const disk = addSequenceObject(this.scene.add.circle(x, y, iconSize * 0.52, 0x3d250b, 0.94))
         disk.setStrokeStyle(3, 0xd4af37, 0.95)
 
-        const icon = addSequenceObject(addSymbolVisual(glyph, x, y, iconSize * 0.7))
+        const icon = addGlyphVisual(glyph, x, y, iconSize * 0.9)
+        addSequenceObject(icon)
 
         this.addTween({
           targets: [disk, icon],
@@ -2749,8 +2760,97 @@ if (checkpoint.id !== 'altar') {
       buttons.forEach((button) => button.setEnabled(enabled))
     }
 
+    const createGlyphButton = (
+      glyph: GlyphOption,
+      x: number,
+      y: number,
+      onClick: () => void,
+    ): GlyphButtonHandle => {
+      let enabled = true
+      const container = this.scene.add.container(x, y)
+
+      const bg = this.scene.add.rectangle(0, 0, 94, 70, 0x4d2d10, 1)
+      bg.setStrokeStyle(3, 0xd4af37, 1)
+      bg.setInteractive({ useHandCursor: true })
+
+      const icon = addGlyphVisual(glyph, 0, -8, 47)
+      const label = this.scene.add.text(0, 25, glyph.label, {
+        fontFamily: 'Georgia',
+        fontSize: '9px',
+        color: '#fff7cf',
+        stroke: '#000000',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+        align: 'center',
+      })
+      label.setOrigin(0.5)
+
+      container.add([bg, icon, label])
+      this.addObject(container)
+
+      const refresh = () => {
+        if (!enabled) {
+          bg.disableInteractive()
+          bg.setFillStyle(0x2d2a25, 0.9)
+          bg.setStrokeStyle(2, 0x777777, 0.8)
+          container.setAlpha(0.58)
+          return
+        }
+
+        bg.setInteractive({ useHandCursor: true })
+        bg.setFillStyle(0x4d2d10, 1)
+        bg.setStrokeStyle(3, 0xd4af37, 1)
+        container.setAlpha(1)
+      }
+
+      bg.on('pointerover', () => {
+        if (!enabled || this.resultLocked) return
+        bg.setFillStyle(0x684018, 1)
+        bg.setStrokeStyle(4, 0xffd966, 1)
+        this.addTween({
+          targets: container,
+          scaleX: 1.045,
+          scaleY: 1.045,
+          duration: 85,
+        })
+      })
+
+      bg.on('pointerout', () => {
+        if (!enabled || this.resultLocked) return
+        refresh()
+        this.addTween({
+          targets: container,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 85,
+        })
+      })
+
+      bg.on('pointerdown', () => {
+        if (!enabled || this.resultLocked) return
+        this.addTween({
+          targets: container,
+          scaleX: 0.95,
+          scaleY: 0.95,
+          duration: 70,
+          yoyo: true,
+        })
+        onClick()
+      })
+
+      return {
+        setEnabled: (value: boolean) => {
+          enabled = value
+          refresh()
+        },
+        destroy: () => {
+          if (container.active) container.destroy()
+        },
+      }
+    }
+
     const showInput = () => {
-      status.setText(`Tap symbol ${inputIndex + 1} of ${sequence.length}`)
+      status.setText(`Tap emblem ${inputIndex + 1} of ${sequence.length}`)
       showRepeatSlots()
       destroyButtons()
 
@@ -2760,29 +2860,25 @@ if (checkpoint.id !== 'altar') {
       const startX = width / 2 - totalWidth / 2 + buttonWidth / 2
 
       buttons = glyphs.map((glyph, index) =>
-        this.createButton({
-          x: startX + index * (buttonWidth + gap),
-          y: buttonY,
-          width: buttonWidth,
-          height: 70,
-          label: glyph.symbol,
-          fontSize: 25,
-          color: 0x4d2d10,
-          onClick: () => choose(glyph),
-        }),
+        createGlyphButton(
+          glyph,
+          startX + index * (buttonWidth + gap),
+          buttonY,
+          () => choose(glyph),
+        ),
       )
     }
 
     const startRound = () => {
       inputIndex = 0
       sequence = Array.from(
-        { length: getSequenceLength() },
+        { length: round + 1 },
         () => glyphs[Phaser.Math.Between(0, glyphs.length - 1)],
       )
 
       updateHud()
       destroyButtons()
-      status.setText('Memorize the glowing symbol order.')
+      status.setText('Memorize the glowing emblem order.')
       status.setColor('#ffd966')
       showGlyphSequence(sequence)
 
@@ -2811,7 +2907,7 @@ if (checkpoint.id !== 'altar') {
                 trialId: 'glyph-memory',
                 success: true,
                 response:
-                  'The ancient signs obey your memory. A ruler must remember what the walls have already taught.',
+                  'The ancient emblems obey your memory. A ruler must remember what the walls have already taught.',
                 ...reward,
               },
               850,
@@ -2827,7 +2923,7 @@ if (checkpoint.id !== 'altar') {
           return
         }
 
-        status.setText(`Good. Tap symbol ${inputIndex + 1} of ${sequence.length}`)
+        status.setText(`Good. Tap emblem ${inputIndex + 1} of ${sequence.length}`)
         status.setColor('#72ff9b')
         this.schedule(250, () => {
           if (!this.isVisible) return
@@ -2839,7 +2935,7 @@ if (checkpoint.id !== 'altar') {
       hearts -= 1
       updateHud()
       setButtonsEnabled(false)
-      status.setText('Wrong glyph. The chamber groans.')
+      status.setText('Wrong emblem. The chamber groans.')
       status.setColor('#ff7770')
       this.scene.cameras.main.shake(140, 0.004)
 
@@ -2850,7 +2946,7 @@ if (checkpoint.id !== 'altar') {
             trialId: 'glyph-memory',
             success: false,
             response:
-              'The symbols fade before the sequence is complete. Memory is a staircase; climb it again.',
+              'The emblems fade before the sequence is complete. Memory is a staircase; climb it again.',
             ...reward,
           },
           850,
@@ -2880,99 +2976,709 @@ if (checkpoint.id !== 'altar') {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle(TRIAL_TITLES['false-gold'])
-    this.addInstruction('Sort royal coins from counterfeits. Real coins have a clean sun stamp and balanced edge.', top + 88)
-
-    type Coin = {
-      clue: string
+    type InspectTool = 'magnifier' | 'scale' | 'tap' | 'torch'
+    type CoinVisualTrait = 'good' | 'bad'
+    type CoinCase = {
       real: boolean
+      stamp: CoinVisualTrait
+      weight: CoinVisualTrait
+      sound: CoinVisualTrait
+      shine: CoinVisualTrait
+      mark: string
+      tint: number
     }
 
-    const coins: Coin[] = Phaser.Utils.Array.Shuffle([
-      { clue: 'Clean sun stamp, balanced edge, steady shine', real: true },
-      { clue: 'Crooked sun stamp, chipped edge, too bright', real: false },
-      { clue: 'Royal wing mark, even weight, warm gold', real: true },
-      { clue: 'Wrong bird mark, light weight, green stain', real: false },
-      { clue: 'Temple mint dot, smooth rim, soft shine', real: true },
-      { clue: 'Double stamp, rough rim, suspicious glitter', real: false },
-      { clue: 'Sun disk centered, scarab mark, balanced edge', real: true },
-      { clue: 'Stamp upside down, cracked rim, hollow sound', real: false },
-    ])
+    type LocalButton = {
+      container: Phaser.GameObjects.Container
+      bg: Phaser.GameObjects.Rectangle
+      setEnabled: (enabled: boolean) => void
+      destroy: () => void
+    }
 
-    let index = 0
-    let correct = 0
-    let mistakes = 0
+    this.addTitle(TRIAL_TITLES['false-gold'])
+    this.addInstruction(
+      'Inspect the royal coin with visual tools. Use up to 2 tools, then choose where the coin belongs.',
+      top + 88,
+    )
+
+    const coins: CoinCase[] = Phaser.Utils.Array.Shuffle([
+      // Real coins can still have one suspicious-looking trait, so it is not too obvious.
+      { real: true, stamp: 'good', weight: 'good', sound: 'good', shine: 'bad', mark: '☀', tint: 0xffd966 },
+      { real: true, stamp: 'bad', weight: 'good', sound: 'good', shine: 'good', mark: '☀', tint: 0xf2c14d },
+      { real: true, stamp: 'good', weight: 'good', sound: 'bad', shine: 'good', mark: '𓆣', tint: 0xf6d46a },
+      { real: true, stamp: 'good', weight: 'bad', sound: 'good', shine: 'good', mark: '☀', tint: 0xe8bc42 },
+
+      // Fake coins can still pass one or two tests, making them feel trickier.
+      { real: false, stamp: 'bad', weight: 'bad', sound: 'good', shine: 'good', mark: '☾', tint: 0xd7b85d },
+      { real: false, stamp: 'good', weight: 'bad', sound: 'bad', shine: 'good', mark: '☀', tint: 0xf5d05c },
+      { real: false, stamp: 'bad', weight: 'good', sound: 'bad', shine: 'bad', mark: '?', tint: 0xcab36b },
+      { real: false, stamp: 'good', weight: 'good', sound: 'bad', shine: 'bad', mark: '☀', tint: 0xffdd76 },
+    ]).slice(0, 7)
+
+    const tools: Array<{
+      id: InspectTool
+      label: string
+      icon: string
+      color: number
+    }> = [
+      { id: 'magnifier', label: 'MAGNIFY', icon: '⌕', color: 0x245d78 },
+      { id: 'scale', label: 'WEIGH', icon: '⚖', color: 0x5b3c88 },
+      { id: 'tap', label: 'TAP', icon: '◉', color: 0x7a4d19 },
+      { id: 'torch', label: 'TORCH', icon: '🔥', color: 0x8f2d2d },
+    ]
+
+    let coinIndex = 0
     let score = 0
+    let mistakes = 0
+    let toolsUsed = 0
+    let currentCoin: CoinCase = coins[0]
+    let currentCoinGroup: Phaser.GameObjects.Container | undefined
+    let inspectionObjects: Phaser.GameObjects.GameObject[] = []
+    let toolButtons: LocalButton[] = []
+    let judgeButtons: LocalButton[] = []
+    let isResolving = false
 
-    const tray = this.scene.add.rectangle(width / 2, top + 245, this.panelWidth - 110, 214, 0x2b1908, 1)
-    tray.setStrokeStyle(4, 0xd4af37, 1)
-    this.addObject(tray)
+    const hudWidth = this.panelWidth - 82
+    const hudGap = 7
+    const hudCardWidth = (hudWidth - hudGap * 3) / 4
+    const hudStartX = width / 2 - hudWidth / 2 + hudCardWidth / 2
+    const hudY = top + 127
 
-    const coin = this.scene.add.circle(width / 2, top + 220, 44, 0xffd966, 1)
-    coin.setStrokeStyle(5, 0x8b5a2b, 1)
-    this.addObject(coin)
+    const coinHud = this.createCompactHudCard({
+      x: hudStartX,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'COIN',
+      bandColor: 0x245d78,
+    })
+    const toolsHud = this.createCompactHudCard({
+      x: hudStartX + hudCardWidth + hudGap,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'TOOLS',
+      bandColor: 0x5b3c88,
+    })
+    const mistakesHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 2,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'MISTAKES',
+      bandColor: 0x8f2d2d,
+      valueColor: '#8f2d2d',
+    })
+    const scoreHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 3,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'SCORE',
+      bandColor: 0x8b6b1f,
+    })
 
-    const coinMark = this.scene.add.text(width / 2, top + 220, '☀', {
+    const stationY = top + 288
+    const stationWidth = this.panelWidth - 96
+    const stationHeight = 250
+
+    const station = this.scene.add.rectangle(width / 2, stationY, stationWidth, stationHeight, 0x211407, 1)
+    station.setStrokeStyle(4, 0xd4af37, 1)
+    this.addObject(station)
+
+    const table = this.scene.add.rectangle(width / 2, stationY + 64, stationWidth - 46, 70, 0x6d4218, 1)
+    table.setStrokeStyle(3, 0xb8862e, 1)
+    this.addObject(table)
+
+    const royalChest = this.scene.add.rectangle(width / 2 - 240, stationY + 82, 120, 72, 0x236d3a, 1)
+    royalChest.setStrokeStyle(4, 0xffd966, 1)
+    const royalIcon = this.scene.add.text(royalChest.x, royalChest.y - 8, '♕', {
       fontFamily: 'Georgia',
-      fontSize: '34px',
-      color: '#74420d',
+      fontSize: '30px',
+      color: '#ffe7a3',
+      stroke: '#000000',
+      strokeThickness: 4,
       fontStyle: 'bold',
     })
-    coinMark.setOrigin(0.5)
-    this.addObject(coinMark)
+    royalIcon.setOrigin(0.5)
+    const royalLabel = this.scene.add.text(royalChest.x, royalChest.y + 24, 'ROYAL', {
+      fontFamily: 'Georgia',
+      fontSize: '12px',
+      color: '#fff7cf',
+      stroke: '#000000',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    royalLabel.setOrigin(0.5)
 
-    const clueText = this.addStatusText('', top + 306)
-    const hud = this.addStatusText('', top + 128)
+    const fakePot = this.scene.add.rectangle(width / 2 + 240, stationY + 82, 120, 72, 0x7a2c22, 1)
+    fakePot.setStrokeStyle(4, 0xffbd63, 1)
+    const fakeIcon = this.scene.add.text(fakePot.x, fakePot.y - 8, '✕', {
+      fontFamily: 'Georgia',
+      fontSize: '30px',
+      color: '#ffbd63',
+      stroke: '#000000',
+      strokeThickness: 4,
+      fontStyle: 'bold',
+    })
+    fakeIcon.setOrigin(0.5)
+    const fakeLabel = this.scene.add.text(fakePot.x, fakePot.y + 24, 'FAKE', {
+      fontFamily: 'Georgia',
+      fontSize: '12px',
+      color: '#fff7cf',
+      stroke: '#000000',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    fakeLabel.setOrigin(0.5)
 
-    const render = () => {
-      const current = coins[index]
-      hud.setText(`COIN ${index + 1} / ${coins.length}     CORRECT ${correct}     MISTAKES ${mistakes} / 3`)
-      clueText.setText(current.clue)
-      coin.setFillStyle(current.real ? 0xffd966 : 0xd2b66a, 1)
-      coinMark.setText(current.real ? '☀' : Phaser.Utils.Array.GetRandom(['?', '☾', '✕']))
+    this.addObject(royalChest)
+    this.addObject(royalIcon)
+    this.addObject(royalLabel)
+    this.addObject(fakePot)
+    this.addObject(fakeIcon)
+    this.addObject(fakeLabel)
+
+    const statusPanel = this.scene.add.rectangle(width / 2, bottom - 154, this.panelWidth - 118, 36, 0x211107, 0.92)
+    statusPanel.setStrokeStyle(2, 0xd4af37, 0.72)
+    this.addObject(statusPanel)
+
+    const status = this.addStatusText('', bottom - 154, '#ffd966')
+    status.setFontSize(14)
+
+    const clearInspectionObjects = () => {
+      inspectionObjects.forEach((object) => {
+        if (object.active) object.destroy()
+      })
+      inspectionObjects = []
+    }
+
+    const addInspectionObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+      this.addObject(object)
+      inspectionObjects.push(object)
+      return object
+    }
+
+    const destroyCoin = () => {
+      currentCoinGroup?.destroy()
+      currentCoinGroup = undefined
+    }
+
+    const updateHud = () => {
+      coinHud.setValue(`${Math.min(coinIndex + 1, coins.length)} / ${coins.length}`)
+      toolsHud.setValue(`${toolsUsed} / 2`)
+      mistakesHud.setValue(`${mistakes} / 3`)
+      scoreHud.setValue(String(score))
+    }
+
+    const setLocalButtonsEnabled = (buttons: LocalButton[], enabled: boolean) => {
+      buttons.forEach((button) => button.setEnabled(enabled))
+    }
+
+    const destroyLocalButtons = (buttons: LocalButton[]) => {
+      buttons.forEach((button) => button.destroy())
+    }
+
+    const createLocalButton = (config: {
+      x: number
+      y: number
+      width: number
+      height: number
+      icon: string
+      label: string
+      color: number
+      onClick: () => void
+    }): LocalButton => {
+      let enabled = true
+
+      const container = this.scene.add.container(config.x, config.y)
+      const bg = this.scene.add.rectangle(0, 0, config.width, config.height, config.color, 1)
+      bg.setStrokeStyle(3, 0xd4af37, 1)
+      bg.setInteractive({ useHandCursor: true })
+
+      const icon = this.scene.add.text(0, -9, config.icon, {
+        fontFamily: 'Georgia',
+        fontSize: '24px',
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      })
+      icon.setOrigin(0.5)
+
+      const label = this.scene.add.text(0, 20, config.label, {
+        fontFamily: 'Georgia',
+        fontSize: '9px',
+        color: '#fff7cf',
+        stroke: '#000000',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+        align: 'center',
+      })
+      label.setOrigin(0.5)
+
+      container.add([bg, icon, label])
+      this.addObject(container)
+
+      const refresh = () => {
+        if (!enabled) {
+          bg.disableInteractive()
+          bg.setFillStyle(0x2d2a25, 0.9)
+          bg.setStrokeStyle(2, 0x777777, 0.7)
+          container.setAlpha(0.55)
+          return
+        }
+
+        bg.setInteractive({ useHandCursor: true })
+        bg.setFillStyle(config.color, 1)
+        bg.setStrokeStyle(3, 0xd4af37, 1)
+        container.setAlpha(1)
+      }
+
+      bg.on('pointerover', () => {
+        if (!enabled || isResolving || this.resultLocked) return
+        bg.setStrokeStyle(4, 0xffd966, 1)
+        this.addTween({ targets: container, scaleX: 1.04, scaleY: 1.04, duration: 90 })
+      })
+
+      bg.on('pointerout', () => {
+        if (!enabled || isResolving || this.resultLocked) return
+        refresh()
+        this.addTween({ targets: container, scaleX: 1, scaleY: 1, duration: 90 })
+      })
+
+      bg.on('pointerdown', () => {
+        if (!enabled || isResolving || this.resultLocked) return
+        this.addTween({ targets: container, scaleX: 0.95, scaleY: 0.95, duration: 70, yoyo: true })
+        config.onClick()
+      })
+
+      return {
+        container,
+        bg,
+        setEnabled: (value: boolean) => {
+          enabled = value
+          refresh()
+        },
+        destroy: () => {
+          if (container.active) container.destroy()
+        },
+      }
+    }
+
+    const createCoinVisual = () => {
+      destroyCoin()
+
+      const coin = currentCoin
+      const coinGroup = this.scene.add.container(width / 2, stationY + 20)
+      this.addObject(coinGroup)
+      currentCoinGroup = coinGroup
+
+      const shadow = this.scene.add.ellipse(0, 46, 112, 26, 0x000000, 0.34)
+      const outer = this.scene.add.circle(0, 0, 54, coin.tint, 1)
+      outer.setStrokeStyle(6, 0x8b5a2b, 1)
+      const inner = this.scene.add.circle(0, 0, 39, 0xffe49a, 0.85)
+      inner.setStrokeStyle(3, 0xb8862e, 0.95)
+
+      const mark = this.scene.add.text(0, 0, coin.mark, {
+        fontFamily: 'Georgia',
+        fontSize: '34px',
+        color: '#74420d',
+        stroke: '#fff2bc',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      })
+      mark.setOrigin(0.5)
+      mark.setRotation(coin.stamp === 'bad' ? Phaser.Math.DegToRad(13) : 0)
+
+      const scratch1 = this.scene.add.rectangle(-14, -18, 3, 24, 0x6d4218, coin.stamp === 'bad' ? 0.75 : 0.18)
+      scratch1.setRotation(0.78)
+      const scratch2 = this.scene.add.rectangle(21, 16, 3, 20, 0x6d4218, coin.shine === 'bad' ? 0.65 : 0.12)
+      scratch2.setRotation(-0.62)
+
+      coinGroup.add([shadow, outer, inner, scratch1, scratch2, mark])
+
+      this.addTween({
+        targets: coinGroup,
+        y: stationY + 14,
+        duration: 420,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+      })
+    }
+
+    const showStampResult = (trait: CoinVisualTrait) => {
+      if (!currentCoinGroup) return
+      clearInspectionObjects()
+
+      const lens = addInspectionObject(this.scene.add.circle(width / 2 - 78, stationY - 34, 34, 0x9edff2, 0.2))
+      lens.setStrokeStyle(5, 0xd4af37, 1)
+      const handle = addInspectionObject(this.scene.add.rectangle(width / 2 - 48, stationY - 4, 12, 46, 0x6d4218, 1))
+      handle.setRotation(-0.72)
+      handle.setStrokeStyle(2, 0x3b220c, 1)
+
+      const zoom = addInspectionObject(this.scene.add.circle(width / 2 + 88, stationY - 36, 45, 0x221407, 1))
+      zoom.setStrokeStyle(4, trait === 'good' ? 0x72ff9b : 0xff7770, 1)
+      const symbol = addInspectionObject(this.scene.add.text(width / 2 + 88, stationY - 36, trait === 'good' ? '☀' : '☾', {
+        fontFamily: 'Georgia',
+        fontSize: '34px',
+        color: trait === 'good' ? '#ffe7a3' : '#ffbd63',
+        stroke: '#000000',
+        strokeThickness: 5,
+        fontStyle: 'bold',
+      }))
+      symbol.setOrigin(0.5)
+      symbol.setRotation(trait === 'good' ? 0 : Phaser.Math.DegToRad(18))
+
+      if (trait === 'bad') {
+        const crack = addInspectionObject(this.scene.add.text(width / 2 + 119, stationY - 65, '⚡', {
+          fontFamily: 'Georgia',
+          fontSize: '26px',
+          color: '#ff7770',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        }))
+        crack.setOrigin(0.5)
+        crack.setRotation(0.42)
+      }
+
+      this.addTween({
+        targets: [lens, handle, zoom, symbol],
+        alpha: { from: 0, to: 1 },
+        y: '-=8',
+        duration: 260,
+        ease: 'Sine.easeOut',
+      })
+    }
+
+    const showWeightResult = (trait: CoinVisualTrait) => {
+      clearInspectionObjects()
+
+      const baseX = width / 2
+      const baseY = stationY - 14
+      const pole = addInspectionObject(this.scene.add.rectangle(baseX, baseY + 35, 8, 78, 0xd4af37, 1))
+      const beam = addInspectionObject(this.scene.add.rectangle(baseX, baseY, 180, 8, 0xd4af37, 1))
+      const leftPan = addInspectionObject(this.scene.add.ellipse(baseX - 70, baseY + 39, 62, 18, 0x3d250b, 1))
+      const rightPan = addInspectionObject(this.scene.add.ellipse(baseX + 70, baseY + 39, 62, 18, 0x3d250b, 1))
+      leftPan.setStrokeStyle(2, 0xffd966, 1)
+      rightPan.setStrokeStyle(2, 0xffd966, 1)
+
+      const coinOnPan = addInspectionObject(this.scene.add.circle(baseX - 70, baseY + 22, 20, currentCoin.tint, 1))
+      coinOnPan.setStrokeStyle(3, 0x8b5a2b, 1)
+
+      const targetAngle = trait === 'good' ? 0 : Phaser.Math.DegToRad(13)
+      const resultGlow = addInspectionObject(
+        this.scene.add.circle(baseX + 112, baseY - 30, 22, trait === 'good' ? 0x236d3a : 0x7a1717, 0.95),
+      )
+      resultGlow.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, 1)
+      const resultIcon = addInspectionObject(this.scene.add.text(resultGlow.x, resultGlow.y - 1, trait === 'good' ? '✓' : '!', {
+        fontFamily: 'Georgia',
+        fontSize: '24px',
+        color: trait === 'good' ? '#72ff9b' : '#ffbd63',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      }))
+      resultIcon.setOrigin(0.5)
+
+      this.addTween({
+        targets: [beam, leftPan, rightPan, coinOnPan],
+        angle: targetAngle,
+        duration: 340,
+        yoyo: trait === 'bad',
+        repeat: trait === 'bad' ? 1 : 0,
+        ease: 'Sine.easeInOut',
+      })
+    }
+
+    const showSoundResult = (trait: CoinVisualTrait) => {
+      clearInspectionObjects()
+
+      const tapper = addInspectionObject(this.scene.add.text(width / 2 - 76, stationY - 58, '✦', {
+        fontFamily: 'Georgia',
+        fontSize: '32px',
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 5,
+        fontStyle: 'bold',
+      }))
+      tapper.setOrigin(0.5)
+
+      const rings: Phaser.GameObjects.Arc[] = []
+      for (let i = 0; i < 3; i += 1) {
+        const ring = addInspectionObject(this.scene.add.circle(width / 2, stationY + 20, 44 + i * 18, 0x000000, 0))
+        ring.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, 0.95 - i * 0.2)
+        rings.push(ring)
+      }
+
+      if (trait === 'bad') {
+        const jagged = addInspectionObject(this.scene.add.text(width / 2 + 86, stationY - 28, '≋ ✕ ≋', {
+          fontFamily: 'Georgia',
+          fontSize: '24px',
+          color: '#ff7770',
+          stroke: '#000000',
+          strokeThickness: 5,
+          fontStyle: 'bold',
+        }))
+        jagged.setOrigin(0.5)
+      } else {
+        const smooth = addInspectionObject(this.scene.add.text(width / 2 + 86, stationY - 28, '○ ○ ○', {
+          fontFamily: 'Georgia',
+          fontSize: '22px',
+          color: '#72ff9b',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        }))
+        smooth.setOrigin(0.5)
+      }
+
+      this.addTween({
+        targets: tapper,
+        y: stationY - 20,
+        duration: 180,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+      })
+
+      rings.forEach((ring, index) => {
+        this.addTween({
+          targets: ring,
+          scaleX: 1.35,
+          scaleY: 1.35,
+          alpha: 0,
+          delay: index * 110,
+          duration: 540,
+          ease: 'Sine.easeOut',
+        })
+      })
+    }
+
+    const showShineResult = (trait: CoinVisualTrait) => {
+      clearInspectionObjects()
+
+      const torch = addInspectionObject(this.scene.add.text(width / 2 - 118, stationY - 22, '🔥', {
+        fontFamily: 'Georgia',
+        fontSize: '32px',
+        color: '#ffbd63',
+        stroke: '#000000',
+        strokeThickness: 5,
+      }))
+      torch.setOrigin(0.5)
+
+      const beam = addInspectionObject(
+        this.scene.add.triangle(width / 2 - 28, stationY - 6, 0, 0, 150, -38, 150, 38, trait === 'good' ? 0xffd966 : 0x77aa55, 0.26),
+      )
+      beam.setAngle(-6)
+
+      const glow = addInspectionObject(
+        this.scene.add.circle(width / 2 + 64, stationY + 4, 34, trait === 'good' ? 0xffd966 : 0x77aa55, 0.24),
+      )
+      glow.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, trait === 'good' ? 0.75 : 0.85)
+
+      if (trait === 'bad') {
+        const flicker = addInspectionObject(this.scene.add.text(width / 2 + 104, stationY - 30, '✕', {
+          fontFamily: 'Georgia',
+          fontSize: '24px',
+          color: '#ff7770',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        }))
+        flicker.setOrigin(0.5)
+      }
+
+      this.addTween({
+        targets: [beam, glow],
+        alpha: trait === 'good' ? 0.42 : 0.12,
+        duration: 220,
+        yoyo: true,
+        repeat: 2,
+        ease: 'Sine.easeInOut',
+      })
+    }
+
+    const useTool = (tool: InspectTool) => {
+      if (isResolving || toolsUsed >= 2) return
+
+      toolsUsed += 1
+      updateHud()
+
+      if (tool === 'magnifier') showStampResult(currentCoin.stamp)
+      if (tool === 'scale') showWeightResult(currentCoin.weight)
+      if (tool === 'tap') showSoundResult(currentCoin.sound)
+      if (tool === 'torch') showShineResult(currentCoin.shine)
+
+      status.setText(toolsUsed >= 2 ? 'Choose the chest or pot.' : 'Use one more tool or decide now.')
+
+      if (toolsUsed >= 2) {
+        setLocalButtonsEnabled(toolButtons, false)
+      }
     }
 
     const finish = () => {
-      const success = correct >= 6 && mistakes < 3
+      const success = mistakes < 3 && score >= 420
       const reward = this.baseReward('false-gold', success, score)
       this.complete({
         trialId: 'false-gold',
         success,
         response: success
-          ? 'You separated wealth from deception. A king must know that not everything shining deserves trust.'
-          : 'Too many false coins entered the royal chest. Judgment must be sharper than greed.',
+          ? 'You judged wealth by proof instead of shine. A king must know that not every golden face deserves trust.'
+          : 'Too many false coins reached the royal chest. Judgment must look deeper than the surface.',
         ...reward,
       })
     }
 
-    const sort = (realChoice: boolean) => {
-      const current = coins[index]
-      if (realChoice === current.real) {
-        correct += 1
-        score += 60
-        clueText.setColor('#72ff9b')
-      } else {
-        mistakes += 1
-        clueText.setColor('#ff7770')
-        this.scene.cameras.main.shake(120, 0.003)
-      }
+    const nextCoin = () => {
+      coinIndex += 1
 
-      index += 1
-      if (index >= coins.length || mistakes >= 3) {
-        this.schedule(420, finish)
+      if (coinIndex >= coins.length || mistakes >= 3) {
+        finish()
         return
       }
 
-      this.schedule(420, () => {
-        clueText.setColor('#ffd966')
-        render()
-      })
+      toolsUsed = 0
+      currentCoin = coins[coinIndex]
+      isResolving = false
+      clearInspectionObjects()
+      createCoinVisual()
+      renderButtons()
+      updateHud()
+      status.setText('Use up to 2 visual tools, then judge the coin.')
     }
 
-    this.createButton({ x: width / 2 - 130, y: bottom - 82, width: 210, height: 58, label: 'ROYAL COIN', color: 0x27633a, onClick: () => sort(true) })
-    this.createButton({ x: width / 2 + 130, y: bottom - 82, width: 210, height: 58, label: 'COUNTERFEIT', color: 0x7a2c22, onClick: () => sort(false) })
+    const judgeCoin = (choiceReal: boolean) => {
+      if (isResolving || this.resultLocked) return
+      isResolving = true
 
-    render()
+      setLocalButtonsEnabled(toolButtons, false)
+      setLocalButtonsEnabled(judgeButtons, false)
+      clearInspectionObjects()
+
+      const correct = choiceReal === currentCoin.real
+      if (correct) {
+        score += 120 + (2 - toolsUsed) * 25
+        status.setText('Correct.')
+        status.setColor('#72ff9b')
+      } else {
+        mistakes += 1
+        status.setText('Wrong.')
+        status.setColor('#ff7770')
+        this.scene.cameras.main.shake(160, 0.004)
+      }
+
+      updateHud()
+
+      if (currentCoinGroup) {
+        const targetX = choiceReal ? royalChest.x : fakePot.x
+        const targetY = choiceReal ? royalChest.y - 14 : fakePot.y - 14
+
+        this.addTween({
+          targets: currentCoinGroup,
+          x: targetX,
+          y: targetY,
+          scaleX: 0.58,
+          scaleY: 0.58,
+          angle: correct ? 360 : -120,
+          duration: 620,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            if (correct) {
+              const glow = addInspectionObject(this.scene.add.circle(targetX, targetY, 48, 0x72ff9b, 0.2))
+              glow.setStrokeStyle(3, 0x72ff9b, 0.75)
+              this.addTween({
+                targets: glow,
+                scaleX: 1.3,
+                scaleY: 1.3,
+                alpha: 0,
+                duration: 420,
+                ease: 'Sine.easeOut',
+              })
+            } else {
+              const flash = addInspectionObject(this.scene.add.text(targetX, targetY, '!', {
+                fontFamily: 'Georgia',
+                fontSize: '34px',
+                color: '#ff7770',
+                stroke: '#000000',
+                strokeThickness: 5,
+                fontStyle: 'bold',
+              }))
+              flash.setOrigin(0.5)
+              this.addTween({
+                targets: flash,
+                scaleX: 1.35,
+                scaleY: 1.35,
+                alpha: 0,
+                duration: 420,
+                ease: 'Sine.easeOut',
+              })
+            }
+
+            this.schedule(540, () => {
+              status.setColor('#ffd966')
+              nextCoin()
+            })
+          },
+        })
+      }
+    }
+
+    const renderButtons = () => {
+      destroyLocalButtons(toolButtons)
+      destroyLocalButtons(judgeButtons)
+      toolButtons = []
+      judgeButtons = []
+
+      const toolGap = 9
+      const toolWidth = 92
+      const toolStartX = width / 2 - ((toolWidth + toolGap) * (tools.length - 1)) / 2
+
+      toolButtons = tools.map((tool, index) =>
+        createLocalButton({
+          x: toolStartX + index * (toolWidth + toolGap),
+          y: bottom - 96,
+          width: toolWidth,
+          height: 58,
+          icon: tool.icon,
+          label: tool.label,
+          color: tool.color,
+          onClick: () => useTool(tool.id),
+        }),
+      )
+
+      judgeButtons = [
+        createLocalButton({
+          x: width / 2 - 178,
+          y: bottom - 44,
+          width: 154,
+          height: 42,
+          icon: '♕',
+          label: 'ROYAL',
+          color: 0x27633a,
+          onClick: () => judgeCoin(true),
+        }),
+        createLocalButton({
+          x: width / 2 + 178,
+          y: bottom - 44,
+          width: 154,
+          height: 42,
+          icon: '✕',
+          label: 'FAKE',
+          color: 0x7a2c22,
+          onClick: () => judgeCoin(false),
+        }),
+      ]
+    }
+
+    this.runtimeCleanups.push(() => {
+      clearInspectionObjects()
+      destroyCoin()
+      destroyLocalButtons(toolButtons)
+      destroyLocalButtons(judgeButtons)
+    })
+
+    currentCoin = coins[coinIndex]
+    updateHud()
+    createCoinVisual()
+    renderButtons()
+    status.setText('Use up to 2 visual tools, then judge the coin.')
   }
 
   // ---------------------------------------------------------------------------
