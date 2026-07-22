@@ -1449,7 +1449,7 @@ private createCandleOfRa() {
     let score = 0
     let remainingMs = 0
     let choiceTimer: Phaser.Time.TimerEvent | undefined
-    let currentObstacle: Phaser.GameObjects.Image | Phaser.GameObjects.Text | undefined
+    let currentObstacle: Phaser.GameObjects.Container | undefined
     let currentFeedback: Phaser.GameObjects.GameObject[] = []
     let actionButtonContainers: Phaser.GameObjects.Container[] = []
     let actionButtonBgs: Partial<Record<CandleAction, Phaser.GameObjects.Rectangle>> = {}
@@ -1492,7 +1492,7 @@ private createCandleOfRa() {
 
     const pathLine = this.scene.add.rectangle(
       gameplayX,
-      pathY + 24,
+      pathY -6,
       pathEndX - pathStartX,
       5,
       0xd4af37,
@@ -1570,7 +1570,7 @@ private createCandleOfRa() {
     }
 
     checkpointXs.forEach((x, index) => {
-      const container = this.scene.add.container(x, pathY + 24)
+      const container = this.scene.add.container(x, pathY -6)
       const circle = createFallbackMarker(index === checkpoints.length - 1 ? 'final' : 'inactive')
       const number = this.scene.add.text(0, -1, String(index + 1), {
         fontFamily: 'Georgia',
@@ -1614,7 +1614,7 @@ private createCandleOfRa() {
 
     const gameplayMessage = this.scene.add.text(
       gameplayX - gameplayWidth / 2 + 18,
-      stageTop + 56,
+      stageTop + 26,
       '',
       {
         fontFamily: 'Georgia',
@@ -2068,53 +2068,242 @@ private createCandleOfRa() {
 
     const showObstacle = (checkpoint: CandleCheckpoint) => {
       clearObstacle()
-
+    
       const key = firstExistingTexture(checkpoint.obstacleKeys)
-      const obstacleX = checkpoint.id === 'altar' ? checkpointXs[checkpointIndex] + 56 : playerGroup.x + 84
-      const obstacleY = checkpoint.id === 'altar' ? playerY - 10 : playerY - 52
-
+    
+      const obstacleX =
+        checkpoint.id === 'altar'
+          ? checkpointXs[checkpointIndex] + 60
+          : playerGroup.x + 92
+    
+          const obstacleY =
+          checkpoint.id === 'altar'
+            ? playerY - 82
+            : playerY - 48
+    
+      const hazard = this.scene.add.container(obstacleX, obstacleY)
+      this.addObject(hazard)
+      currentObstacle = hazard
+    
+      // Dark shadow under the hazard.
+      const shadow = this.scene.add.ellipse(
+        0,
+        46,
+        checkpoint.id === 'altar' ? 118 : 96,
+        25,
+        0x000000,
+        0.5,
+      )
+    
+      // // Dangerous glowing area.
+      // const dangerGlow = this.scene.add.circle(
+      //   0,
+      //   0,
+      //   checkpoint.id === 'altar' ? 62 : 49,
+      //   checkpoint.id === 'ghost' ? 0x4da8c7 : 0xff5a24,
+      //   0.14,
+      // )
+    
+      // const dangerRing = this.scene.add.circle(
+      //   0,
+      //   0,
+      //   checkpoint.id === 'altar' ? 70 : 57,
+      //   0x000000,
+      //   0,
+      // )
+    
+      // dangerRing.setStrokeStyle(
+      //   4,
+      //   checkpoint.id === 'ghost' ? 0x70e6ff : 0xff7a32,
+      //   0.85,
+      // )
+    
+      // // Red danger strip on the floor.
+      // const dangerZone = this.scene.add.rectangle(
+      //   0,
+      //   49,
+      //   checkpoint.id === 'altar' ? 130 : 106,
+      //   8,
+      //   0xff4a22,
+      //   0.55,
+      // )
+    
+      // hazard.add([shadow, dangerGlow, dangerRing, dangerZone])
+    
+      const pieces: Phaser.GameObjects.GameObject[] = []
+    
+      const createImagePiece = (
+        x: number,
+        y: number,
+        size: number,
+        alpha = 1,
+      ) => {
+        if (!key) return
+    
+        const image = this.scene.add.image(x, y, key)
+        image.setDisplaySize(size, size)
+        image.setAlpha(alpha)
+    
+        hazard.add(image)
+        pieces.push(image)
+    
+        return image
+      }
+    
       if (key) {
-        const obstacle = this.scene.add.image(obstacleX, obstacleY, key)
-        const size = checkpoint.id === 'altar' ? 124 : checkpoint.id === 'ghost' ? 100 : 92
-        obstacle.setDisplaySize(size, size)
-        obstacle.setAlpha(0.92)
-        this.addObject(obstacle)
-        currentObstacle = obstacle
-
+        if (checkpoint.id === 'wind') {
+          // Several gusts moving directly toward the player.
+          createImagePiece(12, 0, 98, 1)
+          createImagePiece(50, -25, 70, 0.72)
+          createImagePiece(44, 28, 62, 0.55)
+          createImagePiece(-18, -18, 56, 0.5)
+        } else if (checkpoint.id === 'dust') {
+          // Thick layered dust cloud.
+          createImagePiece(0, 0, 108, 0.95)
+          createImagePiece(44, -17, 82, 0.72)
+          createImagePiece(-35, 24, 72, 0.58)
+          createImagePiece(18, 34, 64, 0.48)
+        } else if (checkpoint.id === 'ghost') {
+          // Large ghost with two smaller spirits.
+          createImagePiece(0, -5, 112, 1)
+          createImagePiece(-48, 18, 64, 0.48)
+          createImagePiece(48, -20, 70, 0.56)
+        } else if (checkpoint.id === 'weak') {
+          // Darkness closing around the candle.
+          createImagePiece(0, 0, 105, 0.92)
+          createImagePiece(-38, -18, 68, 0.44)
+          createImagePiece(42, 20, 74, 0.5)
+        } else {
+          // Sun Altar: one clear floating image.
+          createImagePiece(0, 0, 112, 1)
+        }
+      } else {
+        const fallback =
+          checkpoint.id === 'wind'
+            ? '〰〰'
+            : checkpoint.id === 'dust'
+              ? '☁☁'
+              : checkpoint.id === 'ghost'
+                ? '☠'
+                : checkpoint.id === 'weak'
+                  ? '◉'
+                  : '☀'
+    
+        const fallbackObstacle = this.scene.add.text(0, 0, fallback, {
+          fontFamily: 'Georgia',
+          fontSize: checkpoint.id === 'ghost' ? '70px' : '62px',
+          color:
+            checkpoint.id === 'ghost'
+              ? '#8eefff'
+              : checkpoint.id === 'weak'
+                ? '#8d73c7'
+                : '#ffe09a',
+          stroke: '#000000',
+          strokeThickness: 7,
+          fontStyle: 'bold',
+        })
+    
+        fallbackObstacle.setOrigin(0.5)
+        hazard.add(fallbackObstacle)
+        pieces.push(fallbackObstacle)
+      }
+    
+      // // Warning symbol.
+      // const warningBg = this.scene.add.circle(
+      //   0,
+      //   -75,
+      //   19,
+      //   0x7b1712,
+      //   0.96,
+      // )
+      // warningBg.setStrokeStyle(3, 0xffd966, 1)
+    
+      // const warningText = this.scene.add.text(0, -76, '!', {
+      //   fontFamily: 'Arial',
+      //   fontSize: '25px',
+      //   color: '#fff1a8',
+      //   stroke: '#000000',
+      //   strokeThickness: 4,
+      //   fontStyle: 'bold',
+      // })
+      // warningText.setOrigin(0.5)
+    
+      // hazard.add([warningBg, warningText])
+    
+      // // Main danger pulse.
+      // this.addTween({
+      //   targets: dangerGlow,
+      //   scaleX: 1.4,
+      //   scaleY: 1.4,
+      //   alpha: 0.04,
+      //   duration: 380,
+      //   yoyo: true,
+      //   repeat: -1,
+      //   ease: 'Sine.easeInOut',
+      // })
+    
+      // this.addTween({
+      //   targets: dangerRing,
+      //   scaleX: 1.18,
+      //   scaleY: 1.18,
+      //   alpha: 0.25,
+      //   duration: 440,
+      //   yoyo: true,
+      //   repeat: -1,
+      //   ease: 'Sine.easeInOut',
+      // })
+    
+      // this.addTween({
+      //   targets: [warningBg, warningText],
+      //   scaleX: 1.2,
+      //   scaleY: 1.2,
+      //   duration: 240,
+      //   yoyo: true,
+      //   repeat: -1,
+      //   ease: 'Sine.easeInOut',
+      // })
+    
+     // Aggressive movement for hazards, but not for the Sun Altar.
+if (checkpoint.id !== 'altar') {
+  pieces.forEach((piece, index) => {
+    this.addTween({
+      targets: piece,
+      x: index % 2 === 0 ? '-=16' : '+=12',
+      y: index % 2 === 0 ? '-=7' : '+=8',
+      angle: index % 2 === 0 ? -5 : 5,
+      duration: 260 + index * 70,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  })
+}
+    
+      // The whole danger moves toward the player and retreats.
+      if (checkpoint.id !== 'altar') {
         this.addTween({
-          targets: obstacle,
-          y: obstacle.y - 8,
-          alpha: checkpoint.id === 'altar' ? 1 : 0.65,
-          duration: 560,
+          targets: hazard,
+          x: obstacleX - 18,
+          duration: 420,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut',
         })
       } else {
-        const fallback =
-          checkpoint.id === 'wind'
-            ? '〰'
-            : checkpoint.id === 'dust'
-              ? '☁'
-              : checkpoint.id === 'ghost'
-                ? '☠'
-                : checkpoint.id === 'weak'
-                  ? '◔'
-                  : '☀'
-
-        const obstacle = this.scene.add.text(obstacleX, obstacleY, fallback, {
-          fontFamily: 'Georgia',
-          fontSize: '54px',
-          color: '#ffe7a3',
-          stroke: '#000000',
-          strokeThickness: 6,
-          fontStyle: 'bold',
+        this.addTween({
+          targets: hazard,
+          scaleX: 0.86,
+          scaleY: 0.86,
+          duration: 1800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
         })
-        obstacle.setOrigin(0.5)
-        this.addObject(obstacle)
-        currentObstacle = obstacle
       }
-
+    
+      // Small impact when the threat appears.
+      this.scene.cameras.main.shake(90, 0.0018)
+    
       if (checkpoint.id === 'weak') {
         setFlameState('tiny')
       } else {
