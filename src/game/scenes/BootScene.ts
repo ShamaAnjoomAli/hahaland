@@ -53,6 +53,14 @@ const AUDIO: AudioAsset[] = [
     key: 'cutscene-theme',
     paths: ['assets/audio/sfx/cutscene-theme.mp3'],
   },
+  {
+    key: 'false-gold-sound-good',
+    paths: ['assets/minigames/temple_false_gold/sound_coin_good.wav'],
+  },
+  {
+    key: 'false-gold-sound-bad',
+    paths: ['assets/minigames/temple_false_gold/sound_coin_bad.wav'],
+  },
 ]
 
 const TILEMAPS: TilemapAsset[] = [
@@ -98,46 +106,6 @@ const IMAGES: ImageAsset[] = [
   {
     key: 'temple-truth-round-5',
     path: 'assets/minigames/temple_truth/truth_round_5.png',
-  },
-  {
-    key: 'temple-truth-pair-1-left',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-1-left.png',
-  },
-  {
-    key: 'temple-truth-pair-1-right',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-1-right.png',
-  },
-  {
-    key: 'temple-truth-pair-2-left',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-2-left.png',
-  },
-  {
-    key: 'temple-truth-pair-2-right',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-2-right.png',
-  },
-  {
-    key: 'temple-truth-pair-3-left',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-3-left.png',
-  },
-  {
-    key: 'temple-truth-pair-3-right',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-3-right.png',
-  },
-  {
-    key: 'temple-truth-pair-4-left',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-4-left.png',
-  },
-  {
-    key: 'temple-truth-pair-4-right',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-4-right.png',
-  },
-  {
-    key: 'temple-truth-pair-5-left',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-5-left.png',
-  },
-  {
-    key: 'temple-truth-pair-5-right',
-    path: 'assets/minigames/temple_truth/temple-truth-pair-5-right.png',
   },
   {
     key: 'candle-ra-path-bg',
@@ -502,6 +470,14 @@ const IMAGES: ImageAsset[] = [
   {
     key: 'false-gold-fx-bad-sound-crack',
     path: 'assets/minigames/temple_false_gold/fx_bad_sound_crack.png',
+  },
+  {
+    key: 'false-gold-tool-sound-hammer-emblem',
+    path: 'assets/minigames/temple_false_gold/tool_sound_hammer_emblem.png',
+  },
+  {
+    key: 'false-gold-tool-sound-coin-waves',
+    path: 'assets/minigames/temple_false_gold/tool_sound_coin_waves.png',
   },
   {
     key: 'badge-fake-hotel',
