@@ -418,7 +418,7 @@ export default class TempleScene extends Phaser.Scene {
         targets: glow,
         scaleX: 1.18,
         scaleY: 1.18,
-        alpha: 0.06,
+        alpha: 0.05,
         duration: 1100,
         yoyo: true,
         repeat: -1,
@@ -1199,22 +1199,70 @@ export default class TempleScene extends Phaser.Scene {
 
   private refreshTrialMarkers() {
     const nextTrial = this.getNextTrial()
-
+  
     this.trialMarkers.forEach((objects, trialId) => {
       const completed = this.completedTempleTrials.has(trialId)
       const isNext = nextTrial?.id === trialId
       const visible = this.templeIntroComplete && (completed || isNext)
-
+  
+      const glow = objects[0] as Phaser.GameObjects.Arc
+      const ring = objects[1] as Phaser.GameObjects.Arc
+      const symbol = objects[2] as Phaser.GameObjects.Text
+      const labelBg = objects[3] as Phaser.GameObjects.Rectangle
+      const label = objects[4] as Phaser.GameObjects.Text
+  
+      // Keep completed trials fully visible.
       objects.forEach((obj) => {
         obj.setVisible(visible)
         obj.setActive(visible)
-        obj.setAlpha(completed ? 0.45 : 1)
+        obj.setAlpha(completed ? 0.6 : 1)
       })
+  
+      if (!visible) return
+  
+      if (completed) {
+        // Achieved appearance: teal glow, strong gold ring and check mark.
+        glow.setFillStyle(0x2bbfae, 0.28)
+  
+        ring.setStrokeStyle(5, 0xffd966, 1)
+  
+        symbol
+          .setText('✓')
+          .setColor('#72ffb0')
+          .setFontSize(25)
+  
+        labelBg.setFillStyle(0x123f3b, 0.97)
+        labelBg.setStrokeStyle(3, 0xffd966, 1)
+  
+        label
+          .setText(`✓ ${TRIAL_LABELS[trialId]}`)
+          .setColor('#fff3b0')
+      } else {
+        // Normal appearance for the current unfinished trial.
+        glow.setFillStyle(0xd4af37, 0.14)
+  
+        ring.setStrokeStyle(3, 0xd4af37, 0.85)
+  
+        symbol
+          .setText('◆')
+          .setColor('#ffe7a3')
+          .setFontSize(22)
+  
+        labelBg.setFillStyle(0x241408, 0.92)
+        labelBg.setStrokeStyle(2, 0xd4af37, 1)
+  
+        label
+          .setText(TRIAL_LABELS[trialId])
+          .setColor('#ffe7a3')
+      }
     })
-
-    this.pyramidExitMarker?.setVisible(this.completedTempleTrials.size >= TEMPLE_TRIALS.length)
-    this.pyramidExitMarker?.setActive(this.completedTempleTrials.size >= TEMPLE_TRIALS.length)
-
+  
+    const templeCompleted =
+      this.completedTempleTrials.size >= TEMPLE_TRIALS.length
+  
+    this.pyramidExitMarker?.setVisible(templeCompleted)
+    this.pyramidExitMarker?.setActive(templeCompleted)
+  
     this.updateQuestTargetMarker()
     this.updateMinimap()
   }
