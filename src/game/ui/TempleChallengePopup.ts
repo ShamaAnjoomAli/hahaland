@@ -1177,14 +1177,21 @@ private createCandleOfRa() {
       const repeats: Record<string, number> = {
         idle: -1,
         walk: -1,
-        cover: 0,
-        shield: 0,
-        bell: 0,
-        oil: 0,
-        raise: 0,
+        // Correct action animations should be visible, so they run 3 times total.
+        cover: 2,
+        shield: 2,
+        bell: 2,
+        oil: 2,
+        raise: 2,
         fail: 0,
-        success: 0,
+        success: 1,
       }
+
+
+      rowNames.forEach((rowName) => {
+        const key = `candle-player-${rowName}`
+        if (this.scene.anims.exists(key)) this.scene.anims.remove(key)
+      })
 
       if (individualPlayerFramesReady()) {
         rowNames.forEach((rowName) => {
@@ -1218,13 +1225,13 @@ private createCandleOfRa() {
 
       create('candle-player-idle', 0, 3, 4, -1)
       create('candle-player-walk', 4, 7, 7, -1)
-      create('candle-player-cover', 8, 11, 7, 0)
-      create('candle-player-shield', 12, 15, 7, 0)
-      create('candle-player-bell', 16, 19, 7, 0)
-      create('candle-player-oil', 20, 23, 7, 0)
-      create('candle-player-raise', 24, 27, 6, 0)
+      create('candle-player-cover', 8, 11, 7, 2)
+      create('candle-player-shield', 12, 15, 7, 2)
+      create('candle-player-bell', 16, 19, 7, 2)
+      create('candle-player-oil', 20, 23, 7, 2)
+      create('candle-player-raise', 24, 27, 6, 2)
       create('candle-player-fail', 28, 31, 8, 0)
-      create('candle-player-success', 32, 35, 5, 0)
+      create('candle-player-success', 32, 35, 5, 1)
     }
 
     ensureCandlePlayerAnimations()
@@ -1755,7 +1762,8 @@ private createCandleOfRa() {
 
       if (key) {
         const fx = this.scene.add.image(playerGroup.x + 34, playerGroup.y - 36, key)
-        fx.setDisplaySize(success ? 108 : 94, success ? 108 : 94)
+        const effectSize = success ? 62 : 78
+        fx.setDisplaySize(effectSize, effectSize)
         fx.setAlpha(0.92)
         this.addObject(fx)
         currentFeedback.push(fx)
@@ -2063,7 +2071,7 @@ private createCandleOfRa() {
 
       if (checkpointIndex >= checkpoints.length) {
         playPlayerAnimation('candle-player-success', true)
-        showEffectAtPlayer(['candle-ra-fx-success-glow', 'candle-ra-fx-correct-sparkle'], '✦', true)
+        showEffectAtPlayer(['candle-ra-fx-correct-sparkle', 'candle-ra-fx-success-glow'], '✦', true)
         gameplayMessage.setText('The Flame Seal awakens.')
         finishTrial(true)
         return
@@ -2111,14 +2119,12 @@ private createCandleOfRa() {
         score += 130 + Math.ceil(remainingMs / 100)
         playPlayerAnimation(checkpoint.actionAnim, true)
         gameplayMessage.setText(checkpoint.successText)
-        showEffectAtPlayer(['candle-ra-fx-candle-saved', 'candle-ra-fx-correct-sparkle', 'candle-ra-fx-success-glow'], '✓', true)
-
         if (checkpoint.id === 'weak') {
           updateFlameFromHearts()
         }
 
         if (checkpoint.id === 'altar') {
-          showEffectAtPlayer(['candle-ra-fx-success-glow', 'candle-ra-fx-correct-sparkle'], '☀', true)
+          showEffectAtPlayer(['candle-ra-fx-correct-sparkle', 'candle-ra-fx-success-glow'], '☀', true)
         }
 
         if (currentObstacle) {
@@ -2137,8 +2143,8 @@ private createCandleOfRa() {
         }
 
         updateStatus()
-        this.schedule(1250, () => playPlayerAnimation('candle-player-idle', true))
-        this.schedule(1650, advanceAfterSuccess)
+        this.schedule(2250, () => playPlayerAnimation('candle-player-idle', true))
+        this.schedule(2550, advanceAfterSuccess)
         return
       }
 
