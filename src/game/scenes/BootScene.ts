@@ -100,6 +100,302 @@ const IMAGES: ImageAsset[] = [
     path: 'assets/minigames/temple_truth/truth_round_5.png',
   },
   {
+    key: 'candle-ra-path-bg',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_path_bg.png',
+  },
+  {
+    key: 'candle-ra-candle',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_candle.png',
+  },
+  {
+    key: 'candle-ra-icon-cover',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_icon_cover.png',
+  },
+  {
+    key: 'candle-ra-icon-shield',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_icon_shield.png',
+  },
+  {
+    key: 'candle-ra-icon-bell',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_icon_bell.png',
+  },
+  {
+    key: 'candle-ra-icon-oil',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_icon_oil.png',
+  },
+  {
+    key: 'candle-ra-icon-raise',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_icon_raise.png',
+  },
+  {
+    key: 'candle-ra-obstacle-wind',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_obstacle_wind.png',
+  },
+  {
+    key: 'candle-ra-obstacle-dust',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_obstacle_dust.png',
+  },
+  {
+    key: 'candle-ra-obstacle-ghost',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_obstacle_ghost.png',
+  },
+  {
+    key: 'candle-ra-obstacle-altar',
+    path: 'assets/minigames/temple_candle_ra/candle_ra_obstacle_altar.png',
+  },
+  {
+    key: 'candle-ra-corridor-bg',
+    path: 'assets/minigames/temple_candle_ra/candle_corridor_bg.png',
+  },
+  {
+    key: 'candle-player-idle-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_idle_0.png',
+  },
+  {
+    key: 'candle-player-idle-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_idle_1.png',
+  },
+  {
+    key: 'candle-player-idle-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_idle_2.png',
+  },
+  {
+    key: 'candle-player-idle-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_idle_3.png',
+  },
+  {
+    key: 'candle-player-walk-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_walk_0.png',
+  },
+  {
+    key: 'candle-player-walk-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_walk_1.png',
+  },
+  {
+    key: 'candle-player-walk-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_walk_2.png',
+  },
+  {
+    key: 'candle-player-walk-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_walk_3.png',
+  },
+  {
+    key: 'candle-player-cover-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_cover_0.png',
+  },
+  {
+    key: 'candle-player-cover-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_cover_1.png',
+  },
+  {
+    key: 'candle-player-cover-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_cover_2.png',
+  },
+  {
+    key: 'candle-player-cover-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_cover_3.png',
+  },
+  {
+    key: 'candle-player-shield-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_shield_0.png',
+  },
+  {
+    key: 'candle-player-shield-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_shield_1.png',
+  },
+  {
+    key: 'candle-player-shield-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_shield_2.png',
+  },
+  {
+    key: 'candle-player-shield-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_shield_3.png',
+  },
+  {
+    key: 'candle-player-bell-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_bell_0.png',
+  },
+  {
+    key: 'candle-player-bell-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_bell_1.png',
+  },
+  {
+    key: 'candle-player-bell-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_bell_2.png',
+  },
+  {
+    key: 'candle-player-bell-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_bell_3.png',
+  },
+  {
+    key: 'candle-player-oil-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_oil_0.png',
+  },
+  {
+    key: 'candle-player-oil-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_oil_1.png',
+  },
+  {
+    key: 'candle-player-oil-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_oil_2.png',
+  },
+  {
+    key: 'candle-player-oil-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_oil_3.png',
+  },
+  {
+    key: 'candle-player-raise-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_raise_0.png',
+  },
+  {
+    key: 'candle-player-raise-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_raise_1.png',
+  },
+  {
+    key: 'candle-player-raise-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_raise_2.png',
+  },
+  {
+    key: 'candle-player-raise-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_raise_3.png',
+  },
+  {
+    key: 'candle-player-fail-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_fail_0.png',
+  },
+  {
+    key: 'candle-player-fail-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_fail_1.png',
+  },
+  {
+    key: 'candle-player-fail-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_fail_2.png',
+  },
+  {
+    key: 'candle-player-fail-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_fail_3.png',
+  },
+  {
+    key: 'candle-player-success-0',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_success_0.png',
+  },
+  {
+    key: 'candle-player-success-1',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_success_1.png',
+  },
+  {
+    key: 'candle-player-success-2',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_success_2.png',
+  },
+  {
+    key: 'candle-player-success-3',
+    path: 'assets/minigames/temple_candle_ra/player_frames/candle_player_success_3.png',
+  },
+  {
+    key: 'candle-ra-flame-full',
+    path: 'assets/minigames/temple_candle_ra/flame_full.png',
+  },
+  {
+    key: 'candle-ra-flame-medium',
+    path: 'assets/minigames/temple_candle_ra/flame_medium.png',
+  },
+  {
+    key: 'candle-ra-flame-low',
+    path: 'assets/minigames/temple_candle_ra/flame_low.png',
+  },
+  {
+    key: 'candle-ra-flame-tiny',
+    path: 'assets/minigames/temple_candle_ra/flame_tiny.png',
+  },
+  {
+    key: 'candle-ra-flame-extinguished',
+    path: 'assets/minigames/temple_candle_ra/flame_extinguished.png',
+  },
+  {
+    key: 'candle-ra-obstacle-wind-new',
+    path: 'assets/minigames/temple_candle_ra/obstacle_wind.png',
+  },
+  {
+    key: 'candle-ra-obstacle-ghost-new',
+    path: 'assets/minigames/temple_candle_ra/obstacle_ghost.png',
+  },
+  {
+    key: 'candle-ra-obstacle-dust-new',
+    path: 'assets/minigames/temple_candle_ra/obstacle_dust.png',
+  },
+  {
+    key: 'candle-ra-obstacle-shadow',
+    path: 'assets/minigames/temple_candle_ra/obstacle_shadow.png',
+  },
+  {
+    key: 'candle-ra-obstacle-sparks',
+    path: 'assets/minigames/temple_candle_ra/obstacle_sparks.png',
+  },
+  {
+    key: 'candle-ra-action-cover',
+    path: 'assets/minigames/temple_candle_ra/icon_cover.png',
+  },
+  {
+    key: 'candle-ra-action-shield',
+    path: 'assets/minigames/temple_candle_ra/icon_shield.png',
+  },
+  {
+    key: 'candle-ra-action-bell',
+    path: 'assets/minigames/temple_candle_ra/icon_bell.png',
+  },
+  {
+    key: 'candle-ra-action-oil',
+    path: 'assets/minigames/temple_candle_ra/icon_oil.png',
+  },
+  {
+    key: 'candle-ra-action-raise',
+    path: 'assets/minigames/temple_candle_ra/icon_raise.png',
+  },
+  {
+    key: 'candle-ra-checkpoint-inactive',
+    path: 'assets/minigames/temple_candle_ra/checkpoint_inactive.png',
+  },
+  {
+    key: 'candle-ra-checkpoint-current',
+    path: 'assets/minigames/temple_candle_ra/checkpoint_current.png',
+  },
+  {
+    key: 'candle-ra-checkpoint-completed',
+    path: 'assets/minigames/temple_candle_ra/checkpoint_completed.png',
+  },
+  {
+    key: 'candle-ra-checkpoint-failed',
+    path: 'assets/minigames/temple_candle_ra/checkpoint_failed.png',
+  },
+  {
+    key: 'candle-ra-checkpoint-final',
+    path: 'assets/minigames/temple_candle_ra/checkpoint_final.png',
+  },
+  {
+    key: 'candle-ra-fx-success-glow',
+    path: 'assets/minigames/temple_candle_ra/fx_success_glow.png',
+  },
+  {
+    key: 'candle-ra-fx-correct-sparkle',
+    path: 'assets/minigames/temple_candle_ra/fx_correct_sparkle.png',
+  },
+  {
+    key: 'candle-ra-fx-failure-smoke',
+    path: 'assets/minigames/temple_candle_ra/fx_failure_smoke.png',
+  },
+  {
+    key: 'candle-ra-fx-candle-saved',
+    path: 'assets/minigames/temple_candle_ra/fx_candle_saved.png',
+  },
+  {
+    key: 'candle-ra-fx-candle-damaged',
+    path: 'assets/minigames/temple_candle_ra/fx_candle_damaged.png',
+  },
+  {
+    key: 'candle-ra-altar-goal',
+    path: 'assets/minigames/temple_candle_ra/sun_altar_goal.png',
+  },
+  {
     key: 'badge-fake-hotel',
     path: 'assets/ui/badges/badge_fake_hotel.png',
   },
@@ -170,6 +466,12 @@ const IMAGES: ImageAsset[] = [
 ]
 
 const SPRITESHEETS: SpriteSheetAsset[] = [
+  {
+    key: 'candle-ra-player',
+    path: 'assets/minigames/temple_candle_ra/candle_player_sheet.png',
+    frameWidth: 256,
+    frameHeight: 256,
+  },
   {
     key: 'player',
     path: 'assets/sprites/player/player.png',
