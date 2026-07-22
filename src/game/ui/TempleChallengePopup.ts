@@ -704,478 +704,659 @@ export default class TempleChallengePopup {
   }
 
   // ---------------------------------------------------------------------------
-  // 1. GATE OF TRUTH
+  // 1. GATE OF TRUTH — FIND THE MISSING RELICS
   // ---------------------------------------------------------------------------
   private createGateOfTruth() {
     const width = this.scene.scale.width
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    type TruthRound = {
-      title: string
-      imageKey: string
-      watchLine: string
-      question: string
-      tablets: [string, string, string]
-      correctIndex: number
-      truthReaction: string
+    type DifferenceSpot = {
+      id: string
+      label: string
+      x: number
+      y: number
+      radius: number
     }
 
+    type TruthRound = {
+      title: string
+      leftImageKey: string
+      rightImageKey: string
+      differences: DifferenceSpot[]
+    }
+
+    /*
+     * Difference coordinates are normalized to each image:
+     * x: 0 = left edge, 1 = right edge
+     * y: 0 = top edge, 1 = bottom edge
+     *
+     * Keep these coordinates when creating the matching image pairs.
+     */
     const rounds: TruthRound[] = [
       {
-        title: 'Round 1 — The Golden Scarab',
-        imageKey: 'temple-truth-round-1',
-        watchLine: 'Look for the candles, vases, statues, chest, and golden scarab.',
-        question: 'Which tablet tells the truth?',
-        tablets: [
-          'There are three burning candles.',
-          'The blue vase is on the right side.',
-          'There are no jackal statues.',
+        title: 'Round 1 — Chamber of Scarabs',
+        leftImageKey: 'temple-truth-pair-1-left',
+        rightImageKey: 'temple-truth-pair-1-right',
+        differences: [
+          {
+            id: 'floor-scarab',
+            label: 'Floor scarab',
+            x: 0.365,
+            y: 0.76,
+            radius: 0.125,
+          },
+          {
+            id: 'blue-vase',
+            label: 'Blue ceremonial vase',
+            x: 0.79,
+            y: 0.73,
+            radius: 0.125,
+          },
         ],
-        correctIndex: 0,
-        truthReaction: 'Correct. Three candles were burning in the chamber.',
       },
       {
-        title: 'Round 2 — The Twin Scarabs',
-        imageKey: 'temple-truth-round-2',
-        watchLine: 'Look for the two floor scarabs, the jars, and the wall torches.',
-        question: 'Which tablet tells the truth?',
-        tablets: [
-          'Two golden scarabs sit on the floor.',
-          'The green jar is on the left side.',
-          'There are no stone tablets on the wall.',
+        title: 'Round 2 — Hall of Guardians',
+        leftImageKey: 'temple-truth-pair-2-left',
+        rightImageKey: 'temple-truth-pair-2-right',
+        differences: [
+          {
+            id: 'treasure-chest',
+            label: 'Guardian treasure chest',
+            x: 0.16,
+            y: 0.77,
+            radius: 0.13,
+          },
+          {
+            id: 'blue-offering-jar',
+            label: 'Blue offering jar',
+            x: 0.69,
+            y: 0.69,
+            radius: 0.125,
+          },
         ],
-        correctIndex: 0,
-        truthReaction: 'Correct. Two golden scarabs were on the floor.',
       },
       {
-        title: 'Round 3 — The Bowl of Light',
-        imageKey: 'temple-truth-round-3',
-        watchLine: 'Look for the cat statue, coin stack, blue vase, and golden bowl.',
-        question: 'Choose the true tablet.',
-        tablets: [
-          'A black cat statue is near the front right.',
-          'The coin stack is on the left side.',
-          'The blue vase is on the right side.',
+        title: 'Round 3 — Sacred Scribe Room',
+        leftImageKey: 'temple-truth-pair-3-left',
+        rightImageKey: 'temple-truth-pair-3-right',
+        differences: [
+          {
+            id: 'falcon-statue',
+            label: 'Falcon guardian',
+            x: 0.16,
+            y: 0.70,
+            radius: 0.125,
+          },
+          {
+            id: 'large-vase',
+            label: 'Large ceremonial vase',
+            x: 0.84,
+            y: 0.68,
+            radius: 0.125,
+          },
+          {
+            id: 'right-wall-torch',
+            label: 'Right wall torch',
+            x: 0.84,
+            y: 0.35,
+            radius: 0.11,
+          },
         ],
-        correctIndex: 0,
-        truthReaction: 'Correct. The black cat statue guarded the front-right step.',
       },
       {
-        title: 'Round 4 — The Eye Floor',
-        imageKey: 'temple-truth-round-4',
-        watchLine: 'Look for the chest, purple vase, fire bowls, and Eye symbol.',
-        question: 'Which statement is true?',
-        tablets: [
-          'The treasure chest is on the left side.',
-          'The purple vase is on the left side.',
-          'There are no fire bowls in the chamber.',
+        title: 'Round 4 — Treasury of the Sun',
+        leftImageKey: 'temple-truth-pair-4-left',
+        rightImageKey: 'temple-truth-pair-4-right',
+        differences: [
+          {
+            id: 'coin-pile',
+            label: 'Golden coin pile',
+            x: 0.18,
+            y: 0.74,
+            radius: 0.13,
+          },
+          {
+            id: 'treasury-vase',
+            label: 'Blue treasury vase',
+            x: 0.79,
+            y: 0.69,
+            radius: 0.125,
+          },
+          {
+            id: 'anubis-statue',
+            label: 'Anubis guardian statue',
+            x: 0.95,
+            y: 0.78,
+            radius: 0.13,
+          },
         ],
-        correctIndex: 0,
-        truthReaction: 'Correct. The treasure chest was on the left side.',
       },
       {
-        title: 'Round 5 — Final Judgment',
-        imageKey: 'temple-truth-round-5',
-        watchLine: 'Final round. Remember the red vase, blue vase, chest, and scarabs.',
-        question: 'Only one tablet is true. Which one?',
-        tablets: [
-          'The red vase is on the left side.',
-          'The blue vase is on the left side.',
-          'There are no scarabs on the floor.',
+        title: 'Round 5 — Sanctuary of Ra',
+        leftImageKey: 'temple-truth-pair-5-left',
+        rightImageKey: 'temple-truth-pair-5-right',
+        differences: [
+          {
+            id: 'corridor-vase',
+            label: 'Blue corridor vase',
+            x: 0.18,
+            y: 0.80,
+            radius: 0.13,
+          },
+          {
+            id: 'cat-statue',
+            label: 'Sacred cat statue',
+            x: 0.86,
+            y: 0.80,
+            radius: 0.135,
+          },
+          {
+            id: 'offering-bowl',
+            label: 'Golden offering bowl',
+            x: 0.73,
+            y: 0.54,
+            radius: 0.115,
+          },
         ],
-        correctIndex: 0,
-        truthReaction: 'Correct. The red vase was on the left side.',
       },
     ]
 
     this.addTitle(TRIAL_TITLES['truth-gate'])
     this.addInstruction(
-      'Observe the chamber for 8 seconds. Then the image will disappear and three stone tablets will appear.',
-      top + 86,
+      'Find every missing relic. Tap the changed spot in either temple image.',
+      top + 84,
     )
 
     let roundIndex = 0
     let hearts = 3
     let score = 0
-    let answerButtons: ButtonHandle[] = []
-    let phaseObjects: Phaser.GameObjects.GameObject[] = []
-    let countdownTimer: Phaser.Time.TimerEvent | undefined
+    let wrongTaps = 0
+    let remainingMs = 30000
+    let roundLocked = false
+    let roundTimer: Phaser.Time.TimerEvent | undefined
+    let roundObjects: Phaser.GameObjects.GameObject[] = []
+    let foundIds = new Set<string>()
 
-    const gateHudWidth = this.panelWidth - 82
-    const gateHudGap = 9
-    const gateHudCardWidth = (gateHudWidth - gateHudGap * 2) / 3
-    const gateHudStartX = width / 2 - gateHudWidth / 2 + gateHudCardWidth / 2
-    const gateHudY = top + 127
+    const hudWidth = this.panelWidth - 82
+    const hudGap = 6
+    const hudCardWidth = (hudWidth - hudGap * 4) / 5
+    const hudStartX = width / 2 - hudWidth / 2 + hudCardWidth / 2
+    const hudY = top + 126
 
     const roundHud = this.createCompactHudCard({
-      x: gateHudStartX,
-      y: gateHudY,
-      width: gateHudCardWidth,
+      x: hudStartX,
+      y: hudY,
+      width: hudCardWidth,
       label: 'ROUND',
       bandColor: 0x245d78,
     })
+
     const livesHud = this.createCompactHudCard({
-      x: gateHudStartX + gateHudCardWidth + gateHudGap,
-      y: gateHudY,
-      width: gateHudCardWidth,
+      x: hudStartX + hudCardWidth + hudGap,
+      y: hudY,
+      width: hudCardWidth,
       label: 'LIVES',
       bandColor: 0x8f2d2d,
       valueColor: '#8f2d2d',
     })
+
+    const foundHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 2,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'FOUND',
+      bandColor: 0x27633a,
+      valueColor: '#27633a',
+    })
+
     const scoreHud = this.createCompactHudCard({
-      x: gateHudStartX + (gateHudCardWidth + gateHudGap) * 2,
-      y: gateHudY,
-      width: gateHudCardWidth,
+      x: hudStartX + (hudCardWidth + hudGap) * 3,
+      y: hudY,
+      width: hudCardWidth,
       label: 'SCORE',
       bandColor: 0x8b6b1f,
     })
 
-    const titleY = top + 164
-    const visualTop = top + 192
-    const buttonHeight = 72
-    const buttonY = bottom - 76
-    const buttonTop = buttonY - buttonHeight / 2
-    const statusY = buttonTop - 20
+    const timerHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 4,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'TIME',
+      bandColor: 0x8f2d2d,
+      showProgress: true,
+    })
 
-    // Place the observation hint near the bottom of the popup,
-// completely below the chamber artwork.
-const captionY = bottom - 38
-const imageBottom = captionY - 30
-const imageWidth = this.panelWidth - 72
-const imageHeight = Math.max(150, imageBottom - visualTop)
-    const imageX = width / 2
-    const imageY = visualTop + imageHeight / 2
+    const roundTitleY = top + 163
+    const imageLabelY = top + 186
+    const imageTop = top + 198
 
-    const imageFrame = this.scene.add.rectangle(
-      imageX,
-      imageY,
-      imageWidth + 10,
-      imageHeight + 10,
-      0x0f0802,
-      1,
+    // Use more of the empty lower area for the comparison images.
+    const statusY = bottom - 30
+    const imageBottom = statusY - 16
+    const imageGap = 10
+
+    // Smaller outer margins make both images visibly larger.
+    const maxImageWidth = (this.panelWidth - 34 - imageGap) / 2
+    const maxImageHeight = Math.max(170, imageBottom - imageTop)
+    const imageWidth = Math.min(maxImageWidth, maxImageHeight * (4 / 3))
+    const imageHeight = imageWidth * (3 / 4)
+    const imageY = imageTop + imageHeight / 2
+    const leftImageX = width / 2 - imageGap / 2 - imageWidth / 2
+    const rightImageX = width / 2 + imageGap / 2 + imageWidth / 2
+
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 96,
+      34,
+      0x211107,
+      0.96,
     )
-    imageFrame.setStrokeStyle(4, 0xd4af37, 1)
-    this.addObject(imageFrame)
+    statusPanel.setStrokeStyle(2, 0xd4af37, 0.8)
+    this.addObject(statusPanel)
 
     const status = this.addStatusText('', statusY, '#ffd966')
+    status.setFontSize(14)
 
-    const addPhaseObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+    const addRoundObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
       this.addObject(object)
-      phaseObjects.push(object)
+      roundObjects.push(object)
       return object
     }
 
-    const destroyPhaseObjects = () => {
-      countdownTimer?.remove(false)
-      countdownTimer = undefined
+    const clearRoundTimer = () => {
+      roundTimer?.remove(false)
+      roundTimer = undefined
+    }
 
-      answerButtons.forEach((button) => button.destroy())
-      answerButtons = []
-
-      phaseObjects.forEach((object) => {
+    const clearRoundObjects = () => {
+      roundObjects.forEach((object) => {
         if (object.active) object.destroy()
       })
-      phaseObjects = []
+      roundObjects = []
     }
 
-    const setHud = () => {
+    const getCurrentRound = () => rounds[roundIndex]
+
+    const updateTimerHud = () => {
+      const ratio = Phaser.Math.Clamp(remainingMs / 30000, 0, 1)
+      timerHud.setValue(`${Math.max(0, Math.ceil(remainingMs / 1000))}s`)
+      timerHud.setProgress(ratio, ratio <= 0.25)
+    }
+
+    const updateHud = () => {
+      const round = getCurrentRound()
       roundHud.setValue(`${roundIndex + 1} / ${rounds.length}`)
       livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
+      foundHud.setValue(`${foundIds.size} / ${round.differences.length}`)
       scoreHud.setValue(String(score))
+      updateTimerHud()
     }
 
-    const createLargeObservationImage = (round: TruthRound) => {
-      const hasTexture = this.scene.textures.exists(round.imageKey)
+    const finishTrial = (success: boolean) => {
+      if (roundLocked && !success) return
 
-      if (!hasTexture) {
-        const fallback = addPhaseObject(
+      roundLocked = true
+      clearRoundTimer()
+
+      const reward = this.baseReward('truth-gate', success, score)
+
+      this.complete(
+        {
+          trialId: 'truth-gate',
+          success,
+          response: success
+            ? 'You discovered every relic the altered chambers tried to hide. A ruler must notice what others overlook.'
+            : 'The temple concealed too many relics. Return with a calmer eye and search the chambers again.',
+          ...reward,
+        },
+        success ? 1050 : 750,
+      )
+    }
+
+    const showWrongTapEffect = (x: number, y: number) => {
+      const mark = addRoundObject(
+        this.scene.add.text(x, y, '×', {
+          fontFamily: 'Arial',
+          fontSize: '34px',
+          color: '#ff7770',
+          stroke: '#000000',
+          strokeThickness: 5,
+          fontStyle: 'bold',
+        }),
+      )
+      mark.setOrigin(0.5)
+
+      this.addTween({
+        targets: mark,
+        scaleX: 1.28,
+        scaleY: 1.28,
+        alpha: 0,
+        y: mark.y - 10,
+        duration: 460,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          if (mark.active) mark.destroy()
+          roundObjects = roundObjects.filter((object) => object !== mark)
+        },
+      })
+    }
+
+    const showFoundMarker = (spot: DifferenceSpot) => {
+      const markerPositions = [leftImageX, rightImageX].map((imageX) => ({
+        x: imageX - imageWidth / 2 + spot.x * imageWidth,
+        y: imageY - imageHeight / 2 + spot.y * imageHeight,
+      }))
+
+      markerPositions.forEach((position, index) => {
+        const ring = addRoundObject(
+          this.scene.add.circle(position.x, position.y, 18, 0x236d3a, 0.28),
+        )
+        ring.setStrokeStyle(4, 0xffd966, 1)
+        ring.setScale(0.35)
+
+        const check = addRoundObject(
+          this.scene.add.text(position.x, position.y - 1, '✓', {
+            fontFamily: 'Georgia',
+            fontSize: '18px',
+            color: '#72ff9b',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold',
+          }),
+        )
+        check.setOrigin(0.5)
+        check.setScale(0.35)
+
+        this.addTween({
+          targets: [ring, check],
+          scaleX: 1,
+          scaleY: 1,
+          duration: 300,
+          delay: index * 70,
+          ease: 'Back.easeOut',
+        })
+      })
+
+      const sparkle = addRoundObject(
+        this.scene.add.text(
+          rightImageX - imageWidth / 2 + spot.x * imageWidth,
+          imageY - imageHeight / 2 + spot.y * imageHeight - 24,
+          '✦',
+          {
+            fontFamily: 'Georgia',
+            fontSize: '22px',
+            color: '#ffd966',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold',
+          },
+        ),
+      )
+      sparkle.setOrigin(0.5)
+
+      this.addTween({
+        targets: sparkle,
+        y: sparkle.y - 18,
+        alpha: 0,
+        duration: 620,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          if (sparkle.active) sparkle.destroy()
+          roundObjects = roundObjects.filter((object) => object !== sparkle)
+        },
+      })
+    }
+
+    const completeRound = () => {
+      if (roundLocked) return
+
+      roundLocked = true
+      clearRoundTimer()
+
+      const timeBonus = Math.max(0, Math.ceil(remainingMs / 100))
+      score += 150 + timeBonus
+      updateHud()
+
+      status.setText('All missing relics found!')
+      status.setColor('#72ff9b')
+
+      if (roundIndex >= rounds.length - 1) {
+        this.schedule(950, () => finishTrial(true))
+        return
+      }
+
+      this.schedule(1050, () => {
+        roundIndex += 1
+        renderRound()
+      })
+    }
+
+    const handleImageTap = (
+      imageX: number,
+      hitZoneLocalX: number,
+      hitZoneLocalY: number,
+    ) => {
+      if (roundLocked || this.resultLocked) return
+
+      // Local hit-zone coordinates stay correct when the canvas or camera scales.
+      const localX = Phaser.Math.Clamp(hitZoneLocalX / imageWidth, 0, 1)
+      const localY = Phaser.Math.Clamp(hitZoneLocalY / imageHeight, 0, 1)
+      const tappedX = imageX - imageWidth / 2 + localX * imageWidth
+      const tappedY = imageY - imageHeight / 2 + localY * imageHeight
+
+      const round = getCurrentRound()
+      const spot = round.differences.find((difference) => {
+        if (foundIds.has(difference.id)) return false
+
+        const dx = localX - difference.x
+        const dy = localY - difference.y
+        return Math.sqrt(dx * dx + dy * dy) <= difference.radius
+      })
+
+      if (spot) {
+        foundIds.add(spot.id)
+        wrongTaps = 0
+
+        const speedBonus = Math.max(0, Math.floor(remainingMs / 1000))
+        score += 100 + speedBonus
+
+        showFoundMarker(spot)
+        status.setText(`Found: ${spot.label}`)
+        status.setColor('#72ff9b')
+        updateHud()
+
+        this.scene.cameras.main.shake(55, 0.0007)
+
+        if (foundIds.size >= round.differences.length) {
+          completeRound()
+        } else {
+          this.schedule(420, () => {
+            if (!roundLocked) status.setColor('#ffd966')
+          })
+        }
+        return
+      }
+
+      wrongTaps += 1
+      score = Math.max(0, score - 15)
+      remainingMs = Math.max(0, remainingMs - 1500)
+
+      showWrongTapEffect(tappedX, tappedY)
+      this.scene.cameras.main.shake(90, 0.0025)
+
+      if (wrongTaps >= 3) {
+        wrongTaps = 0
+        hearts -= 1
+
+        status.setText('Three wrong taps cost one life. Search carefully.')
+        status.setColor('#ff7770')
+
+        if (hearts <= 0) {
+          updateHud()
+          finishTrial(false)
+          return
+        }
+      } else {
+        status.setText(`${3 - wrongTaps} careful tap${3 - wrongTaps === 1 ? '' : 's'} before a life is lost.`)
+        status.setColor('#ffbd63')
+      }
+
+      updateHud()
+
+      this.schedule(500, () => {
+        if (!roundLocked) status.setColor('#ffd966')
+      })
+    }
+
+    const addPairImage = (
+      imageKey: string,
+      imageX: number,
+      labelValue: string,
+    ) => {
+      const frame = addRoundObject(
+        this.scene.add.rectangle(
+          imageX,
+          imageY,
+          imageWidth + 8,
+          imageHeight + 8,
+          0x0f0802,
+          1,
+        ),
+      )
+      frame.setStrokeStyle(4, 0xd4af37, 1)
+
+      const labelBg = addRoundObject(
+        this.scene.add.rectangle(imageX, imageLabelY, 126, 24, 0x3c2209, 0.98),
+      )
+      labelBg.setStrokeStyle(2, 0xd4af37, 0.9)
+
+      const label = addRoundObject(
+        this.scene.add.text(imageX, imageLabelY, labelValue, {
+          fontFamily: 'Georgia',
+          fontSize: '11px',
+          color: '#ffe7a3',
+          stroke: '#000000',
+          strokeThickness: 3,
+          fontStyle: 'bold',
+        }),
+      )
+      label.setOrigin(0.5)
+
+      if (this.scene.textures.exists(imageKey)) {
+        const image = addRoundObject(this.scene.add.image(imageX, imageY, imageKey))
+        image.setDisplaySize(imageWidth, imageHeight)
+      } else {
+        const fallback = addRoundObject(
           this.scene.add.rectangle(imageX, imageY, imageWidth, imageHeight, 0x241507, 1),
         )
         fallback.setStrokeStyle(2, 0x8f5b20, 1)
 
-        const fallbackText = addPhaseObject(
-          this.scene.add.text(imageX, imageY, `Missing image asset\n${round.imageKey}`, {
+        const missingText = addRoundObject(
+          this.scene.add.text(imageX, imageY, `Missing image asset\n${imageKey}`, {
             fontFamily: 'Georgia',
-            fontSize: '18px',
+            fontSize: '15px',
             color: '#ffd966',
             stroke: '#000000',
             strokeThickness: 4,
             align: 'center',
+            wordWrap: { width: imageWidth - 28 },
           }),
         )
-        fallbackText.setOrigin(0.5)
-        return
+        missingText.setOrigin(0.5)
       }
 
-      const image = addPhaseObject(this.scene.add.image(imageX, imageY, round.imageKey))
-      const source = this.scene.textures.get(round.imageKey).getSourceImage() as HTMLImageElement
-      const sourceWidth = source.width || image.width || 1
-      const sourceHeight = source.height || image.height || 1
-      const scale = Math.min(imageWidth / sourceWidth, imageHeight / sourceHeight)
-
-      image.setDisplaySize(sourceWidth * scale, sourceHeight * scale)
-
-      // Keep the hint BELOW the image, not on top of it.
-      const captionBg = addPhaseObject(
-        this.scene.add.rectangle(
-          imageX,
-          captionY,
-          imageWidth - 36,
-          34,
-          0x120a04,
-          0.92,
-        ),
+      const hitZone = addRoundObject(
+        this.scene.add.rectangle(imageX, imageY, imageWidth, imageHeight, 0xffffff, 0.001),
       )
-      captionBg.setStrokeStyle(2, 0xd4af37, 0.75)
-
-      const caption = addPhaseObject(
-        this.scene.add.text(imageX, captionY, round.watchLine, {
-          fontFamily: 'Georgia',
-          fontSize: '14px',
-          color: '#fff7cf',
-          stroke: '#000000',
-          strokeThickness: 4,
-          fontStyle: 'bold',
-          align: 'center',
-          wordWrap: { width: imageWidth - 78, useAdvancedWrap: true },
-        }),
-      )
-      caption.setOrigin(0.5)
-    }
-
-    const showObservation = () => {
-      destroyPhaseObjects()
-      setHud()
-
-      const round = rounds[roundIndex]
-      status.setText('OBSERVE CAREFULLY...')
-      status.setColor('#ffd966')
-
-      const roundTitle = addPhaseObject(
-        this.scene.add.text(imageX, titleY, round.title, {
-          fontFamily: 'Georgia',
-          fontSize: '18px',
-          color: '#ffe7a3',
-          stroke: '#000000',
-          strokeThickness: 4,
-          fontStyle: 'bold',
-          align: 'center',
-        }),
-      )
-      roundTitle.setOrigin(0.5)
-
-      createLargeObservationImage(round)
-
-      const countdownBg = addPhaseObject(
-        this.scene.add.circle(
-          imageX + imageWidth / 2 - 42,
-          imageY - imageHeight / 2 + 42,
-          28,
-          0x120a04,
-          0.9,
-        ),
-      )
-      countdownBg.setStrokeStyle(3, 0xffd966, 0.95)
-
-      const countdownText = addPhaseObject(
-        this.scene.add.text(countdownBg.x, countdownBg.y, '8', {
-          fontFamily: 'Georgia',
-          fontSize: '28px',
-          color: '#fff7cf',
-          stroke: '#000000',
-          strokeThickness: 5,
-          fontStyle: 'bold',
-        }),
-      )
-      countdownText.setOrigin(0.5)
-
-      this.addTween({
-        targets: countdownBg,
-        scaleX: 1.12,
-        scaleY: 1.12,
-        alpha: 0.72,
-        duration: 520,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      })
-
-      let secondsLeft = 8
-
-      countdownTimer = this.addLoop(1000, () => {
-        secondsLeft -= 1
-        countdownText.setText(String(Math.max(0, secondsLeft)))
-
-        this.addTween({
-          targets: countdownText,
-          scaleX: 1.25,
-          scaleY: 1.25,
-          duration: 130,
-          yoyo: true,
-          ease: 'Sine.easeOut',
-        })
-
-        if (secondsLeft <= 0) {
-          countdownTimer?.remove(false)
-          countdownTimer = undefined
-          showQuestion()
-        }
-      })
-    }
-
-    const showQuestion = () => {
-      // Fully remove the observation image before showing answers.
-      destroyPhaseObjects()
-      setHud()
-
-      const round = rounds[roundIndex]
-
-      const roundTitle = addPhaseObject(
-        this.scene.add.text(imageX, titleY, round.title, {
-          fontFamily: 'Georgia',
-          fontSize: '18px',
-          color: '#ffe7a3',
-          stroke: '#000000',
-          strokeThickness: 4,
-          fontStyle: 'bold',
-          align: 'center',
-        }),
-      )
-      roundTitle.setOrigin(0.5)
-
-      const questionPanel = addPhaseObject(
-        this.scene.add.rectangle(imageX, imageY, imageWidth, imageHeight, 0x120a04, 0.98),
-      )
-      questionPanel.setStrokeStyle(3, 0xd4af37, 1)
-
-      const hiddenIcon = addPhaseObject(
-        this.scene.add.text(imageX, imageY - 62, '𓂀', {
-          fontFamily: 'Georgia',
-          fontSize: '46px',
-          color: '#ffd966',
-          stroke: '#000000',
-          strokeThickness: 6,
-          fontStyle: 'bold',
-        }),
-      )
-      hiddenIcon.setOrigin(0.5)
-
-      const question = addPhaseObject(
-        this.scene.add.text(imageX, imageY - 8, round.question, {
-          fontFamily: 'Georgia',
-          fontSize: '21px',
-          color: '#ffe7a3',
-          stroke: '#000000',
-          strokeThickness: 5,
-          fontStyle: 'bold',
-          align: 'center',
-          wordWrap: { width: imageWidth - 90, useAdvancedWrap: true },
-        }),
-      )
-      question.setOrigin(0.5)
-
-      const hint = addPhaseObject(
-        this.scene.add.text(imageX, imageY + 58, 'The chamber is hidden. Choose the one true memory.', {
-          fontFamily: 'Georgia',
-          fontSize: '15px',
-          color: '#ffffff',
-          stroke: '#000000',
-          strokeThickness: 4,
-          align: 'center',
-          wordWrap: { width: imageWidth - 90, useAdvancedWrap: true },
-        }),
-      )
-      hint.setOrigin(0.5)
-
-      this.addTween({
-        targets: [hiddenIcon, question, hint],
-        alpha: { from: 0, to: 1 },
-        y: '-=6',
-        duration: 320,
-        ease: 'Sine.easeOut',
-      })
-
-      status.setText('Choose the truthful tablet.')
-      status.setColor('#ffd966')
-
-      const gap = 10
-      const buttonWidth = Math.min(215, (this.panelWidth - 94 - gap * 2) / 3)
-      const xs = [
-        width / 2 - buttonWidth - gap,
-        width / 2,
-        width / 2 + buttonWidth + gap,
-      ]
-
-      answerButtons = round.tablets.map((label, index) =>
-        this.createButton({
-          x: xs[index],
-          y: buttonY,
-          width: buttonWidth,
-          height: buttonHeight,
-          label,
-          fontSize: 12,
-          color: 0x4d2d10,
-          onClick: () => choose(index),
-        }),
+      hitZone.setInteractive({ useHandCursor: true })
+      hitZone.on(
+        'pointerdown',
+        (
+          _pointer: Phaser.Input.Pointer,
+          localX: number,
+          localY: number,
+        ) => {
+          handleImageTap(imageX, localX, localY)
+        },
       )
     }
 
-    const choose = (index: number) => {
-      const round = rounds[roundIndex]
-      answerButtons.forEach((button) => button.setEnabled(false))
+    const startRoundTimer = () => {
+      clearRoundTimer()
+      remainingMs = 30000
+      updateTimerHud()
 
-      if (index === round.correctIndex) {
-        score += 120 + roundIndex * 35
-        status.setText(round.truthReaction)
-        status.setColor('#72ff9b')
-        this.scene.cameras.main.shake(80, 0.0012)
+      roundTimer = this.addLoop(100, () => {
+        if (roundLocked) return
 
-        if (roundIndex >= rounds.length - 1) {
-          const reward = this.baseReward('truth-gate', true, score)
-          this.complete(
-            {
-              trialId: 'truth-gate',
-              success: true,
-              response:
-                'You saw truth through noise and lies. A ruler must observe before judging, and remember before choosing.',
-              ...reward,
-            },
-            1050,
-          )
+        remainingMs -= 100
+        updateTimerHud()
+
+        if (remainingMs > 0) return
+
+        hearts -= 1
+        updateHud()
+
+        if (hearts <= 0) {
+          status.setText('Time is gone. The chamber seals itself.')
+          status.setColor('#ff7770')
+          finishTrial(false)
           return
         }
 
-        roundIndex += 1
-        this.schedule(1150, showObservation)
-        return
-      }
-
-      hearts -= 1
-      status.setText('That tablet lied. The chamber rejects careless judgment.')
-      status.setColor('#ff7770')
-      setHud()
-      this.scene.cameras.main.shake(170, 0.004)
-
-      if (hearts <= 0) {
-        const reward = this.baseReward('truth-gate', false, score)
-        this.complete(
-          {
-            trialId: 'truth-gate',
-            success: false,
-            response:
-              'The temple does not punish mistakes. It punishes blindness. Observe again and return sharper.',
-            ...reward,
-          },
-          1000,
-        )
-        return
-      }
-
-      this.schedule(1050, showObservation)
+        remainingMs = 15000
+        status.setText('Time expired. One life lost — 15 seconds restored.')
+        status.setColor('#ffbd63')
+        updateHud()
+      })
     }
 
-    showObservation()
+    const renderRound = () => {
+      clearRoundTimer()
+      clearRoundObjects()
+
+      foundIds = new Set<string>()
+      wrongTaps = 0
+      remainingMs = 30000
+      roundLocked = false
+
+      const round = getCurrentRound()
+
+      const roundTitle = addRoundObject(
+        this.scene.add.text(width / 2, roundTitleY, round.title, {
+          fontFamily: 'Georgia',
+          fontSize: '18px',
+          color: '#ffe7a3',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+          align: 'center',
+        }),
+      )
+      roundTitle.setOrigin(0.5)
+
+      addPairImage(round.leftImageKey, leftImageX, 'ORIGINAL')
+      addPairImage(round.rightImageKey, rightImageX, 'ALTERED')
+
+      status.setText(
+        `Tap the ${round.differences.length} changed or missing relic${
+          round.differences.length === 1 ? '' : 's'
+        }.`,
+      )
+      status.setColor('#ffd966')
+
+      updateHud()
+      startRoundTimer()
+    }
+
+    this.runtimeCleanups.push(() => {
+      clearRoundTimer()
+      clearRoundObjects()
+    })
+
+    renderRound()
   }
 
   // ---------------------------------------------------------------------------
@@ -2980,6 +3161,7 @@ if (checkpoint.id !== 'altar') {
     type CoinVisualTrait = 'good' | 'bad'
     type CoinCase = {
       real: boolean
+      imageKey: string
       stamp: CoinVisualTrait
       weight: CoinVisualTrait
       sound: CoinVisualTrait
@@ -2997,34 +3179,110 @@ if (checkpoint.id !== 'altar') {
 
     this.addTitle(TRIAL_TITLES['false-gold'])
     this.addInstruction(
-      'Inspect the royal coin with visual tools. Use up to 2 tools, then choose where the coin belongs.',
+      'Inspect the coin with 2 visual tools, then send it to the royal chest or fake pot.',
       top + 88,
     )
 
-    const coins: CoinCase[] = Phaser.Utils.Array.Shuffle([
-      // Real coins can still have one suspicious-looking trait, so it is not too obvious.
-      { real: true, stamp: 'good', weight: 'good', sound: 'good', shine: 'bad', mark: '☀', tint: 0xffd966 },
-      { real: true, stamp: 'bad', weight: 'good', sound: 'good', shine: 'good', mark: '☀', tint: 0xf2c14d },
-      { real: true, stamp: 'good', weight: 'good', sound: 'bad', shine: 'good', mark: '𓆣', tint: 0xf6d46a },
-      { real: true, stamp: 'good', weight: 'bad', sound: 'good', shine: 'good', mark: '☀', tint: 0xe8bc42 },
+    const textureExists = (key: string) => this.scene.textures.exists(key)
+    const firstExistingTexture = (keys: string[]) => keys.find(textureExists)
 
-      // Fake coins can still pass one or two tests, making them feel trickier.
-      { real: false, stamp: 'bad', weight: 'bad', sound: 'good', shine: 'good', mark: '☾', tint: 0xd7b85d },
-      { real: false, stamp: 'good', weight: 'bad', sound: 'bad', shine: 'good', mark: '☀', tint: 0xf5d05c },
-      { real: false, stamp: 'bad', weight: 'good', sound: 'bad', shine: 'bad', mark: '?', tint: 0xcab36b },
-      { real: false, stamp: 'good', weight: 'good', sound: 'bad', shine: 'bad', mark: '☀', tint: 0xffdd76 },
+    const coins: CoinCase[] = Phaser.Utils.Array.Shuffle([
+      // Real coins are not always perfect. This keeps the judgment less obvious.
+      {
+        real: true,
+        imageKey: 'false-gold-real-coin-1',
+        stamp: 'good',
+        weight: 'good',
+        sound: 'good',
+        shine: 'bad',
+        mark: '𓆣',
+        tint: 0xffd966,
+      },
+      {
+        real: true,
+        imageKey: 'false-gold-real-coin-2',
+        stamp: 'good',
+        weight: 'good',
+        sound: 'bad',
+        shine: 'good',
+        mark: '☀',
+        tint: 0xf2c14d,
+      },
+      {
+        real: true,
+        imageKey: 'false-gold-real-coin-3',
+        stamp: 'bad',
+        weight: 'good',
+        sound: 'good',
+        shine: 'good',
+        mark: '𓋹',
+        tint: 0xf6d46a,
+      },
+      {
+        real: true,
+        imageKey: 'false-gold-real-coin-1',
+        stamp: 'good',
+        weight: 'bad',
+        sound: 'good',
+        shine: 'good',
+        mark: '𓆣',
+        tint: 0xe8bc42,
+      },
+
+      // Fake coins can pass some checks, but enough visual evidence exposes them.
+      {
+        real: false,
+        imageKey: 'false-gold-fake-coin-1',
+        stamp: 'bad',
+        weight: 'bad',
+        sound: 'good',
+        shine: 'good',
+        mark: '☾',
+        tint: 0xd7b85d,
+      },
+      {
+        real: false,
+        imageKey: 'false-gold-fake-coin-2',
+        stamp: 'good',
+        weight: 'bad',
+        sound: 'bad',
+        shine: 'good',
+        mark: '☀',
+        tint: 0xf5d05c,
+      },
+      {
+        real: false,
+        imageKey: 'false-gold-fake-coin-3',
+        stamp: 'bad',
+        weight: 'good',
+        sound: 'bad',
+        shine: 'bad',
+        mark: '𓋹',
+        tint: 0xcab36b,
+      },
+      {
+        real: false,
+        imageKey: 'false-gold-fake-coin-1',
+        stamp: 'good',
+        weight: 'good',
+        sound: 'bad',
+        shine: 'bad',
+        mark: '𓆣',
+        tint: 0xffdd76,
+      },
     ]).slice(0, 7)
 
     const tools: Array<{
       id: InspectTool
       label: string
       icon: string
+      imageKey: string
       color: number
     }> = [
-      { id: 'magnifier', label: 'MAGNIFY', icon: '⌕', color: 0x245d78 },
-      { id: 'scale', label: 'WEIGH', icon: '⚖', color: 0x5b3c88 },
-      { id: 'tap', label: 'TAP', icon: '◉', color: 0x7a4d19 },
-      { id: 'torch', label: 'TORCH', icon: '🔥', color: 0x8f2d2d },
+      { id: 'magnifier', label: 'MAGNIFY', icon: '⌕', imageKey: 'false-gold-tool-magnifier', color: 0x245d78 },
+      { id: 'scale', label: 'WEIGH', icon: '⚖', imageKey: 'false-gold-tool-scale', color: 0x5b3c88 },
+      { id: 'tap', label: 'TAP', icon: '◉', imageKey: 'false-gold-tool-tap-hammer', color: 0x7a4d19 },
+      { id: 'torch', label: 'TORCH', icon: '🔥', imageKey: 'false-gold-tool-torch', color: 0x8f2d2d },
     ]
 
     let coinIndex = 0
@@ -3077,16 +3335,29 @@ if (checkpoint.id !== 'altar') {
     const stationY = top + 288
     const stationWidth = this.panelWidth - 96
     const stationHeight = 250
+    const coinX = width / 2
+    const coinY = stationY + 20
 
     const station = this.scene.add.rectangle(width / 2, stationY, stationWidth, stationHeight, 0x211407, 1)
     station.setStrokeStyle(4, 0xd4af37, 1)
     this.addObject(station)
 
-    const table = this.scene.add.rectangle(width / 2, stationY + 64, stationWidth - 46, 70, 0x6d4218, 1)
-    table.setStrokeStyle(3, 0xb8862e, 1)
-    this.addObject(table)
+    const bgKey = firstExistingTexture(['false-gold-bg'])
+    if (bgKey) {
+      const bg = this.scene.add.image(width / 2, stationY, bgKey)
+      bg.setDisplaySize(stationWidth - 10, stationHeight - 10)
+      bg.setAlpha(0.76)
+      this.addObject(bg)
 
-    const royalChest = this.scene.add.rectangle(width / 2 - 240, stationY + 82, 120, 72, 0x236d3a, 1)
+      const bgShade = this.scene.add.rectangle(width / 2, stationY, stationWidth - 10, stationHeight - 10, 0x000000, 0.2)
+      this.addObject(bgShade)
+    } else {
+      const table = this.scene.add.rectangle(width / 2, stationY + 64, stationWidth - 46, 70, 0x6d4218, 1)
+      table.setStrokeStyle(3, 0xb8862e, 1)
+      this.addObject(table)
+    }
+
+    const royalChest = this.scene.add.rectangle(width / 2 - 240, stationY + 82, 120, 72, 0x236d3a, 0.94)
     royalChest.setStrokeStyle(4, 0xffd966, 1)
     const royalIcon = this.scene.add.text(royalChest.x, royalChest.y - 8, '♕', {
       fontFamily: 'Georgia',
@@ -3107,7 +3378,7 @@ if (checkpoint.id !== 'altar') {
     })
     royalLabel.setOrigin(0.5)
 
-    const fakePot = this.scene.add.rectangle(width / 2 + 240, stationY + 82, 120, 72, 0x7a2c22, 1)
+    const fakePot = this.scene.add.rectangle(width / 2 + 240, stationY + 82, 120, 72, 0x7a2c22, 0.94)
     fakePot.setStrokeStyle(4, 0xffbd63, 1)
     const fakeIcon = this.scene.add.text(fakePot.x, fakePot.y - 8, '✕', {
       fontFamily: 'Georgia',
@@ -3134,6 +3405,21 @@ if (checkpoint.id !== 'altar') {
     this.addObject(fakePot)
     this.addObject(fakeIcon)
     this.addObject(fakeLabel)
+
+    const coinSpot = this.scene.add.circle(coinX, coinY, 73, 0x0f0802, 0.56)
+    coinSpot.setStrokeStyle(3, 0xd4af37, 0.7)
+    this.addObject(coinSpot)
+
+    this.addTween({
+      targets: coinSpot,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      alpha: 0.35,
+      duration: 820,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
 
     const statusPanel = this.scene.add.rectangle(width / 2, bottom - 154, this.panelWidth - 118, 36, 0x211107, 0.92)
     statusPanel.setStrokeStyle(2, 0xd4af37, 0.72)
@@ -3175,12 +3461,95 @@ if (checkpoint.id !== 'altar') {
       buttons.forEach((button) => button.destroy())
     }
 
+    const addCoinImage = (
+      coin: CoinCase,
+      x: number,
+      y: number,
+      displaySize: number,
+    ) => {
+      if (textureExists(coin.imageKey)) {
+        const image = this.scene.add.image(x, y, coin.imageKey)
+        image.setDisplaySize(displaySize, displaySize)
+        return image
+      }
+
+      const fallback = this.scene.add.container(x, y)
+      const outer = this.scene.add.circle(0, 0, displaySize * 0.45, coin.tint, 1)
+      outer.setStrokeStyle(5, 0x8b5a2b, 1)
+      const inner = this.scene.add.circle(0, 0, displaySize * 0.32, 0xffe49a, 0.85)
+      inner.setStrokeStyle(3, 0xb8862e, 0.95)
+      const mark = this.scene.add.text(0, 0, coin.mark, {
+        fontFamily: 'Georgia',
+        fontSize: `${Math.round(displaySize * 0.28)}px`,
+        color: '#74420d',
+        stroke: '#fff2bc',
+        strokeThickness: 2,
+        fontStyle: 'bold',
+      })
+      mark.setOrigin(0.5)
+      mark.setRotation(coin.stamp === 'bad' ? Phaser.Math.DegToRad(13) : 0)
+      fallback.add([outer, inner, mark])
+      return fallback
+    }
+
+    const showFx = (
+      keys: string[],
+      x: number,
+      y: number,
+      size: number,
+      fallbackText: string,
+      success: boolean,
+    ) => {
+      const key = firstExistingTexture(keys)
+
+      if (key) {
+        const fx = addInspectionObject(this.scene.add.image(x, y, key))
+        fx.setDisplaySize(size, size)
+        fx.setAlpha(0.92)
+        this.addTween({
+          targets: fx,
+          scaleX: 1.24,
+          scaleY: 1.24,
+          alpha: 0,
+          duration: 650,
+          ease: 'Sine.easeOut',
+          onComplete: () => {
+            if (fx.active) fx.destroy()
+            inspectionObjects = inspectionObjects.filter((object) => object !== fx)
+          },
+        })
+        return
+      }
+
+      const textFx = addInspectionObject(this.scene.add.text(x, y, fallbackText, {
+        fontFamily: 'Georgia',
+        fontSize: '34px',
+        color: success ? '#72ff9b' : '#ff7770',
+        stroke: '#000000',
+        strokeThickness: 5,
+        fontStyle: 'bold',
+      }))
+      textFx.setOrigin(0.5)
+      this.addTween({
+        targets: textFx,
+        y: y - 18,
+        alpha: 0,
+        duration: 650,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          if (textFx.active) textFx.destroy()
+          inspectionObjects = inspectionObjects.filter((object) => object !== textFx)
+        },
+      })
+    }
+
     const createLocalButton = (config: {
       x: number
       y: number
       width: number
       height: number
       icon: string
+      imageKey?: string
       label: string
       color: number
       onClick: () => void
@@ -3192,19 +3561,27 @@ if (checkpoint.id !== 'altar') {
       bg.setStrokeStyle(3, 0xd4af37, 1)
       bg.setInteractive({ useHandCursor: true })
 
-      const icon = this.scene.add.text(0, -9, config.icon, {
-        fontFamily: 'Georgia',
-        fontSize: '24px',
-        color: '#ffe7a3',
-        stroke: '#000000',
-        strokeThickness: 4,
-        fontStyle: 'bold',
-      })
-      icon.setOrigin(0.5)
+      if (config.imageKey && textureExists(config.imageKey)) {
+        const iconImage = this.scene.add.image(0, -8, config.imageKey)
+        const iconSize = config.height >= 56 ? 44 : 30
+        iconImage.setDisplaySize(iconSize, iconSize)
+        container.add(iconImage)
+      } else {
+        const icon = this.scene.add.text(0, -9, config.icon, {
+          fontFamily: 'Georgia',
+          fontSize: '24px',
+          color: '#ffe7a3',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        })
+        icon.setOrigin(0.5)
+        container.add(icon)
+      }
 
-      const label = this.scene.add.text(0, 20, config.label, {
+      const label = this.scene.add.text(0, config.height >= 56 ? 22 : 10, config.label, {
         fontFamily: 'Georgia',
-        fontSize: '9px',
+        fontSize: config.height >= 56 ? '8px' : '10px',
         color: '#fff7cf',
         stroke: '#000000',
         strokeThickness: 2,
@@ -3213,7 +3590,8 @@ if (checkpoint.id !== 'altar') {
       })
       label.setOrigin(0.5)
 
-      container.add([bg, icon, label])
+      container.add([bg, label])
+      container.sendToBack(bg)
       this.addObject(container)
 
       const refresh = () => {
@@ -3266,39 +3644,30 @@ if (checkpoint.id !== 'altar') {
       destroyCoin()
 
       const coin = currentCoin
-      const coinGroup = this.scene.add.container(width / 2, stationY + 20)
+      const coinGroup = this.scene.add.container(coinX, coinY)
       this.addObject(coinGroup)
       currentCoinGroup = coinGroup
 
-      const shadow = this.scene.add.ellipse(0, 46, 112, 26, 0x000000, 0.34)
-      const outer = this.scene.add.circle(0, 0, 54, coin.tint, 1)
-      outer.setStrokeStyle(6, 0x8b5a2b, 1)
-      const inner = this.scene.add.circle(0, 0, 39, 0xffe49a, 0.85)
-      inner.setStrokeStyle(3, 0xb8862e, 0.95)
-
-      const mark = this.scene.add.text(0, 0, coin.mark, {
-        fontFamily: 'Georgia',
-        fontSize: '34px',
-        color: '#74420d',
-        stroke: '#fff2bc',
-        strokeThickness: 2,
-        fontStyle: 'bold',
-      })
-      mark.setOrigin(0.5)
-      mark.setRotation(coin.stamp === 'bad' ? Phaser.Math.DegToRad(13) : 0)
-
-      const scratch1 = this.scene.add.rectangle(-14, -18, 3, 24, 0x6d4218, coin.stamp === 'bad' ? 0.75 : 0.18)
-      scratch1.setRotation(0.78)
-      const scratch2 = this.scene.add.rectangle(21, 16, 3, 20, 0x6d4218, coin.shine === 'bad' ? 0.65 : 0.12)
-      scratch2.setRotation(-0.62)
-
-      coinGroup.add([shadow, outer, inner, scratch1, scratch2, mark])
+      const shadow = this.scene.add.ellipse(0, 56, 126, 28, 0x000000, 0.34)
+      const coinVisual = addCoinImage(coin, 0, 0, 118)
+      coinGroup.add([shadow, coinVisual])
+      coinGroup.setScale(0.72)
+      coinGroup.setAlpha(0)
 
       this.addTween({
         targets: coinGroup,
-        y: stationY + 14,
-        duration: 420,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 1,
+        duration: 360,
+        ease: 'Back.easeOut',
+      })
+      this.addTween({
+        targets: coinGroup,
+        y: coinY - 6,
+        duration: 760,
         yoyo: true,
+        repeat: -1,
         ease: 'Sine.easeInOut',
       })
     }
@@ -3307,27 +3676,38 @@ if (checkpoint.id !== 'altar') {
       if (!currentCoinGroup) return
       clearInspectionObjects()
 
-      const lens = addInspectionObject(this.scene.add.circle(width / 2 - 78, stationY - 34, 34, 0x9edff2, 0.2))
-      lens.setStrokeStyle(5, 0xd4af37, 1)
-      const handle = addInspectionObject(this.scene.add.rectangle(width / 2 - 48, stationY - 4, 12, 46, 0x6d4218, 1))
-      handle.setRotation(-0.72)
-      handle.setStrokeStyle(2, 0x3b220c, 1)
+      const magnifierKey = firstExistingTexture(['false-gold-tool-magnifier'])
+      const magnifier = magnifierKey
+        ? addInspectionObject(this.scene.add.image(coinX - 150, coinY - 84, magnifierKey))
+        : addInspectionObject(this.scene.add.text(coinX - 150, coinY - 84, '⌕', {
+            fontFamily: 'Georgia',
+            fontSize: '48px',
+            color: '#ffe7a3',
+            stroke: '#000000',
+            strokeThickness: 5,
+            fontStyle: 'bold',
+          }))
 
-      const zoom = addInspectionObject(this.scene.add.circle(width / 2 + 88, stationY - 36, 45, 0x221407, 1))
+      if ('setOrigin' in magnifier) {
+        ;(magnifier as Phaser.GameObjects.Image | Phaser.GameObjects.Text).setOrigin(0.5)
+      }
+      if (magnifier instanceof Phaser.GameObjects.Image) {
+        magnifier.setDisplaySize(96, 96)
+      }
+      magnifier.setAlpha(0)
+
+      const zoom = addInspectionObject(this.scene.add.circle(coinX + 108, coinY - 56, 48, 0x221407, 0.96))
       zoom.setStrokeStyle(4, trait === 'good' ? 0x72ff9b : 0xff7770, 1)
-      const symbol = addInspectionObject(this.scene.add.text(width / 2 + 88, stationY - 36, trait === 'good' ? '☀' : '☾', {
-        fontFamily: 'Georgia',
-        fontSize: '34px',
-        color: trait === 'good' ? '#ffe7a3' : '#ffbd63',
-        stroke: '#000000',
-        strokeThickness: 5,
-        fontStyle: 'bold',
-      }))
-      symbol.setOrigin(0.5)
-      symbol.setRotation(trait === 'good' ? 0 : Phaser.Math.DegToRad(18))
+      zoom.setScale(0.35)
+      zoom.setAlpha(0)
+
+      const zoomCoin = addInspectionObject(addCoinImage(currentCoin, coinX + 108, coinY - 56, 62))
+      zoomCoin.setScale(0.35)
+      zoomCoin.setAlpha(0)
+      zoomCoin.setRotation(trait === 'bad' ? Phaser.Math.DegToRad(13) : 0)
 
       if (trait === 'bad') {
-        const crack = addInspectionObject(this.scene.add.text(width / 2 + 119, stationY - 65, '⚡', {
+        const crack = addInspectionObject(this.scene.add.text(coinX + 145, coinY - 92, '⚡', {
           fontFamily: 'Georgia',
           fontSize: '26px',
           color: '#ff7770',
@@ -3337,162 +3717,245 @@ if (checkpoint.id !== 'altar') {
         }))
         crack.setOrigin(0.5)
         crack.setRotation(0.42)
+        crack.setAlpha(0)
+        this.addTween({ targets: crack, alpha: 1, scaleX: 1.25, scaleY: 1.25, duration: 220, delay: 310, yoyo: true })
       }
 
       this.addTween({
-        targets: [lens, handle, zoom, symbol],
-        alpha: { from: 0, to: 1 },
-        y: '-=8',
-        duration: 260,
+        targets: magnifier,
+        alpha: 1,
+        x: coinX - 54,
+        y: coinY - 38,
+        angle: 8,
+        duration: 370,
         ease: 'Sine.easeOut',
       })
+      this.addTween({
+        targets: [zoom, zoomCoin],
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 280,
+        delay: 260,
+        ease: 'Back.easeOut',
+      })
+      showFx(
+        trait === 'good'
+          ? ['false-gold-fx-correct-glow-1', 'false-gold-fx-correct-glow-2']
+          : ['false-gold-fx-fake-burst-1', 'false-gold-fx-fake-burst-2'],
+        coinX + 108,
+        coinY - 56,
+        trait === 'good' ? 98 : 104,
+        trait === 'good' ? '✓' : '!',
+        trait === 'good',
+      )
     }
 
     const showWeightResult = (trait: CoinVisualTrait) => {
       clearInspectionObjects()
 
-      const baseX = width / 2
-      const baseY = stationY - 14
-      const pole = addInspectionObject(this.scene.add.rectangle(baseX, baseY + 35, 8, 78, 0xd4af37, 1))
-      const beam = addInspectionObject(this.scene.add.rectangle(baseX, baseY, 180, 8, 0xd4af37, 1))
-      const leftPan = addInspectionObject(this.scene.add.ellipse(baseX - 70, baseY + 39, 62, 18, 0x3d250b, 1))
-      const rightPan = addInspectionObject(this.scene.add.ellipse(baseX + 70, baseY + 39, 62, 18, 0x3d250b, 1))
-      leftPan.setStrokeStyle(2, 0xffd966, 1)
-      rightPan.setStrokeStyle(2, 0xffd966, 1)
+      const scaleGroup = this.scene.add.container(coinX, coinY - 24)
+      addInspectionObject(scaleGroup)
 
-      const coinOnPan = addInspectionObject(this.scene.add.circle(baseX - 70, baseY + 22, 20, currentCoin.tint, 1))
-      coinOnPan.setStrokeStyle(3, 0x8b5a2b, 1)
+      const scaleKey = firstExistingTexture(['false-gold-tool-scale'])
+      if (scaleKey) {
+        const scale = this.scene.add.image(0, 0, scaleKey)
+        scale.setDisplaySize(214, 120)
+        scaleGroup.add(scale)
+      } else {
+        const pole = this.scene.add.rectangle(0, 36, 8, 78, 0xd4af37, 1)
+        const beam = this.scene.add.rectangle(0, 0, 180, 8, 0xd4af37, 1)
+        const leftPan = this.scene.add.ellipse(-70, 39, 62, 18, 0x3d250b, 1)
+        const rightPan = this.scene.add.ellipse(70, 39, 62, 18, 0x3d250b, 1)
+        leftPan.setStrokeStyle(2, 0xffd966, 1)
+        rightPan.setStrokeStyle(2, 0xffd966, 1)
+        scaleGroup.add([pole, beam, leftPan, rightPan])
+      }
 
-      const targetAngle = trait === 'good' ? 0 : Phaser.Math.DegToRad(13)
-      const resultGlow = addInspectionObject(
-        this.scene.add.circle(baseX + 112, baseY - 30, 22, trait === 'good' ? 0x236d3a : 0x7a1717, 0.95),
-      )
-      resultGlow.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, 1)
-      const resultIcon = addInspectionObject(this.scene.add.text(resultGlow.x, resultGlow.y - 1, trait === 'good' ? '✓' : '!', {
-        fontFamily: 'Georgia',
-        fontSize: '24px',
-        color: trait === 'good' ? '#72ff9b' : '#ffbd63',
-        stroke: '#000000',
-        strokeThickness: 4,
-        fontStyle: 'bold',
-      }))
-      resultIcon.setOrigin(0.5)
+      const coinOnPan = addCoinImage(currentCoin, -66, 18, 42)
+      scaleGroup.add(coinOnPan)
+      scaleGroup.setScale(0.55)
+      scaleGroup.setAlpha(0)
 
+      const targetAngle = trait === 'good' ? 0 : Phaser.Math.DegToRad(8)
       this.addTween({
-        targets: [beam, leftPan, rightPan, coinOnPan],
+        targets: scaleGroup,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 1,
+        duration: 260,
+        ease: 'Back.easeOut',
+      })
+      this.addTween({
+        targets: scaleGroup,
         angle: targetAngle,
-        duration: 340,
+        duration: 360,
         yoyo: trait === 'bad',
-        repeat: trait === 'bad' ? 1 : 0,
+        repeat: trait === 'bad' ? 2 : 0,
         ease: 'Sine.easeInOut',
       })
+
+      showFx(
+        trait === 'good'
+          ? ['false-gold-fx-correct-glow-1', 'false-gold-fx-correct-glow-2']
+          : ['false-gold-fx-fake-burst-1', 'false-gold-fx-fake-burst-2'],
+        coinX + 112,
+        coinY - 56,
+        94,
+        trait === 'good' ? '✓' : '!',
+        trait === 'good',
+      )
     }
 
     const showSoundResult = (trait: CoinVisualTrait) => {
       clearInspectionObjects()
 
-      const tapper = addInspectionObject(this.scene.add.text(width / 2 - 76, stationY - 58, '✦', {
-        fontFamily: 'Georgia',
-        fontSize: '32px',
-        color: '#ffe7a3',
-        stroke: '#000000',
-        strokeThickness: 5,
-        fontStyle: 'bold',
-      }))
-      tapper.setOrigin(0.5)
-
-      const rings: Phaser.GameObjects.Arc[] = []
-      for (let i = 0; i < 3; i += 1) {
-        const ring = addInspectionObject(this.scene.add.circle(width / 2, stationY + 20, 44 + i * 18, 0x000000, 0))
-        ring.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, 0.95 - i * 0.2)
-        rings.push(ring)
+      const hammerKey = firstExistingTexture(['false-gold-tool-tap-hammer'])
+      const hammer = hammerKey
+        ? addInspectionObject(this.scene.add.image(coinX - 86, coinY - 86, hammerKey))
+        : addInspectionObject(this.scene.add.text(coinX - 86, coinY - 86, '✦', {
+            fontFamily: 'Georgia',
+            fontSize: '42px',
+            color: '#ffe7a3',
+            stroke: '#000000',
+            strokeThickness: 5,
+            fontStyle: 'bold',
+          }))
+      if ('setOrigin' in hammer) {
+        ;(hammer as Phaser.GameObjects.Image | Phaser.GameObjects.Text).setOrigin(0.5)
       }
-
-      if (trait === 'bad') {
-        const jagged = addInspectionObject(this.scene.add.text(width / 2 + 86, stationY - 28, '≋ ✕ ≋', {
-          fontFamily: 'Georgia',
-          fontSize: '24px',
-          color: '#ff7770',
-          stroke: '#000000',
-          strokeThickness: 5,
-          fontStyle: 'bold',
-        }))
-        jagged.setOrigin(0.5)
-      } else {
-        const smooth = addInspectionObject(this.scene.add.text(width / 2 + 86, stationY - 28, '○ ○ ○', {
-          fontFamily: 'Georgia',
-          fontSize: '22px',
-          color: '#72ff9b',
-          stroke: '#000000',
-          strokeThickness: 4,
-          fontStyle: 'bold',
-        }))
-        smooth.setOrigin(0.5)
+      if (hammer instanceof Phaser.GameObjects.Image) {
+        hammer.setDisplaySize(92, 92)
+        hammer.setRotation(Phaser.Math.DegToRad(-14))
       }
 
       this.addTween({
-        targets: tapper,
-        y: stationY - 20,
+        targets: hammer,
+        x: coinX - 42,
+        y: coinY - 48,
+        angle: 12,
         duration: 180,
         yoyo: true,
+        repeat: 1,
         ease: 'Sine.easeInOut',
       })
 
-      rings.forEach((ring, index) => {
+      const ringKey = firstExistingTexture(
+        trait === 'good'
+          ? ['false-gold-fx-sound-ring', 'false-gold-fx-correct-glow-2']
+          : ['false-gold-fx-bad-sound-crack', 'false-gold-fx-fake-burst-2'],
+      )
+
+      if (ringKey) {
+        for (let i = 0; i < 3; i += 1) {
+          const ring = addInspectionObject(this.scene.add.image(coinX, coinY + 2, ringKey))
+          ring.setDisplaySize(108 + i * 22, 108 + i * 22)
+          ring.setAlpha(0.72 - i * 0.16)
+          this.addTween({
+            targets: ring,
+            scaleX: 1.25,
+            scaleY: 1.25,
+            alpha: 0,
+            delay: 120 + i * 115,
+            duration: 540,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+              if (ring.active) ring.destroy()
+              inspectionObjects = inspectionObjects.filter((object) => object !== ring)
+            },
+          })
+        }
+      } else {
+        for (let i = 0; i < 3; i += 1) {
+          const ring = addInspectionObject(this.scene.add.circle(coinX, coinY + 2, 44 + i * 18, 0x000000, 0))
+          ring.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, 0.95 - i * 0.2)
+          this.addTween({
+            targets: ring,
+            scaleX: 1.35,
+            scaleY: 1.35,
+            alpha: 0,
+            delay: i * 110,
+            duration: 540,
+            ease: 'Sine.easeOut',
+          })
+        }
+      }
+
+      if (currentCoinGroup) {
         this.addTween({
-          targets: ring,
-          scaleX: 1.35,
-          scaleY: 1.35,
-          alpha: 0,
-          delay: index * 110,
-          duration: 540,
-          ease: 'Sine.easeOut',
+          targets: currentCoinGroup,
+          angle: trait === 'good' ? 4 : -8,
+          duration: 70,
+          yoyo: true,
+          repeat: trait === 'good' ? 2 : 5,
+          onComplete: () => currentCoinGroup?.setAngle(0),
         })
-      })
+      }
     }
 
     const showShineResult = (trait: CoinVisualTrait) => {
       clearInspectionObjects()
 
-      const torch = addInspectionObject(this.scene.add.text(width / 2 - 118, stationY - 22, '🔥', {
-        fontFamily: 'Georgia',
-        fontSize: '32px',
-        color: '#ffbd63',
-        stroke: '#000000',
-        strokeThickness: 5,
-      }))
-      torch.setOrigin(0.5)
-
-      const beam = addInspectionObject(
-        this.scene.add.triangle(width / 2 - 28, stationY - 6, 0, 0, 150, -38, 150, 38, trait === 'good' ? 0xffd966 : 0x77aa55, 0.26),
-      )
-      beam.setAngle(-6)
-
-      const glow = addInspectionObject(
-        this.scene.add.circle(width / 2 + 64, stationY + 4, 34, trait === 'good' ? 0xffd966 : 0x77aa55, 0.24),
-      )
-      glow.setStrokeStyle(3, trait === 'good' ? 0x72ff9b : 0xff7770, trait === 'good' ? 0.75 : 0.85)
-
-      if (trait === 'bad') {
-        const flicker = addInspectionObject(this.scene.add.text(width / 2 + 104, stationY - 30, '✕', {
-          fontFamily: 'Georgia',
-          fontSize: '24px',
-          color: '#ff7770',
-          stroke: '#000000',
-          strokeThickness: 4,
-          fontStyle: 'bold',
-        }))
-        flicker.setOrigin(0.5)
+      const torchKey = firstExistingTexture(['false-gold-tool-torch'])
+      const torch = torchKey
+        ? addInspectionObject(this.scene.add.image(coinX - 130, coinY - 50, torchKey))
+        : addInspectionObject(this.scene.add.text(coinX - 130, coinY - 50, '🔥', {
+            fontFamily: 'Georgia',
+            fontSize: '36px',
+            color: '#ffbd63',
+            stroke: '#000000',
+            strokeThickness: 5,
+          }))
+      if ('setOrigin' in torch) {
+        ;(torch as Phaser.GameObjects.Image | Phaser.GameObjects.Text).setOrigin(0.5)
+      }
+      if (torch instanceof Phaser.GameObjects.Image) {
+        torch.setDisplaySize(94, 94)
+        torch.setRotation(Phaser.Math.DegToRad(-22))
       }
 
+      const beam = addInspectionObject(
+        this.scene.add.triangle(
+          coinX - 44,
+          coinY - 10,
+          0,
+          0,
+          174,
+          -45,
+          174,
+          45,
+          trait === 'good' ? 0xffd966 : 0x77aa55,
+          trait === 'good' ? 0.22 : 0.3,
+        ),
+      )
+      beam.setAngle(-7)
+      beam.setAlpha(0)
+
       this.addTween({
-        targets: [beam, glow],
-        alpha: trait === 'good' ? 0.42 : 0.12,
+        targets: torch,
+        x: coinX - 106,
+        y: coinY - 34,
+        duration: 260,
+        ease: 'Sine.easeOut',
+      })
+      this.addTween({
+        targets: beam,
+        alpha: trait === 'good' ? 0.42 : 0.16,
         duration: 220,
         yoyo: true,
-        repeat: 2,
+        repeat: trait === 'good' ? 1 : 3,
         ease: 'Sine.easeInOut',
       })
+      showFx(
+        trait === 'good'
+          ? ['false-gold-fx-correct-glow-1', 'false-gold-fx-correct-glow-2']
+          : ['false-gold-fx-fake-burst-1', 'false-gold-fx-fake-burst-2'],
+        coinX + 48,
+        coinY - 8,
+        trait === 'good' ? 120 : 128,
+        trait === 'good' ? '✓' : '!',
+        trait === 'good',
+      )
     }
 
     const useTool = (tool: InspectTool) => {
@@ -3580,38 +4043,18 @@ if (checkpoint.id !== 'altar') {
           duration: 620,
           ease: 'Sine.easeInOut',
           onComplete: () => {
-            if (correct) {
-              const glow = addInspectionObject(this.scene.add.circle(targetX, targetY, 48, 0x72ff9b, 0.2))
-              glow.setStrokeStyle(3, 0x72ff9b, 0.75)
-              this.addTween({
-                targets: glow,
-                scaleX: 1.3,
-                scaleY: 1.3,
-                alpha: 0,
-                duration: 420,
-                ease: 'Sine.easeOut',
-              })
-            } else {
-              const flash = addInspectionObject(this.scene.add.text(targetX, targetY, '!', {
-                fontFamily: 'Georgia',
-                fontSize: '34px',
-                color: '#ff7770',
-                stroke: '#000000',
-                strokeThickness: 5,
-                fontStyle: 'bold',
-              }))
-              flash.setOrigin(0.5)
-              this.addTween({
-                targets: flash,
-                scaleX: 1.35,
-                scaleY: 1.35,
-                alpha: 0,
-                duration: 420,
-                ease: 'Sine.easeOut',
-              })
-            }
+            showFx(
+              correct
+                ? ['false-gold-fx-correct-glow-1', 'false-gold-fx-correct-glow-2']
+                : ['false-gold-fx-fake-burst-1', 'false-gold-fx-fake-burst-2'],
+              targetX,
+              targetY,
+              correct ? 118 : 126,
+              correct ? '✓' : '!',
+              correct,
+            )
 
-            this.schedule(540, () => {
+            this.schedule(560, () => {
               status.setColor('#ffd966')
               nextCoin()
             })
@@ -3637,6 +4080,7 @@ if (checkpoint.id !== 'altar') {
           width: toolWidth,
           height: 58,
           icon: tool.icon,
+          imageKey: tool.imageKey,
           label: tool.label,
           color: tool.color,
           onClick: () => useTool(tool.id),

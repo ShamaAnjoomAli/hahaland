@@ -100,6 +100,46 @@ const IMAGES: ImageAsset[] = [
     path: 'assets/minigames/temple_truth/truth_round_5.png',
   },
   {
+    key: 'temple-truth-pair-1-left',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-1-left.png',
+  },
+  {
+    key: 'temple-truth-pair-1-right',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-1-right.png',
+  },
+  {
+    key: 'temple-truth-pair-2-left',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-2-left.png',
+  },
+  {
+    key: 'temple-truth-pair-2-right',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-2-right.png',
+  },
+  {
+    key: 'temple-truth-pair-3-left',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-3-left.png',
+  },
+  {
+    key: 'temple-truth-pair-3-right',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-3-right.png',
+  },
+  {
+    key: 'temple-truth-pair-4-left',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-4-left.png',
+  },
+  {
+    key: 'temple-truth-pair-4-right',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-4-right.png',
+  },
+  {
+    key: 'temple-truth-pair-5-left',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-5-left.png',
+  },
+  {
+    key: 'temple-truth-pair-5-right',
+    path: 'assets/minigames/temple_truth/temple-truth-pair-5-right.png',
+  },
+  {
     key: 'candle-ra-path-bg',
     path: 'assets/minigames/temple_candle_ra/candle_ra_path_bg.png',
   },
@@ -394,6 +434,74 @@ const IMAGES: ImageAsset[] = [
   {
     key: 'candle-ra-altar-goal',
     path: 'assets/minigames/temple_candle_ra/sun_altar_goal.png',
+  },
+  {
+    key: 'false-gold-bg',
+    path: 'assets/minigames/temple_false_gold/false_gold_chamber_bg.png',
+  },
+  {
+    key: 'false-gold-real-coin-1',
+    path: 'assets/minigames/temple_false_gold/real_coin_01.png',
+  },
+  {
+    key: 'false-gold-real-coin-2',
+    path: 'assets/minigames/temple_false_gold/real_coin_02.png',
+  },
+  {
+    key: 'false-gold-real-coin-3',
+    path: 'assets/minigames/temple_false_gold/real_coin_03.png',
+  },
+  {
+    key: 'false-gold-fake-coin-1',
+    path: 'assets/minigames/temple_false_gold/fake_coin_01.png',
+  },
+  {
+    key: 'false-gold-fake-coin-2',
+    path: 'assets/minigames/temple_false_gold/fake_coin_02.png',
+  },
+  {
+    key: 'false-gold-fake-coin-3',
+    path: 'assets/minigames/temple_false_gold/fake_coin_03.png',
+  },
+  {
+    key: 'false-gold-tool-magnifier',
+    path: 'assets/minigames/temple_false_gold/tool_magnifier.png',
+  },
+  {
+    key: 'false-gold-tool-scale',
+    path: 'assets/minigames/temple_false_gold/tool_scale.png',
+  },
+  {
+    key: 'false-gold-tool-tap-hammer',
+    path: 'assets/minigames/temple_false_gold/tool_tap_hammer.png',
+  },
+  {
+    key: 'false-gold-tool-torch',
+    path: 'assets/minigames/temple_false_gold/tool_torch.png',
+  },
+  {
+    key: 'false-gold-fx-correct-glow-1',
+    path: 'assets/minigames/temple_false_gold/fx_correct_glow_01.png',
+  },
+  {
+    key: 'false-gold-fx-correct-glow-2',
+    path: 'assets/minigames/temple_false_gold/fx_correct_glow_02.png',
+  },
+  {
+    key: 'false-gold-fx-fake-burst-1',
+    path: 'assets/minigames/temple_false_gold/fx_fake_burst_01.png',
+  },
+  {
+    key: 'false-gold-fx-fake-burst-2',
+    path: 'assets/minigames/temple_false_gold/fx_fake_burst_02.png',
+  },
+  {
+    key: 'false-gold-fx-sound-ring',
+    path: 'assets/minigames/temple_false_gold/fx_sound_ring.png',
+  },
+  {
+    key: 'false-gold-fx-bad-sound-crack',
+    path: 'assets/minigames/temple_false_gold/fx_bad_sound_crack.png',
   },
   {
     key: 'badge-fake-hotel',

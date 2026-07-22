@@ -1,0 +1,118 @@
+{
+  "image_size": [
+    1024,
+    768
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "left": "temple-truth-pair-1-left.png",
+      "right": "temple-truth-pair-1-right.png",
+      "differences": [
+        {
+          "id": "ankh",
+          "x": 0.22,
+          "y": 0.29
+        },
+        {
+          "id": "blue-vase",
+          "x": 0.78,
+          "y": 0.65
+        },
+        {
+          "id": "floor-scarab",
+          "x": 0.51,
+          "y": 0.79
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "left": "temple-truth-pair-2-left.png",
+      "right": "temple-truth-pair-2-right.png",
+      "differences": [
+        {
+          "id": "wall-torch",
+          "x": 0.18,
+          "y": 0.31
+        },
+        {
+          "id": "falcon-statue",
+          "x": 0.8,
+          "y": 0.43
+        },
+        {
+          "id": "offering-bowl",
+          "x": 0.52,
+          "y": 0.72
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "left": "temple-truth-pair-3-left.png",
+      "right": "temple-truth-pair-3-right.png",
+      "differences": [
+        {
+          "id": "eye-carving",
+          "x": 0.51,
+          "y": 0.24
+        },
+        {
+          "id": "papyrus",
+          "x": 0.29,
+          "y": 0.66
+        },
+        {
+          "id": "cat-statue",
+          "x": 0.74,
+          "y": 0.74
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "left": "temple-truth-pair-4-left.png",
+      "right": "temple-truth-pair-4-right.png",
+      "differences": [
+        {
+          "id": "coin-stack",
+          "x": 0.24,
+          "y": 0.76
+        },
+        {
+          "id": "ruby-scarab",
+          "x": 0.52,
+          "y": 0.53
+        },
+        {
+          "id": "treasury-jar",
+          "x": 0.8,
+          "y": 0.66
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "left": "temple-truth-pair-5-left.png",
+      "right": "temple-truth-pair-5-right.png",
+      "differences": [
+        {
+          "id": "sun-disk",
+          "x": 0.5,
+          "y": 0.22
+        },
+        {
+          "id": "lotus-lamp",
+          "x": 0.21,
+          "y": 0.69
+        },
+        {
+          "id": "gold-scepter",
+          "x": 0.79,
+          "y": 0.53
+        }
+      ]
+    }
+  ]
+}
