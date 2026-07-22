@@ -175,8 +175,16 @@ class BadgeTracker {
 
     const panel = this.progressPanel
 
-    if (!panel) {
-      this.progressExpanded = false
+    // Close the logical state immediately. Objective/layout refreshes can call
+    // render() while this exit tween is running. Previously that refresh could
+    // cancel the tween before onComplete, leaving progressExpanded stuck true
+    // and recreating the temporary strip forever.
+    this.progressExpanded = false
+    this.progressPanel = undefined
+
+    if (!panel || !panel.active) {
+      this.progressTween?.remove()
+      this.progressTween = undefined
       this.render()
       return
     }
@@ -190,8 +198,13 @@ class BadgeTracker {
       duration: 170,
       ease: 'Sine.easeIn',
       onComplete: () => {
-        this.progressExpanded = false
         this.progressTween = undefined
+
+        // The panel may already have been destroyed by a layout refresh.
+        if (panel.active) {
+          panel.destroy()
+        }
+
         this.render()
       },
     })
