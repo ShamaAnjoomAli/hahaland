@@ -207,12 +207,12 @@
                  "rotation":0,
                  "type":"TrialDecor",
                  "visible":true,
-                 "width":132.666666666667,
+                 "width":112,
                  "x":158,
                  "y":739.333333333333
                 }, 
                 {
-                 "height":160,
+                 "height":11.3333333333335,
                  "id":15,
                  "name":"TreasuryRightPile",
                  "opacity":1,
@@ -225,9 +225,9 @@
                  "rotation":0,
                  "type":"TrialDecor",
                  "visible":true,
-                 "width":139.333333333333,
-                 "x":720.666666666667,
-                 "y":745.333333333333
+                 "width":35.9999999999997,
+                 "x":494,
+                 "y":804
                 }, 
                 {
                  "height":120,
@@ -747,7 +747,7 @@
                  "rotation":0,
                  "type":"TrialDecor",
                  "visible":true,
-                 "width":266.000333333333,
+                 "width":226.667,
                  "x":185.6665,
                  "y":722
                 }, 
@@ -765,8 +765,8 @@
                  "rotation":0,
                  "type":"TrialDecor",
                  "visible":true,
-                 "width":266,
-                 "x":567,
+                 "width":234.666666666667,
+                 "x":598.333333333333,
                  "y":717.666683333333
                 }, 
                 {
@@ -852,6 +852,78 @@
                  "width":27.3333,
                  "x":494.83335,
                  "y":1692.83335
+                }, 
+                {
+                 "height":160,
+                 "id":100,
+                 "name":"TreasuryRightPile",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"trialId",
+                         "type":"string",
+                         "value":"false-gold"
+                        }],
+                 "rotation":0,
+                 "type":"TrialDecor",
+                 "visible":true,
+                 "width":133.333,
+                 "x":730.3335,
+                 "y":724
+                }, 
+                {
+                 "height":36.6666700000001,
+                 "id":101,
+                 "name":"TreasuryRightPile",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"trialId",
+                         "type":"string",
+                         "value":"false-gold"
+                        }],
+                 "rotation":0,
+                 "type":"TrialDecor",
+                 "visible":true,
+                 "width":24.6667,
+                 "x":607.333316666667,
+                 "y":828.333331666667
+                }, 
+                {
+                 "height":36.6667,
+                 "id":102,
+                 "name":"TreasuryRightPile",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"trialId",
+                         "type":"string",
+                         "value":"false-gold"
+                        }],
+                 "rotation":0,
+                 "type":"TrialDecor",
+                 "visible":true,
+                 "width":24.6667,
+                 "x":382.999983333333,
+                 "y":828.333316666667
+                }, 
+                {
+                 "height":38.0000333333332,
+                 "id":103,
+                 "name":"TreasuryRightPile",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"trialId",
+                         "type":"string",
+                         "value":"false-gold"
+                        }],
+                 "rotation":0,
+                 "type":"TrialDecor",
+                 "visible":true,
+                 "width":52.0000333333334,
+                 "x":484.999983333333,
+                 "y":831.66665
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -874,8 +946,8 @@
                  "type":"Spawn",
                  "visible":true,
                  "width":0,
-                 "x":544.166666666667,
-                 "y":1262.66666666667
+                 "x":509.083333333334,
+                 "y":952.41666666667
                 }, 
                 {
                  "height":0,
@@ -1281,7 +1353,7 @@
          "y":0
         }],
  "nextlayerid":7,
- "nextobjectid":100,
+ "nextobjectid":104,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.2",
