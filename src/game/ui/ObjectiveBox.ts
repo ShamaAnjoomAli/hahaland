@@ -15,7 +15,7 @@ export default class ObjectiveBox {
 
   private readonly boxX = 12
   private readonly boxY = 12
-  private readonly minimapWidth = 150
+  private minimapWidth = 150
   private readonly rightPadding = 12
   private readonly gapBetweenObjectiveAndMap = 12
 
@@ -74,6 +74,15 @@ export default class ObjectiveBox {
     this.layout()
   }
 
+  setReservedMinimapWidth(width: number) {
+    const safeWidth = Math.max(0, Math.floor(width))
+
+    if (this.minimapWidth === safeWidth) return
+
+    this.minimapWidth = safeWidth
+    this.layout()
+  }
+
   hide() {
     this.container.setVisible(false)
   }
@@ -107,7 +116,10 @@ export default class ObjectiveBox {
     )
     this.text.setText(this.currentText)
 
-    const boxHeight = Math.max(32, Math.ceil(this.text.height + innerPaddingY * 2))
+    const boxHeight = Math.max(
+      32,
+      Math.ceil(this.text.height + innerPaddingY * 2),
+    )
 
     this.bg.setPosition(this.boxX, this.boxY)
     this.bg.setSize(boxWidth, boxHeight)

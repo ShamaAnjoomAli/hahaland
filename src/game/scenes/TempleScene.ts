@@ -139,11 +139,12 @@ export default class TempleScene extends Phaser.Scene {
   private minimapTargetDot?: Phaser.GameObjects.Arc
   private minimapPriestDot?: Phaser.GameObjects.Arc
   private minimapTrialDots = new Map<TempleTrialId, Phaser.GameObjects.Arc>()
+  private readonly templeMinimapWidth = 92
   private minimapConfig = {
     x: 0,
     y: 0,
-    width: 120,
-    height: 220,
+    width: 92,
+    height: 184,
   }
 
   private stopGameTimer?: () => void
@@ -211,6 +212,7 @@ export default class TempleScene extends Phaser.Scene {
 
     this.dialogue = new DialogueBox(this)
     this.objectiveBox = new ObjectiveBox(this)
+    this.objectiveBox.setReservedMinimapWidth(this.templeMinimapWidth)
     this.objectiveBox.setText(
       this.templeIntroComplete
         ? this.getCurrentObjectiveText()
@@ -263,10 +265,28 @@ export default class TempleScene extends Phaser.Scene {
     this.cameras.main.fadeIn(520, 18, 10, 5)
 
     this.createUICamera()
+
+    this.scale.off(
+      Phaser.Scale.Events.RESIZE,
+      this.handleTempleUIResize,
+      this,
+    )
+    this.scale.on(
+      Phaser.Scale.Events.RESIZE,
+      this.handleTempleUIResize,
+      this,
+    )
+    this.handleTempleUIResize(this.scale.gameSize)
+
     this.refreshTrialMarkers()
     this.saveProgress()
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off(
+        Phaser.Scale.Events.RESIZE,
+        this.handleTempleUIResize,
+        this,
+      )
       this.stopGameTimer?.()
     })
 
@@ -628,7 +648,7 @@ export default class TempleScene extends Phaser.Scene {
     this.mapPixelWidth = map.widthInPixels || this.mapPixelWidth
     this.mapPixelHeight = map.heightInPixels || this.mapPixelHeight
 
-    const minimapWidth = 92
+    const minimapWidth = this.templeMinimapWidth
     const minimapHeight = Math.round(
       minimapWidth * (this.mapPixelHeight / Math.max(1, this.mapPixelWidth)),
     )
@@ -785,16 +805,61 @@ export default class TempleScene extends Phaser.Scene {
 
   private createHud() {
     const hudWidth = 150
-    const hudX = this.scale.width - hudWidth - 12
+    const padding = 12
+    const minimapHeight = Math.round(
+      this.templeMinimapWidth *
+        (this.mapPixelHeight / Math.max(1, this.mapPixelWidth)),
+    )
 
-    // The minimap is 92px wide and the temple map is 1:2, so the minimap
-    // height is about 184px. Keep the HUD safely below it.
-    const hudY = 214
+    const hudX = this.scale.width - hudWidth - padding
+    const hudY = padding + minimapHeight + 6
 
     this.hud = new GameHUD(this, hudX, hudY, hudWidth)
     this.hud.setCoins(this.coins)
     this.hud.setReputation(this.reputation)
     this.hud.setTime(this.remainingSeconds)
+  }
+
+  private handleTempleUIResize(gameSize: { width: number; height: number }) {
+    const padding = 12
+    const minimapWidth = this.templeMinimapWidth
+    const minimapHeight = Math.round(
+      minimapWidth *
+        (this.mapPixelHeight / Math.max(1, this.mapPixelWidth)),
+    )
+    const minimapX = gameSize.width - minimapWidth - padding
+    const minimapY = padding
+
+    this.minimapConfig = {
+      x: minimapX,
+      y: minimapY,
+      width: minimapWidth,
+      height: minimapHeight,
+    }
+
+    this.minimap?.setViewport(
+      minimapX,
+      minimapY,
+      minimapWidth,
+      minimapHeight,
+    )
+    this.minimap?.centerOn(
+      this.mapPixelWidth / 2,
+      this.mapPixelHeight / 2,
+    )
+
+    this.minimapBorder
+      ?.setPosition(minimapX, minimapY)
+      .setSize(minimapWidth, minimapHeight)
+
+    const hudWidth = 150
+    this.hud?.container.setPosition(
+      gameSize.width - hudWidth - padding,
+      minimapY + minimapHeight + 6,
+    )
+
+    this.uiCamera?.setViewport(0, 0, gameSize.width, gameSize.height)
+    this.updateMinimap()
   }
 
   private createInteractPrompt() {
