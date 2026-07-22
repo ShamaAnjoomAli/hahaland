@@ -838,12 +838,12 @@ export default class TempleChallengePopup {
     const buttonTop = buttonY - buttonHeight / 2
     const statusY = buttonTop - 20
 
-    // Observation hint goes in the empty bottom area BELOW the image frame.
-    // It should never cover the chamber image.
-    const captionY = buttonY
-    const imageBottom = statusY - 20
-    const imageWidth = this.panelWidth - 72
-    const imageHeight = Math.max(236, imageBottom - visualTop)
+    // Place the observation hint near the bottom of the popup,
+// completely below the chamber artwork.
+const captionY = bottom - 38
+const imageBottom = captionY - 30
+const imageWidth = this.panelWidth - 72
+const imageHeight = Math.max(150, imageBottom - visualTop)
     const imageX = width / 2
     const imageY = visualTop + imageHeight / 2
 
