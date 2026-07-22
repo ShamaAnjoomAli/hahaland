@@ -2517,16 +2517,33 @@ if (checkpoint.id !== 'altar') {
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
+    type GlyphOption = {
+      id: string
+      symbol: string
+    }
+
     this.addTitle(TRIAL_TITLES['glyph-memory'])
     this.addInstruction('Watch the glowing symbols. Repeat the sequence to awaken the wall.', top + 88)
 
-    const symbols = ['☀', '𓂀', '𓆣', '𓅓', '𓋹']
+    const glyphs: GlyphOption[] = [
+      { id: 'sun', symbol: '☀' },
+      { id: 'eye', symbol: '𓂀' },
+      { id: 'scarab', symbol: '𓆣' },
+      { id: 'falcon', symbol: '𓅓' },
+      { id: 'ankh', symbol: '𓋹' },
+    ]
+
     let round = 1
     let inputIndex = 0
-    let sequence: string[] = []
+    let sequence: GlyphOption[] = []
     let score = 0
     let hearts = 3
     let buttons: ButtonHandle[] = []
+    let sequenceObjects: Phaser.GameObjects.GameObject[] = []
+
+    // Keep only the final round easier.
+    // Old final round had 6 symbols. New final round has 4.
+    const getSequenceLength = () => (round >= 5 ? 5 : round + 1)
 
     const glyphHudWidth = this.panelWidth - 82
     const glyphHudGap = 7
@@ -2564,29 +2581,163 @@ if (checkpoint.id !== 'altar') {
       bandColor: 0x5b3c88,
     })
 
-    const wallY = top + 270
-    const wall = this.scene.add.rectangle(width / 2, wallY, this.panelWidth - 100, 190, 0x221608, 1)
+    const wallY = top + 262
+    const wallWidth = this.panelWidth - 100
+    const wallHeight = 178
+    const statusY = bottom - 145
+    const buttonY = bottom - 66
+
+    const wall = this.scene.add.rectangle(width / 2, wallY, wallWidth, wallHeight, 0x221608, 1)
     wall.setStrokeStyle(4, 0xd4af37, 1)
     this.addObject(wall)
 
-    const sequenceText = this.scene.add.text(width / 2, wallY - 14, '', {
+    const innerWall = this.scene.add.rectangle(width / 2, wallY, wallWidth - 26, wallHeight - 28, 0x120a04, 0.78)
+    innerWall.setStrokeStyle(2, 0x8f5b20, 0.8)
+    this.addObject(innerWall)
+
+    const wallTitle = this.scene.add.text(width / 2, wallY - 66, 'MEMORIZE THE SYMBOLS', {
       fontFamily: 'Georgia',
-      fontSize: '38px',
+      fontSize: '18px',
       color: '#ffe7a3',
       stroke: '#000000',
-      strokeThickness: 5,
+      strokeThickness: 4,
+      fontStyle: 'bold',
       align: 'center',
     })
-    sequenceText.setOrigin(0.5)
-    this.addObject(sequenceText)
+    wallTitle.setOrigin(0.5)
+    this.addObject(wallTitle)
 
-    const status = this.addStatusText('', top + 390)
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 130,
+      32,
+      0x211107,
+      0.92,
+    )
+    statusPanel.setStrokeStyle(2, 0xd4af37, 0.72)
+    this.addObject(statusPanel)
+
+    const status = this.addStatusText('', statusY, '#ffd966')
+    status.setFontSize(14)
 
     const updateHud = () => {
       roundHud.setValue(`${round} / 5`)
       livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
       scoreHud.setValue(String(score))
-      sequenceHud.setValue(String(round + 1))
+      sequenceHud.setValue(String(getSequenceLength()))
+    }
+
+    const clearSequenceObjects = () => {
+      sequenceObjects.forEach((object) => {
+        if (object.active) object.destroy()
+      })
+      sequenceObjects = []
+    }
+
+    const addSequenceObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+      this.addObject(object)
+      sequenceObjects.push(object)
+      return object
+    }
+
+    const addSymbolVisual = (
+      glyph: GlyphOption,
+      x: number,
+      y: number,
+      size: number,
+      alpha = 1,
+    ) => {
+      const symbol = this.scene.add.text(x, y, glyph.symbol, {
+        fontFamily: 'Georgia',
+        fontSize: `${Math.round(size)}px`,
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 5,
+        fontStyle: 'bold',
+      })
+      symbol.setOrigin(0.5)
+      symbol.setAlpha(alpha)
+      return symbol
+    }
+
+    const showGlyphSequence = (items: GlyphOption[]) => {
+      clearSequenceObjects()
+      wallTitle.setText('MEMORIZE THE SYMBOLS')
+
+      if (items.length === 0) return
+
+      const gap = 14
+      const iconSize = Math.min(64, (wallWidth - 150 - gap * (items.length - 1)) / items.length)
+      const totalWidth = items.length * iconSize + (items.length - 1) * gap
+      const startX = width / 2 - totalWidth / 2 + iconSize / 2
+
+      items.forEach((glyph, index) => {
+        const x = startX + index * (iconSize + gap)
+        const y = wallY + 8
+
+        const disk = addSequenceObject(this.scene.add.circle(x, y, iconSize * 0.52, 0x3d250b, 0.94))
+        disk.setStrokeStyle(3, 0xd4af37, 0.95)
+
+        const icon = addSequenceObject(addSymbolVisual(glyph, x, y, iconSize * 0.7))
+
+        this.addTween({
+          targets: [disk, icon],
+          scaleX: 1.08,
+          scaleY: 1.08,
+          duration: 260,
+          delay: index * 180,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+        })
+
+        if (index < items.length - 1) {
+          const arrow = addSequenceObject(
+            this.scene.add.text(x + iconSize / 2 + gap / 2, y, '›', {
+              fontFamily: 'Georgia',
+              fontSize: '28px',
+              color: '#d4af37',
+              stroke: '#000000',
+              strokeThickness: 3,
+              fontStyle: 'bold',
+            }),
+          )
+          arrow.setOrigin(0.5)
+        }
+      })
+    }
+
+    const showRepeatSlots = () => {
+      clearSequenceObjects()
+      wallTitle.setText('REPEAT THE WALL')
+
+      const gap = 12
+      const slotSize = Math.min(44, (wallWidth - 180 - gap * (sequence.length - 1)) / sequence.length)
+      const totalWidth = sequence.length * slotSize + (sequence.length - 1) * gap
+      const startX = width / 2 - totalWidth / 2 + slotSize / 2
+
+      sequence.forEach((_glyph, index) => {
+        const x = startX + index * (slotSize + gap)
+        const y = wallY + 8
+        const filled = index < inputIndex
+
+        const slot = addSequenceObject(
+          this.scene.add.circle(x, y, slotSize * 0.5, filled ? 0x27633a : 0x3d250b, 0.96),
+        )
+        slot.setStrokeStyle(3, filled ? 0x72ff9b : 0xd4af37, 0.95)
+
+        const mark = addSequenceObject(
+          this.scene.add.text(x, y, filled ? '✓' : '?', {
+            fontFamily: 'Georgia',
+            fontSize: `${Math.round(slotSize * 0.55)}px`,
+            color: filled ? '#72ff9b' : '#ffe7a3',
+            stroke: '#000000',
+            strokeThickness: 3,
+            fontStyle: 'bold',
+          }),
+        )
+        mark.setOrigin(0.5)
+      })
     }
 
     const destroyButtons = () => {
@@ -2594,54 +2745,80 @@ if (checkpoint.id !== 'altar') {
       buttons = []
     }
 
+    const setButtonsEnabled = (enabled: boolean) => {
+      buttons.forEach((button) => button.setEnabled(enabled))
+    }
+
     const showInput = () => {
-      sequenceText.setText('Repeat the wall')
       status.setText(`Tap symbol ${inputIndex + 1} of ${sequence.length}`)
+      showRepeatSlots()
       destroyButtons()
+
       const gap = 10
-      const buttonWidth = Math.min(88, (this.panelWidth - 110 - gap * (symbols.length - 1)) / symbols.length)
-      const startX = width / 2 - ((buttonWidth + gap) * (symbols.length - 1)) / 2
-      buttons = symbols.map((symbol, index) =>
+      const buttonWidth = 94
+      const totalWidth = glyphs.length * buttonWidth + (glyphs.length - 1) * gap
+      const startX = width / 2 - totalWidth / 2 + buttonWidth / 2
+
+      buttons = glyphs.map((glyph, index) =>
         this.createButton({
           x: startX + index * (buttonWidth + gap),
-          y: bottom - 88,
+          y: buttonY,
           width: buttonWidth,
-          height: 60,
-          label: symbol,
-          fontSize: 24,
-          onClick: () => choose(symbol),
+          height: 70,
+          label: glyph.symbol,
+          fontSize: 25,
+          color: 0x4d2d10,
+          onClick: () => choose(glyph),
         }),
       )
     }
 
     const startRound = () => {
       inputIndex = 0
-      sequence = Array.from({ length: round + 1 }, () => Phaser.Utils.Array.GetRandom(symbols))
+      sequence = Array.from(
+        { length: getSequenceLength() },
+        () => glyphs[Phaser.Math.Between(0, glyphs.length - 1)],
+      )
+
       updateHud()
       destroyButtons()
-      status.setText('Memorize the glowing order.')
-      sequenceText.setText(sequence.join('  →  '))
-      this.schedule(1450 + round * 250, showInput)
+      status.setText('Memorize the glowing symbol order.')
+      status.setColor('#ffd966')
+      showGlyphSequence(sequence)
+
+      const memorizeDelay = 2800 + sequence.length * 850
+      this.schedule(memorizeDelay, showInput)
     }
 
-    const choose = (symbol: string) => {
-      if (symbol === sequence[inputIndex]) {
+    const choose = (glyph: GlyphOption) => {
+      if (this.resultLocked) return
+
+      if (glyph.id === sequence[inputIndex].id) {
         inputIndex += 1
         score += 40
         updateHud()
+        showRepeatSlots()
+
         if (inputIndex >= sequence.length) {
+          setButtonsEnabled(false)
           status.setText('Correct. The wall remembers you.')
           status.setColor('#72ff9b')
+
           if (round >= 5) {
             const reward = this.baseReward('glyph-memory', true, score)
-            this.complete({
-              trialId: 'glyph-memory',
-              success: true,
-              response: 'The ancient signs obey your memory. A ruler must remember what the walls have already taught.',
-              ...reward,
-            }, 850)
+            this.complete(
+              {
+                trialId: 'glyph-memory',
+                success: true,
+                response:
+                  'The ancient signs obey your memory. A ruler must remember what the walls have already taught.',
+                ...reward,
+              },
+              850,
+            )
             return
           }
+
           round += 1
           this.schedule(900, () => {
             status.setColor('#ffd966')
@@ -2649,30 +2826,48 @@ if (checkpoint.id !== 'altar') {
           })
           return
         }
+
         status.setText(`Good. Tap symbol ${inputIndex + 1} of ${sequence.length}`)
+        status.setColor('#72ff9b')
+        this.schedule(250, () => {
+          if (!this.isVisible) return
+          status.setColor('#ffd966')
+        })
         return
       }
 
       hearts -= 1
       updateHud()
+      setButtonsEnabled(false)
       status.setText('Wrong glyph. The chamber groans.')
       status.setColor('#ff7770')
       this.scene.cameras.main.shake(140, 0.004)
+
       if (hearts <= 0) {
         const reward = this.baseReward('glyph-memory', false, score)
-        this.complete({
-          trialId: 'glyph-memory',
-          success: false,
-          response: 'The symbols fade before the sequence is complete. Memory is a staircase; climb it again.',
-          ...reward,
-        }, 850)
+        this.complete(
+          {
+            trialId: 'glyph-memory',
+            success: false,
+            response:
+              'The symbols fade before the sequence is complete. Memory is a staircase; climb it again.',
+            ...reward,
+          },
+          850,
+        )
         return
       }
-      this.schedule(700, () => {
+
+      this.schedule(850, () => {
         status.setColor('#ffd966')
         startRound()
       })
     }
+
+    this.runtimeCleanups.push(() => {
+      destroyButtons()
+      clearSequenceObjects()
+    })
 
     startRound()
   }
