@@ -492,6 +492,34 @@ const IMAGES: ImageAsset[] = [
     path: 'assets/minigames/painted_prophecy/painted-prophecy-round-3.png',
   },
   {
+    key: 'scarab-board-background',
+    path: 'assets/minigames/temple_scarab_board/scarab-board-background.png',
+  },
+  {
+    key: 'scarab-striker',
+    path: 'assets/minigames/temple_scarab_board/scarab-striker.png',
+  },
+  {
+    key: 'sun-disk-goal',
+    path: 'assets/minigames/temple_scarab_board/sun-disk-goal.png',
+  },
+  {
+    key: 'stone-pillar-bumper',
+    path: 'assets/minigames/temple_scarab_board/stone-pillar-bumper.png',
+  },
+  {
+    key: 'anubis-blocker',
+    path: 'assets/minigames/temple_scarab_board/anubis-blocker.png',
+  },
+  {
+    key: 'cursed-hole',
+    path: 'assets/minigames/temple_scarab_board/cursed-hole.png',
+  },
+  {
+    key: 'scarab-success-glow',
+    path: 'assets/minigames/temple_scarab_board/scarab-success-glow.png',
+  },
+  {
     key: 'badge-fake-hotel',
     path: 'assets/ui/badges/badge_fake_hotel.png',
   },

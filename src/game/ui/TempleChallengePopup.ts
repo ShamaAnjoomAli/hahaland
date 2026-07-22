@@ -4968,118 +4968,1192 @@ The numbered fallback puzzle will still work.`,
 
 
   // ---------------------------------------------------------------------------
-  // 6. SACRED SCARAB BOARD
+  // 6. SACRED SCARAB BOARD — DRAG-TO-AIM CARROM
   // ---------------------------------------------------------------------------
   private createScarabBoard() {
     const width = this.scene.scale.width
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle(TRIAL_TITLES['scarab-board'])
-    this.addInstruction('Flick the sacred scarab into the Sun Disk. Choose balanced force, not chaos.', top + 88)
-
-    type BoardRound = {
-      hint: string
-      options: [string, string, string]
-      correctIndex: number
-    }
-
-    const rounds: BoardRound[] = [
-      { hint: 'A straight lane opens. The Sun Disk waits ahead.', options: ['Soft push', 'Balanced flick', 'Wild smash'], correctIndex: 1 },
-      { hint: 'A left bumper guards the hole. Bank gently from the right.', options: ['Right bank', 'Center smash', 'Left bank'], correctIndex: 0 },
-      { hint: 'Three trap holes surround the disk. Use a soft final touch.', options: ['Maximum power', 'Soft controlled flick', 'No aim'], correctIndex: 1 },
+    // These assets are large transparent illustrations displayed at a much
+    // smaller size. Linear filtering prevents harsh, pixel-sharp edges when
+    // Phaser scales them down.
+    const smoothTextureKeys = [
+      'scarab-board-background',
+      'scarab-striker',
+      'sun-disk-goal',
+      'stone-pillar-bumper',
+      'anubis-blocker',
+      'cursed-hole',
+      'scarab-success-glow',
     ]
 
-    let round = 0
-    let scarabs = 3
-    let score = 0
-    let buttons: ButtonHandle[] = []
-
-    const board = this.scene.add.rectangle(width / 2, top + 245, this.panelWidth - 118, 230, 0x8f6227, 1)
-    board.setStrokeStyle(5, 0xd4af37, 1)
-    this.addObject(board)
-
-    const sunDisk = this.scene.add.circle(width / 2 + 130, top + 245, 34, 0xffd966, 1)
-    sunDisk.setStrokeStyle(4, 0xfff1ad, 1)
-    const scarab = this.scene.add.ellipse(width / 2 - 150, top + 245, 36, 28, 0x1b7c77, 1)
-    scarab.setStrokeStyle(3, 0xffd966, 1)
-    this.addObject(sunDisk)
-    this.addObject(scarab)
-
-    const traps = [-50, 45, 105].map((offset) => {
-      const trap = this.scene.add.circle(width / 2 + offset, top + 272, 18, 0x120904, 1)
-      trap.setStrokeStyle(2, 0xd4af37, 0.75)
-      this.addObject(trap)
-      return trap
+    smoothTextureKeys.forEach((key) => {
+      if (!this.scene.textures.exists(key)) return
+      this.scene.textures
+        .get(key)
+        .setFilter(Phaser.Textures.FilterMode.LINEAR)
     })
 
-    const hud = this.addStatusText('', top + 128)
-    const hint = this.addStatusText('', top + 384)
+    type NormalizedPoint = {
+      x: number
+      y: number
+    }
 
-    const render = () => {
-      buttons.forEach((button) => button.destroy())
-      buttons = []
-      const current = rounds[round]
-      hud.setText(`ROUND ${round + 1} / ${rounds.length}     SCARABS ${scarabs}     SCORE ${score}`)
-      hint.setText(current.hint)
-      scarab.setPosition(width / 2 - 150, top + 245)
-      scarab.setAlpha(1)
-      const gap = 14
-      const buttonWidth = Math.min(210, (this.panelWidth - 94 - gap * 2) / 3)
-      const y = bottom - 82
-      const xs = [width / 2 - buttonWidth - gap, width / 2, width / 2 + buttonWidth + gap]
-      buttons = current.options.map((label, index) =>
-        this.createButton({ x: xs[index], y, width: buttonWidth, height: 58, label, fontSize: 13, onClick: () => choose(index) }),
+    type PillarConfig = NormalizedPoint & {
+      radius: number
+    }
+
+    type HoleConfig = NormalizedPoint & {
+      radius: number
+    }
+
+    type MovingBlockerConfig = NormalizedPoint & {
+      radius: number
+      axis: 'x' | 'y'
+      amplitude: number
+      speed: number
+      phase?: number
+    }
+
+    type ScarabRound = {
+      title: string
+      hint: string
+      start: NormalizedPoint
+      goal: NormalizedPoint & { radius: number }
+      pillars: PillarConfig[]
+      holes: HoleConfig[]
+      blockers: MovingBlockerConfig[]
+    }
+
+    type CircleObstacle = {
+      x: number
+      y: number
+      radius: number
+      visual: Phaser.GameObjects.Container
+    }
+
+    type MovingBlocker = CircleObstacle & {
+      baseX: number
+      baseY: number
+      axis: 'x' | 'y'
+      amplitude: number
+      speed: number
+      phase: number
+    }
+
+    const rounds: ScarabRound[] = [
+      {
+        title: 'Round 1 — Sun Gate',
+        hint: 'Drag from the scarab toward the Sun Disk, then release.',
+        start: { x: 0.5, y: 0.82 },
+        goal: { x: 0.5, y: 0.16, radius: 0.085 },
+        pillars: [],
+        holes: [
+          { x: 0.20, y: 0.49, radius: 0.052 },
+          { x: 0.80, y: 0.49, radius: 0.052 },
+        ],
+        blockers: [],
+      },
+      {
+        title: 'Round 2 — Pillar Chamber',
+        hint: 'Use an angled shot or rebound around the temple pillars.',
+        start: { x: 0.18, y: 0.80 },
+        goal: { x: 0.82, y: 0.18, radius: 0.078 },
+        pillars: [
+          { x: 0.38, y: 0.62, radius: 0.072 },
+          { x: 0.62, y: 0.39, radius: 0.072 },
+        ],
+        holes: [
+          { x: 0.70, y: 0.74, radius: 0.052 },
+          { x: 0.28, y: 0.28, radius: 0.052 },
+        ],
+        blockers: [],
+      },
+      {
+        title: 'Round 3 — Trial of Anubis',
+        hint: 'Time the shot past the moving guardians and cursed holes.',
+        start: { x: 0.5, y: 0.84 },
+        goal: { x: 0.5, y: 0.13, radius: 0.072 },
+        pillars: [
+          { x: 0.23, y: 0.56, radius: 0.062 },
+          { x: 0.77, y: 0.56, radius: 0.062 },
+          { x: 0.50, y: 0.36, radius: 0.066 },
+        ],
+        holes: [
+          { x: 0.36, y: 0.72, radius: 0.047 },
+          { x: 0.64, y: 0.72, radius: 0.047 },
+          { x: 0.18, y: 0.28, radius: 0.047 },
+          { x: 0.82, y: 0.28, radius: 0.047 },
+        ],
+        blockers: [
+          {
+            x: 0.5,
+            y: 0.52,
+            radius: 0.062,
+            axis: 'x',
+            amplitude: 0.18,
+            speed: 1.9,
+          },
+          {
+            x: 0.5,
+            y: 0.23,
+            radius: 0.055,
+            axis: 'x',
+            amplitude: 0.23,
+            speed: 1.45,
+            phase: Math.PI,
+          },
+        ],
+      },
+    ]
+
+    this.addTitle(TRIAL_TITLES['scarab-board'])
+    this.addInstruction(
+      'Hold the sacred scarab, drag toward the shot direction, and release to launch.',
+      top + 84,
+    )
+
+    let roundIndex = 0
+    let hearts = 3
+    let shots = 0
+    let roundStartShots = 0
+    let score = 0
+    let phase: 'ready' | 'aiming' | 'moving' | 'resolving' | 'finished' = 'ready'
+    let aimPower = 0
+    let aimAngle = -Math.PI / 2
+    let elapsedSeconds = 0
+
+    let scarabX = 0
+    let scarabY = 0
+    let velocityX = 0
+    let velocityY = 0
+
+    let scarabVisual: Phaser.GameObjects.Container | undefined
+    let goalObstacle: CircleObstacle | undefined
+    let pillars: CircleObstacle[] = []
+    let holes: CircleObstacle[] = []
+    let movingBlockers: MovingBlocker[] = []
+    let roundObjects: Phaser.GameObjects.GameObject[] = []
+
+    const hudWidth = this.panelWidth - 82
+    const hudGap = 6
+    const hudCardWidth = (hudWidth - hudGap * 4) / 5
+    const hudStartX = width / 2 - hudWidth / 2 + hudCardWidth / 2
+    const hudY = top + 126
+
+    const roundHud = this.createCompactHudCard({
+      x: hudStartX,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'ROUND',
+      bandColor: 0x245d78,
+    })
+
+    const livesHud = this.createCompactHudCard({
+      x: hudStartX + hudCardWidth + hudGap,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'LIVES',
+      bandColor: 0x8f2d2d,
+      valueColor: '#8f2d2d',
+    })
+
+    const shotsHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 2,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'SHOTS',
+      bandColor: 0x5b3c88,
+    })
+
+    const scoreHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 3,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'SCORE',
+      bandColor: 0x8b6b1f,
+    })
+
+    const powerHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 4,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'POWER',
+      bandColor: 0x27633a,
+      showProgress: true,
+    })
+
+    const boardTop = top + 178
+    const statusY = bottom - 28
+    const boardBottom = statusY - 28
+    const boardHeight = Math.max(235, boardBottom - boardTop)
+    const boardWidth = Math.min(this.panelWidth - 76, boardHeight * 1.62)
+    const boardX = width / 2
+    const boardY = boardTop + boardHeight / 2
+    const boardLeft = boardX - boardWidth / 2
+    const boardRight = boardX + boardWidth / 2
+    const boardUpper = boardY - boardHeight / 2
+    const boardLower = boardY + boardHeight / 2
+    const scarabRadius = Math.max(14, Math.min(19, boardHeight * 0.055))
+    const maxAimDistance = Math.min(145, boardWidth * 0.24)
+
+    const boardShadow = this.scene.add.rectangle(
+      boardX + 7,
+      boardY + 8,
+      boardWidth + 20,
+      boardHeight + 20,
+      0x000000,
+      0.42,
+    )
+
+    const boardFrame = this.scene.add.rectangle(
+      boardX,
+      boardY,
+      boardWidth + 20,
+      boardHeight + 20,
+      0x211107,
+      1,
+    )
+    boardFrame.setStrokeStyle(4, 0xd4af37, 1)
+
+    this.addObject(boardShadow)
+    this.addObject(boardFrame)
+
+    if (this.scene.textures.exists('scarab-board-background')) {
+      const boardImage = this.scene.add.image(
+        boardX,
+        boardY,
+        'scarab-board-background',
+      )
+      boardImage.setDisplaySize(boardWidth, boardHeight)
+      this.addObject(boardImage)
+    } else {
+      const boardSurface = this.scene.add.rectangle(
+        boardX,
+        boardY,
+        boardWidth,
+        boardHeight,
+        0x9b6a2d,
+        1,
+      )
+      boardSurface.setStrokeStyle(3, 0x1c716e, 0.9)
+      this.addObject(boardSurface)
+
+      const innerSurface = this.scene.add.rectangle(
+        boardX,
+        boardY,
+        boardWidth - 20,
+        boardHeight - 20,
+        0xc3934e,
+        0.95,
+      )
+      innerSurface.setStrokeStyle(2, 0x5b3513, 0.82)
+      this.addObject(innerSurface)
+
+      const centerLine = this.scene.add.rectangle(
+        boardX,
+        boardY,
+        3,
+        boardHeight - 36,
+        0x1c716e,
+        0.38,
+      )
+      this.addObject(centerLine)
+
+      const centerSun = this.scene.add.circle(
+        boardX,
+        boardY,
+        38,
+        0x000000,
+        0,
+      )
+      centerSun.setStrokeStyle(3, 0xd4af37, 0.46)
+      this.addObject(centerSun)
+
+      const cornerMarks = [
+        [boardLeft + 38, boardUpper + 35],
+        [boardRight - 38, boardUpper + 35],
+        [boardLeft + 38, boardLower - 35],
+        [boardRight - 38, boardLower - 35],
+      ]
+
+      cornerMarks.forEach(([x, y], index) => {
+        const mark = this.scene.add.text(
+          x,
+          y,
+          index % 2 === 0 ? '𓂀' : '𓋹',
+          {
+            fontFamily: 'Georgia',
+            fontSize: '24px',
+            color: '#245f5c',
+            stroke: '#5b3513',
+            strokeThickness: 2,
+            fontStyle: 'bold',
+          },
+        )
+        mark.setOrigin(0.5)
+        this.addObject(mark)
+      })
+    }
+
+    const roundTitle = this.scene.add.text(
+      width / 2,
+      boardTop - 13,
+      '',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '17px',
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+        align: 'center',
+      },
+    )
+    roundTitle.setOrigin(0.5)
+    this.addObject(roundTitle)
+
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 100,
+      34,
+      0x211107,
+      0.96,
+    )
+    statusPanel.setStrokeStyle(2, 0xd4af37, 0.82)
+    this.addObject(statusPanel)
+
+    const status = this.addStatusText('', statusY, '#ffd966')
+    status.setFontSize(13)
+
+    const aimGraphics = this.scene.add.graphics()
+    this.addObject(aimGraphics)
+
+    const boardHitZone = this.scene.add.rectangle(
+      boardX,
+      boardY,
+      boardWidth,
+      boardHeight,
+      0xffffff,
+      0.001,
+    )
+    boardHitZone.setInteractive({ useHandCursor: true })
+    this.addObject(boardHitZone)
+
+    const addRoundObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
+      this.addObject(object)
+      roundObjects.push(object)
+      return object
+    }
+
+    const clearRoundObjects = () => {
+      aimGraphics.clear()
+      roundObjects.forEach((object) => {
+        if (object.active) object.destroy()
+      })
+      roundObjects = []
+      scarabVisual = undefined
+      goalObstacle = undefined
+      pillars = []
+      holes = []
+      movingBlockers = []
+    }
+
+    const toBoardPoint = (point: NormalizedPoint) => ({
+      x: boardLeft + point.x * boardWidth,
+      y: boardUpper + point.y * boardHeight,
+    })
+
+    const toBoardRadius = (normalizedRadius: number) =>
+      normalizedRadius * Math.min(boardWidth, boardHeight)
+
+    const createScarabVisual = (x: number, y: number) => {
+      const container = addRoundObject(this.scene.add.container(x, y))
+
+      const shadow = this.scene.add.ellipse(
+        0,
+        scarabRadius * 0.66,
+        scarabRadius * 2.15,
+        scarabRadius * 0.72,
+        0x000000,
+        0.34,
+      )
+
+      const glow = this.scene.add.circle(
+        0,
+        0,
+        scarabRadius + 8,
+        0x4de0d2,
+        0.12,
+      )
+      glow.setStrokeStyle(2, 0xffd966, 0.55)
+
+      if (this.scene.textures.exists('scarab-striker')) {
+        const image = this.scene.add.image(0, 0, 'scarab-striker')
+        image.setDisplaySize(scarabRadius * 2.3, scarabRadius * 2.3)
+        image.setAlpha(0.97)
+        container.add([shadow, glow, image])
+      } else {
+        const body = this.scene.add.ellipse(
+          0,
+          1,
+          scarabRadius * 1.7,
+          scarabRadius * 1.95,
+          0x176f70,
+          1,
+        )
+        body.setStrokeStyle(3, 0xffd966, 1)
+
+        const wingLeft = this.scene.add.ellipse(
+          -scarabRadius * 0.64,
+          0,
+          scarabRadius * 0.92,
+          scarabRadius * 1.42,
+          0x225f6d,
+          1,
+        )
+        wingLeft.setAngle(-22)
+        wingLeft.setStrokeStyle(2, 0xd4af37, 0.9)
+
+        const wingRight = this.scene.add.ellipse(
+          scarabRadius * 0.64,
+          0,
+          scarabRadius * 0.92,
+          scarabRadius * 1.42,
+          0x225f6d,
+          1,
+        )
+        wingRight.setAngle(22)
+        wingRight.setStrokeStyle(2, 0xd4af37, 0.9)
+
+        const sun = this.scene.add.circle(
+          0,
+          -scarabRadius * 0.82,
+          scarabRadius * 0.35,
+          0xffc94f,
+          1,
+        )
+        sun.setStrokeStyle(2, 0x8b4e16, 1)
+
+        container.add([shadow, glow, wingLeft, wingRight, body, sun])
+      }
+
+      this.addTween({
+        targets: glow,
+        scaleX: 1.18,
+        scaleY: 1.18,
+        alpha: 0.04,
+        duration: 720,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      return container
+    }
+
+    const createGoal = (round: ScarabRound) => {
+      const point = toBoardPoint(round.goal)
+      const radius = toBoardRadius(round.goal.radius)
+      const visual = addRoundObject(this.scene.add.container(point.x, point.y))
+
+      const glow = this.scene.add.circle(0, 0, radius + 9, 0xffd966, 0.16)
+      const ring = this.scene.add.circle(0, 0, radius, 0x5f3a10, 0)
+      ring.setStrokeStyle(2, 0xffef9a, 0.55)
+
+      if (this.scene.textures.exists('sun-disk-goal')) {
+        const image = this.scene.add.image(0, 0, 'sun-disk-goal')
+        image.setDisplaySize(radius * 1.95, radius * 1.95)
+        image.setAlpha(0.97)
+        visual.add([glow, image])
+      } else {
+        const rays = this.scene.add.text(0, -1, '☀', {
+          fontFamily: 'Georgia',
+          fontSize: `${Math.round(radius * 1.55)}px`,
+          color: '#ffe074',
+          stroke: '#7c4313',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        })
+        rays.setOrigin(0.5)
+        visual.add([glow, ring, rays])
+      }
+
+      this.addTween({
+        targets: glow,
+        scaleX: 1.28,
+        scaleY: 1.28,
+        alpha: 0.04,
+        duration: 780,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+
+      return {
+        x: point.x,
+        y: point.y,
+        radius,
+        visual,
+      }
+    }
+
+    const createPillar = (config: PillarConfig) => {
+      const point = toBoardPoint(config)
+      const radius = toBoardRadius(config.radius)
+      const visual = addRoundObject(this.scene.add.container(point.x, point.y))
+
+      const shadow = this.scene.add.ellipse(
+        0,
+        radius * 0.58,
+        radius * 1.9,
+        radius * 0.72,
+        0x000000,
+        0.28,
+      )
+
+      if (this.scene.textures.exists('stone-pillar-bumper')) {
+        const image = this.scene.add.image(0, 0, 'stone-pillar-bumper')
+        image.setDisplaySize(radius * 2.08, radius * 2.08)
+        image.setAlpha(0.96)
+        visual.add([shadow, image])
+      } else {
+        const base = this.scene.add.circle(0, 0, radius, 0xb77732, 1)
+        base.setStrokeStyle(4, 0x5a3112, 1)
+        const inner = this.scene.add.circle(0, 0, radius * 0.65, 0x1e7774, 0.9)
+        inner.setStrokeStyle(2, 0xffd966, 0.9)
+        const symbol = this.scene.add.text(0, 0, '𓊽', {
+          fontFamily: 'Georgia',
+          fontSize: `${Math.round(radius * 1.18)}px`,
+          color: '#ffe7a3',
+          stroke: '#5a3112',
+          strokeThickness: 3,
+          fontStyle: 'bold',
+        })
+        symbol.setOrigin(0.5)
+        visual.add([shadow, base, inner, symbol])
+      }
+
+      return {
+        x: point.x,
+        y: point.y,
+        radius,
+        visual,
+      }
+    }
+
+    const createHole = (config: HoleConfig) => {
+      const point = toBoardPoint(config)
+      const radius = toBoardRadius(config.radius)
+      const visual = addRoundObject(this.scene.add.container(point.x, point.y))
+
+      const outer = this.scene.add.circle(0, 0, radius + 4, 0x6c3517, 1)
+      outer.setStrokeStyle(2, 0xd4af37, 0.58)
+
+      if (this.scene.textures.exists('cursed-hole')) {
+        const image = this.scene.add.image(0, 0, 'cursed-hole')
+        image.setDisplaySize(radius * 2.12, radius * 2.12)
+        image.setAlpha(0.97)
+        visual.add(image)
+      } else {
+        const hole = this.scene.add.circle(0, 0, radius, 0x090402, 1)
+        hole.setStrokeStyle(3, 0x7c1e1e, 0.95)
+        const center = this.scene.add.circle(0, 0, radius * 0.45, 0x000000, 1)
+        visual.add([outer, hole, center])
+      }
+
+      return {
+        x: point.x,
+        y: point.y,
+        radius,
+        visual,
+      }
+    }
+
+    const createMovingBlocker = (config: MovingBlockerConfig) => {
+      const point = toBoardPoint(config)
+      const radius = toBoardRadius(config.radius)
+      const visual = addRoundObject(this.scene.add.container(point.x, point.y))
+
+      const shadow = this.scene.add.ellipse(
+        0,
+        radius * 0.62,
+        radius * 1.8,
+        radius * 0.65,
+        0x000000,
+        0.3,
+      )
+
+      if (this.scene.textures.exists('anubis-blocker')) {
+        const image = this.scene.add.image(0, 0, 'anubis-blocker')
+        image.setDisplaySize(radius * 2.16, radius * 2.16)
+        image.setAlpha(0.96)
+        visual.add([shadow, image])
+      } else {
+        const disk = this.scene.add.circle(0, 0, radius, 0x20272d, 1)
+        disk.setStrokeStyle(3, 0xffd966, 0.95)
+        const head = this.scene.add.text(0, -1, '𓃢', {
+          fontFamily: 'Georgia',
+          fontSize: `${Math.round(radius * 1.45)}px`,
+          color: '#71c8c1',
+          stroke: '#000000',
+          strokeThickness: 4,
+          fontStyle: 'bold',
+        })
+        head.setOrigin(0.5)
+        visual.add([shadow, disk, head])
+      }
+
+      return {
+        x: point.x,
+        y: point.y,
+        baseX: point.x,
+        baseY: point.y,
+        radius,
+        axis: config.axis,
+        amplitude:
+          config.amplitude *
+          (config.axis === 'x' ? boardWidth : boardHeight),
+        speed: config.speed,
+        phase: config.phase ?? 0,
+        visual,
+      }
+    }
+
+    const updateHud = () => {
+      roundHud.setValue(`${roundIndex + 1} / ${rounds.length}`)
+      livesHud.setValue(`${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`)
+      shotsHud.setValue(String(shots))
+      scoreHud.setValue(String(score))
+
+      if (phase === 'aiming') {
+        powerHud.setValue(`${Math.round(aimPower * 100)}%`)
+        powerHud.setProgress(aimPower, aimPower >= 0.82)
+      } else if (phase === 'moving') {
+        powerHud.setValue('MOVING')
+        powerHud.setProgress(0)
+      } else {
+        powerHud.setValue('READY')
+        powerHud.setProgress(0)
+      }
+    }
+
+    const setScarabPosition = (x: number, y: number) => {
+      scarabX = x
+      scarabY = y
+      scarabVisual?.setPosition(x, y)
+    }
+
+    const resetScarab = (message?: string) => {
+      const start = toBoardPoint(rounds[roundIndex].start)
+
+      velocityX = 0
+      velocityY = 0
+      aimPower = 0
+      aimGraphics.clear()
+      phase = 'ready'
+      setScarabPosition(start.x, start.y)
+
+      if (message) {
+        status.setText(message)
+      } else {
+        status.setText(rounds[roundIndex].hint)
+      }
+
+      status.setColor('#ffd966')
+      updateHud()
+    }
+
+    const finishTrial = (success: boolean) => {
+      if (phase === 'finished') return
+
+      phase = 'finished'
+      velocityX = 0
+      velocityY = 0
+      aimGraphics.clear()
+
+      const finalScore = score + hearts * 120
+      const reward = this.baseReward('scarab-board', success, finalScore)
+
+      this.complete(
+        {
+          trialId: 'scarab-board',
+          success,
+          response: success
+            ? 'You guided the sacred scarab with control, timing, and purpose. A ruler must direct power instead of merely releasing it.'
+            : 'The scarab is claimed by the cursed board. Return with steadier aim and greater control.',
+          ...reward,
+        },
+        success ? 1100 : 850,
       )
     }
 
-    const finish = (success: boolean) => {
-      const reward = this.baseReward('scarab-board', success, score)
-      this.complete({
-        trialId: 'scarab-board',
-        success,
-        response: success
-          ? 'You moved power without wasting it. A king must know when to strike and when to soften the hand.'
-          : 'The scarab falls into the trap holes. Control is not weakness; it is aim with patience.',
-        ...reward,
+    const loseLife = (message: string) => {
+      if (phase === 'resolving' || phase === 'finished') return
+
+      phase = 'resolving'
+      hearts -= 1
+      velocityX = 0
+      velocityY = 0
+      aimGraphics.clear()
+      updateHud()
+
+      status.setText(message)
+      status.setColor('#ff7770')
+      this.scene.cameras.main.shake(170, 0.004)
+
+      if (scarabVisual) {
+        this.addTween({
+          targets: scarabVisual,
+          alpha: 0.12,
+          scaleX: 0.45,
+          scaleY: 0.45,
+          angle: 150,
+          duration: 330,
+          ease: 'Sine.easeIn',
+        })
+      }
+
+      if (hearts <= 0) {
+        this.schedule(650, () => finishTrial(false))
+        return
+      }
+
+      this.schedule(720, () => {
+        if (!scarabVisual) return
+        scarabVisual.setAlpha(1)
+        scarabVisual.setScale(1)
+        scarabVisual.setAngle(0)
+        resetScarab('One life lost. Hold the scarab and try another angle.')
       })
     }
 
-    const choose = (index: number) => {
-      const current = rounds[round]
-      buttons.forEach((button) => button.setEnabled(false))
-      const correct = index === current.correctIndex
+    const showGoalEffect = () => {
+      const glow = addRoundObject(
+        this.scene.add.circle(
+          scarabX,
+          scarabY,
+          scarabRadius + 24,
+          0x72ff9b,
+          0.22,
+        ),
+      )
+      glow.setStrokeStyle(5, 0xffd966, 1)
+
+      const mark = addRoundObject(
+        this.scene.add.text(scarabX, scarabY - 1, '✓', {
+          fontFamily: 'Georgia',
+          fontSize: '31px',
+          color: '#72ff9b',
+          stroke: '#000000',
+          strokeThickness: 6,
+          fontStyle: 'bold',
+        }),
+      )
+      mark.setOrigin(0.5)
+
       this.addTween({
-        targets: scarab,
-        x: correct ? sunDisk.x : traps[Math.min(index, traps.length - 1)].x,
-        y: correct ? sunDisk.y : traps[Math.min(index, traps.length - 1)].y,
-        angle: correct ? 360 : 140,
-        duration: 620,
-        ease: 'Sine.easeInOut',
-        onComplete: () => {
-          if (correct) {
-            score += 120
-            round += 1
-            if (round >= rounds.length) {
-              finish(true)
-              return
-            }
-            this.schedule(500, render)
-          } else {
-            scarabs -= 1
-            this.scene.cameras.main.shake(160, 0.004)
-            if (scarabs <= 0) {
-              finish(false)
-              return
-            }
-            this.schedule(500, render)
-          }
-        },
+        targets: [glow, mark],
+        scaleX: 1.42,
+        scaleY: 1.42,
+        alpha: 0,
+        duration: 760,
+        ease: 'Sine.easeOut',
       })
     }
 
-    render()
+    const completeRound = () => {
+      if (phase === 'resolving' || phase === 'finished') return
+
+      phase = 'resolving'
+      velocityX = 0
+      velocityY = 0
+      aimGraphics.clear()
+
+      const shotsThisRound = shots - roundStartShots
+      const shotBonus = Math.max(0, 7 - shotsThisRound) * 55
+      score += 300 + shotBonus
+      updateHud()
+
+      status.setText('The scarab enters the Sun Disk!')
+      status.setColor('#72ff9b')
+      showGoalEffect()
+
+      if (scarabVisual) {
+        this.addTween({
+          targets: scarabVisual,
+          x: goalObstacle?.x ?? scarabX,
+          y: goalObstacle?.y ?? scarabY,
+          scaleX: 0.45,
+          scaleY: 0.45,
+          angle: 360,
+          alpha: 0.25,
+          duration: 520,
+          ease: 'Sine.easeIn',
+        })
+      }
+
+      if (roundIndex >= rounds.length - 1) {
+        this.schedule(950, () => finishTrial(true))
+        return
+      }
+
+      this.schedule(980, () => {
+        roundIndex += 1
+        renderRound()
+      })
+    }
+
+    const resolveCircleCollision = (
+      obstacleX: number,
+      obstacleY: number,
+      obstacleRadius: number,
+      restitution = 0.88,
+    ) => {
+      const dx = scarabX - obstacleX
+      const dy = scarabY - obstacleY
+      const minimumDistance = scarabRadius + obstacleRadius
+      const distanceSquared = dx * dx + dy * dy
+
+      if (
+        distanceSquared >= minimumDistance * minimumDistance ||
+        distanceSquared <= 0.0001
+      ) {
+        return
+      }
+
+      const distance = Math.sqrt(distanceSquared)
+      const normalX = dx / distance
+      const normalY = dy / distance
+      const penetration = minimumDistance - distance
+
+      scarabX += normalX * penetration
+      scarabY += normalY * penetration
+
+      const velocityAlongNormal =
+        velocityX * normalX + velocityY * normalY
+
+      if (velocityAlongNormal < 0) {
+        velocityX -=
+          (1 + restitution) * velocityAlongNormal * normalX
+        velocityY -=
+          (1 + restitution) * velocityAlongNormal * normalY
+      }
+    }
+
+    const drawAimGuide = (pointerX: number, pointerY: number) => {
+      if (phase !== 'aiming') {
+        aimGraphics.clear()
+        return
+      }
+
+      const dx = pointerX - scarabX
+      const dy = pointerY - scarabY
+      const rawDistance = Math.sqrt(dx * dx + dy * dy)
+
+      if (rawDistance <= 0.001) {
+        aimGraphics.clear()
+        aimPower = 0
+        updateHud()
+        return
+      }
+
+      const distance = Math.min(maxAimDistance, rawDistance)
+      aimAngle = Math.atan2(dy, dx)
+      aimPower = Phaser.Math.Clamp(distance / maxAimDistance, 0, 1)
+
+      const directionX = Math.cos(aimAngle)
+      const directionY = Math.sin(aimAngle)
+      const startX = scarabX + directionX * (scarabRadius + 7)
+      const startY = scarabY + directionY * (scarabRadius + 7)
+      const endX = scarabX + directionX * distance
+      const endY = scarabY + directionY * distance
+
+      const arrowColor =
+        aimPower >= 0.82
+          ? 0xff8a54
+          : aimPower >= 0.48
+            ? 0xffd966
+            : 0x4de0d2
+
+      aimGraphics.clear()
+      aimGraphics.lineStyle(6, 0x000000, 0.52)
+      aimGraphics.lineBetween(startX + 2, startY + 2, endX + 2, endY + 2)
+      aimGraphics.lineStyle(4, arrowColor, 1)
+      aimGraphics.lineBetween(startX, startY, endX, endY)
+
+      const arrowLength = 14
+      const arrowAngle = 0.58
+      aimGraphics.fillStyle(arrowColor, 1)
+      aimGraphics.fillTriangle(
+        endX,
+        endY,
+        endX - Math.cos(aimAngle - arrowAngle) * arrowLength,
+        endY - Math.sin(aimAngle - arrowAngle) * arrowLength,
+        endX - Math.cos(aimAngle + arrowAngle) * arrowLength,
+        endY - Math.sin(aimAngle + arrowAngle) * arrowLength,
+      )
+
+      aimGraphics.fillStyle(0xfff1ad, 0.72)
+      const guideStep = 27
+      const guideDistance = Math.min(boardWidth * 0.42, 220)
+
+      for (
+        let distanceAlong = distance + 22;
+        distanceAlong <= guideDistance;
+        distanceAlong += guideStep
+      ) {
+        const dotX = scarabX + directionX * distanceAlong
+        const dotY = scarabY + directionY * distanceAlong
+
+        if (
+          dotX < boardLeft + 6 ||
+          dotX > boardRight - 6 ||
+          dotY < boardUpper + 6 ||
+          dotY > boardLower - 6
+        ) {
+          break
+        }
+
+        aimGraphics.fillCircle(dotX, dotY, 3)
+      }
+
+      updateHud()
+    }
+
+    const launchScarab = () => {
+      if (phase !== 'aiming') return
+
+      if (aimPower < 0.08) {
+        phase = 'ready'
+        aimGraphics.clear()
+        aimPower = 0
+        status.setText('Drag farther from the scarab to add power.')
+        status.setColor('#ffbd63')
+        updateHud()
+        return
+      }
+
+      const minimumSpeed = 190
+      const maximumSpeed = 760
+      const launchSpeed =
+        minimumSpeed + (maximumSpeed - minimumSpeed) * aimPower
+
+      velocityX = Math.cos(aimAngle) * launchSpeed
+      velocityY = Math.sin(aimAngle) * launchSpeed
+      shots += 1
+      phase = 'moving'
+      aimGraphics.clear()
+
+      status.setText('The sacred scarab is moving...')
+      status.setColor('#4de0d2')
+      updateHud()
+    }
+
+    const handlePointerDown = (pointer: Phaser.Input.Pointer) => {
+      if (phase !== 'ready' || this.resultLocked) return
+
+      const distance = Phaser.Math.Distance.Between(
+        pointer.x,
+        pointer.y,
+        scarabX,
+        scarabY,
+      )
+
+      if (distance > scarabRadius + 18) {
+        status.setText('Hold directly on the sacred scarab to begin aiming.')
+        status.setColor('#ffbd63')
+        return
+      }
+
+      phase = 'aiming'
+      aimPower = 0
+      drawAimGuide(pointer.x, pointer.y)
+      status.setText('Drag toward the direction you want the scarab to travel.')
+      status.setColor('#4de0d2')
+      updateHud()
+    }
+
+    const handlePointerMove = (pointer: Phaser.Input.Pointer) => {
+      if (phase !== 'aiming') return
+      drawAimGuide(pointer.x, pointer.y)
+    }
+
+    const handlePointerUp = () => {
+      if (phase !== 'aiming') return
+      launchScarab()
+    }
+
+    const physicsStep = () => {
+      if (phase === 'finished') return
+
+      const deltaSeconds = 1 / 60
+      elapsedSeconds += deltaSeconds
+
+      movingBlockers.forEach((blocker) => {
+        const offset =
+          Math.sin(elapsedSeconds * blocker.speed + blocker.phase) *
+          blocker.amplitude
+
+        if (blocker.axis === 'x') {
+          blocker.x = blocker.baseX + offset
+          blocker.y = blocker.baseY
+        } else {
+          blocker.x = blocker.baseX
+          blocker.y = blocker.baseY + offset
+        }
+
+        blocker.visual.setPosition(blocker.x, blocker.y)
+      })
+
+      if (phase !== 'moving') return
+
+      scarabX += velocityX * deltaSeconds
+      scarabY += velocityY * deltaSeconds
+
+      const restitution = 0.84
+
+      if (scarabX - scarabRadius < boardLeft) {
+        scarabX = boardLeft + scarabRadius
+        velocityX = Math.abs(velocityX) * restitution
+      } else if (scarabX + scarabRadius > boardRight) {
+        scarabX = boardRight - scarabRadius
+        velocityX = -Math.abs(velocityX) * restitution
+      }
+
+      if (scarabY - scarabRadius < boardUpper) {
+        scarabY = boardUpper + scarabRadius
+        velocityY = Math.abs(velocityY) * restitution
+      } else if (scarabY + scarabRadius > boardLower) {
+        scarabY = boardLower - scarabRadius
+        velocityY = -Math.abs(velocityY) * restitution
+      }
+
+      pillars.forEach((pillar) => {
+        resolveCircleCollision(
+          pillar.x,
+          pillar.y,
+          pillar.radius,
+          0.9,
+        )
+      })
+
+      movingBlockers.forEach((blocker) => {
+        resolveCircleCollision(
+          blocker.x,
+          blocker.y,
+          blocker.radius,
+          0.92,
+        )
+      })
+
+      const frictionPerFrame = 0.985
+      velocityX *= frictionPerFrame
+      velocityY *= frictionPerFrame
+
+      setScarabPosition(scarabX, scarabY)
+
+      const currentGoal = goalObstacle
+
+      if (
+        currentGoal &&
+        Phaser.Math.Distance.Between(
+          scarabX,
+          scarabY,
+          currentGoal.x,
+          currentGoal.y,
+        ) <=
+          Math.max(
+            scarabRadius * 0.58,
+            currentGoal.radius - scarabRadius * 0.28,
+          )
+      ) {
+        completeRound()
+        return
+      }
+
+      const capturedByHole = holes.some(
+        (hole) =>
+          Phaser.Math.Distance.Between(
+            scarabX,
+            scarabY,
+            hole.x,
+            hole.y,
+          ) <=
+          Math.max(
+            scarabRadius * 0.52,
+            hole.radius - scarabRadius * 0.16,
+          ),
+      )
+
+      if (capturedByHole) {
+        loseLife('The scarab fell into a cursed hole.')
+        return
+      }
+
+      const speed = Math.sqrt(
+        velocityX * velocityX + velocityY * velocityY,
+      )
+
+      if (speed < 9) {
+        velocityX = 0
+        velocityY = 0
+        phase = 'ready'
+        status.setText('The scarab has stopped. Hold it for your next shot.')
+        status.setColor('#ffd966')
+        updateHud()
+      }
+    }
+
+    const renderRound = () => {
+      clearRoundObjects()
+
+      phase = 'ready'
+      velocityX = 0
+      velocityY = 0
+      aimPower = 0
+      elapsedSeconds = 0
+      roundStartShots = shots
+
+      const round = rounds[roundIndex]
+      roundTitle.setText(round.title)
+
+      goalObstacle = createGoal(round)
+      pillars = round.pillars.map(createPillar)
+      holes = round.holes.map(createHole)
+      movingBlockers = round.blockers.map(createMovingBlocker)
+
+      const start = toBoardPoint(round.start)
+      scarabVisual = createScarabVisual(start.x, start.y)
+      setScarabPosition(start.x, start.y)
+
+      status.setText(round.hint)
+      status.setColor('#ffd966')
+      updateHud()
+    }
+
+    boardHitZone.on('pointerdown', handlePointerDown)
+    this.scene.input.on('pointermove', handlePointerMove)
+    this.scene.input.on('pointerup', handlePointerUp)
+    this.scene.input.on('pointerupoutside', handlePointerUp)
+
+    const physicsTimer = this.addLoop(16, physicsStep)
+
+    this.runtimeCleanups.push(() => {
+      physicsTimer.remove(false)
+      aimGraphics.clear()
+      boardHitZone.off('pointerdown', handlePointerDown)
+      this.scene.input.off('pointermove', handlePointerMove)
+      this.scene.input.off('pointerup', handlePointerUp)
+      this.scene.input.off('pointerupoutside', handlePointerUp)
+      clearRoundObjects()
+    })
+
+    renderRound()
   }
+
 
   // ---------------------------------------------------------------------------
   // 7. STAIRWAY TO THE SUN

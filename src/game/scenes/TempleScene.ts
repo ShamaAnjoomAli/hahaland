@@ -261,7 +261,7 @@ export default class TempleScene extends Phaser.Scene {
     this.stopGameTimer = timerController.stop
 
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15)
-    this.cameras.main.setZoom(0.55)
+    this.cameras.main.setZoom(0.65)
     this.cameras.main.fadeIn(520, 18, 10, 5)
 
     this.createUICamera()
