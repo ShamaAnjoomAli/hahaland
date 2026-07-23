@@ -848,33 +848,47 @@ this.saveProgress()
     // }
 
     // B to go to north gate of bazaar
-    // if (
-    
     if (
-      Phaser.Input.Keyboard.JustDown(
-        this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
-      )
-    ) {
-      this.scene.start('TempleScene', {
+        Phaser.Input.Keyboard.JustDown(
+          this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
+        )
+      ) {
+      this.scene.restart({
+        fromBazaar: true,
+        bazaarExit: 'north',
+        spawnName: 'BazaarNorthReturnSpawn',
         coins: this.coins,
         reputation: this.reputation,
-        remainingSeconds: this.remainingSeconds,
-        fromDebug: true,
       })
     
       return
     }
+    
+    // if (
+    //   Phaser.Input.Keyboard.JustDown(
+    //     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
+    //   )
+    // ) {
+    //   this.scene.start('TempleScene', {
+    //     coins: this.coins,
+    //     reputation: this.reputation,
+    //     remainingSeconds: this.remainingSeconds,
+    //     fromDebug: true,
+    //   })
+    
+    //   return
+    // }
 
-    if (
-      Phaser.Input.Keyboard.JustDown(
-        this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
-      )
-    ) {
-      this.scene.start('BazaarScene', {
-        coins: this.coins,
-        reputation: this.reputation,
-      })
-    }
+    // if (
+    //   Phaser.Input.Keyboard.JustDown(
+    //     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B)
+    //   )
+    // ) {
+    //   this.scene.start('BazaarScene', {
+    //     coins: this.coins,
+    //     reputation: this.reputation,
+    //   })
+    // }
 
     // block movement when opening sequence is playing
     if (this.isOpeningSequencePlaying) {

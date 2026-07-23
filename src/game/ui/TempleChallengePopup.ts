@@ -703,7 +703,7 @@ export default class TempleChallengePopup {
     }
   }
 
-  // ---------------------------------------------------------------------------
+ // ---------------------------------------------------------------------------
   // 1. GATE OF TRUTH — FIND THE MISSING RELICS
   // ---------------------------------------------------------------------------
   private createGateOfTruth() {
@@ -739,9 +739,20 @@ export default class TempleChallengePopup {
         leftImageKey: 'temple-truth-pair-1-left',
         rightImageKey: 'temple-truth-pair-1-right',
         differences: [
-          { id: 'ankh', label: 'Golden ankh', x: 0.22, y: 0.29, radius: 0.085 },
-          { id: 'blue-vase', label: 'Blue ceremonial vase', x: 0.78, y: 0.65, radius: 0.085 },
-          { id: 'floor-scarab', label: 'Floor scarab', x: 0.51, y: 0.79, radius: 0.085 },
+          {
+            id: 'floor-scarab',
+            label: 'Floor scarab',
+            x: 0.365,
+            y: 0.76,
+            radius: 0.125,
+          },
+          {
+            id: 'blue-vase',
+            label: 'Blue ceremonial vase',
+            x: 0.79,
+            y: 0.73,
+            radius: 0.125,
+          },
         ],
       },
       {
@@ -749,9 +760,20 @@ export default class TempleChallengePopup {
         leftImageKey: 'temple-truth-pair-2-left',
         rightImageKey: 'temple-truth-pair-2-right',
         differences: [
-          { id: 'wall-torch', label: 'Wall torch', x: 0.18, y: 0.31, radius: 0.085 },
-          { id: 'falcon-statue', label: 'Falcon guardian', x: 0.80, y: 0.43, radius: 0.09 },
-          { id: 'offering-bowl', label: 'Offering bowl', x: 0.52, y: 0.72, radius: 0.09 },
+          {
+            id: 'treasure-chest',
+            label: 'Guardian treasure chest',
+            x: 0.16,
+            y: 0.77,
+            radius: 0.13,
+          },
+          {
+            id: 'blue-offering-jar',
+            label: 'Blue offering jar',
+            x: 0.69,
+            y: 0.69,
+            radius: 0.125,
+          },
         ],
       },
       {
@@ -759,9 +781,27 @@ export default class TempleChallengePopup {
         leftImageKey: 'temple-truth-pair-3-left',
         rightImageKey: 'temple-truth-pair-3-right',
         differences: [
-          { id: 'eye-carving', label: 'Eye of Horus carving', x: 0.51, y: 0.24, radius: 0.09 },
-          { id: 'papyrus', label: 'Papyrus scroll', x: 0.29, y: 0.66, radius: 0.09 },
-          { id: 'cat-statue', label: 'Cat statue', x: 0.74, y: 0.74, radius: 0.09 },
+          {
+            id: 'falcon-statue',
+            label: 'Falcon guardian',
+            x: 0.16,
+            y: 0.70,
+            radius: 0.125,
+          },
+          {
+            id: 'large-vase',
+            label: 'Large ceremonial vase',
+            x: 0.84,
+            y: 0.68,
+            radius: 0.125,
+          },
+          {
+            id: 'right-wall-torch',
+            label: 'Right wall torch',
+            x: 0.84,
+            y: 0.35,
+            radius: 0.11,
+          },
         ],
       },
       {
@@ -769,9 +809,27 @@ export default class TempleChallengePopup {
         leftImageKey: 'temple-truth-pair-4-left',
         rightImageKey: 'temple-truth-pair-4-right',
         differences: [
-          { id: 'coin-stack', label: 'Golden coin stack', x: 0.24, y: 0.76, radius: 0.09 },
-          { id: 'ruby-scarab', label: 'Ruby scarab', x: 0.52, y: 0.53, radius: 0.085 },
-          { id: 'treasury-jar', label: 'Blue treasury jar', x: 0.80, y: 0.66, radius: 0.09 },
+          {
+            id: 'coin-pile',
+            label: 'Golden coin pile',
+            x: 0.18,
+            y: 0.74,
+            radius: 0.13,
+          },
+          {
+            id: 'treasury-vase',
+            label: 'Blue treasury vase',
+            x: 0.79,
+            y: 0.69,
+            radius: 0.125,
+          },
+          {
+            id: 'anubis-statue',
+            label: 'Anubis guardian statue',
+            x: 0.95,
+            y: 0.78,
+            radius: 0.13,
+          },
         ],
       },
       {
@@ -779,16 +837,34 @@ export default class TempleChallengePopup {
         leftImageKey: 'temple-truth-pair-5-left',
         rightImageKey: 'temple-truth-pair-5-right',
         differences: [
-          { id: 'sun-disk', label: 'Sacred sun disk', x: 0.50, y: 0.22, radius: 0.09 },
-          { id: 'lotus-lamp', label: 'Lotus flame lamp', x: 0.21, y: 0.69, radius: 0.09 },
-          { id: 'gold-scepter', label: 'Golden scepter', x: 0.79, y: 0.53, radius: 0.09 },
+          {
+            id: 'corridor-vase',
+            label: 'Blue corridor vase',
+            x: 0.18,
+            y: 0.80,
+            radius: 0.13,
+          },
+          {
+            id: 'cat-statue',
+            label: 'Sacred cat statue',
+            x: 0.86,
+            y: 0.80,
+            radius: 0.135,
+          },
+          {
+            id: 'offering-bowl',
+            label: 'Golden offering bowl',
+            x: 0.73,
+            y: 0.54,
+            radius: 0.115,
+          },
         ],
       },
     ]
 
     this.addTitle(TRIAL_TITLES['truth-gate'])
     this.addInstruction(
-      'Find the 3 missing relics. Tap the changed spot in either temple image.',
+      'Find every missing relic. Tap the changed spot in either temple image.',
       top + 84,
     )
 
@@ -851,14 +927,18 @@ export default class TempleChallengePopup {
       showProgress: true,
     })
 
-    const roundTitleY = top + 166
-    const imageLabelY = top + 190
-    const imageTop = top + 208
-    const statusY = bottom - 39
-    const imageBottom = statusY - 28
-    const imageGap = 16
-    const maxImageWidth = (this.panelWidth - 86 - imageGap) / 2
-    const maxImageHeight = Math.max(150, imageBottom - imageTop)
+    const roundTitleY = top + 163
+    const imageLabelY = top + 186
+    const imageTop = top + 198
+
+    // Use more of the empty lower area for the comparison images.
+    const statusY = bottom - 30
+    const imageBottom = statusY - 16
+    const imageGap = 10
+
+    // Smaller outer margins make both images visibly larger.
+    const maxImageWidth = (this.panelWidth - 34 - imageGap) / 2
+    const maxImageHeight = Math.max(170, imageBottom - imageTop)
     const imageWidth = Math.min(maxImageWidth, maxImageHeight * (4 / 3))
     const imageHeight = imageWidth * (3 / 4)
     const imageY = imageTop + imageHeight / 2
@@ -877,7 +957,7 @@ export default class TempleChallengePopup {
     this.addObject(statusPanel)
 
     const status = this.addStatusText('', statusY, '#ffd966')
-    status.setFontSize(13)
+    status.setFontSize(14)
 
     const addRoundObject = <T extends Phaser.GameObjects.GameObject>(object: T) => {
       this.addObject(object)
@@ -1054,13 +1134,17 @@ export default class TempleChallengePopup {
     }
 
     const handleImageTap = (
-      pointer: Phaser.Input.Pointer,
       imageX: number,
+      hitZoneLocalX: number,
+      hitZoneLocalY: number,
     ) => {
       if (roundLocked || this.resultLocked) return
 
-      const localX = (pointer.x - (imageX - imageWidth / 2)) / imageWidth
-      const localY = (pointer.y - (imageY - imageHeight / 2)) / imageHeight
+      // Local hit-zone coordinates stay correct when the canvas or camera scales.
+      const localX = Phaser.Math.Clamp(hitZoneLocalX / imageWidth, 0, 1)
+      const localY = Phaser.Math.Clamp(hitZoneLocalY / imageHeight, 0, 1)
+      const tappedX = imageX - imageWidth / 2 + localX * imageWidth
+      const tappedY = imageY - imageHeight / 2 + localY * imageHeight
 
       const round = getCurrentRound()
       const spot = round.differences.find((difference) => {
@@ -1099,7 +1183,7 @@ export default class TempleChallengePopup {
       score = Math.max(0, score - 15)
       remainingMs = Math.max(0, remainingMs - 1500)
 
-      showWrongTapEffect(pointer.x, pointer.y)
+      showWrongTapEffect(tappedX, tappedY)
       this.scene.cameras.main.shake(90, 0.0025)
 
       if (wrongTaps >= 3) {
@@ -1187,9 +1271,16 @@ export default class TempleChallengePopup {
         this.scene.add.rectangle(imageX, imageY, imageWidth, imageHeight, 0xffffff, 0.001),
       )
       hitZone.setInteractive({ useHandCursor: true })
-      hitZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        handleImageTap(pointer, imageX)
-      })
+      hitZone.on(
+        'pointerdown',
+        (
+          _pointer: Phaser.Input.Pointer,
+          localX: number,
+          localY: number,
+        ) => {
+          handleImageTap(imageX, localX, localY)
+        },
+      )
     }
 
     const startRoundTimer = () => {
@@ -1249,7 +1340,11 @@ export default class TempleChallengePopup {
       addPairImage(round.leftImageKey, leftImageX, 'ORIGINAL')
       addPairImage(round.rightImageKey, rightImageX, 'ALTERED')
 
-      status.setText('Tap the three changed or missing relics.')
+      status.setText(
+        `Tap the ${round.differences.length} changed or missing relic${
+          round.differences.length === 1 ? '' : 's'
+        }.`,
+      )
       status.setColor('#ffd966')
 
       updateHud()
