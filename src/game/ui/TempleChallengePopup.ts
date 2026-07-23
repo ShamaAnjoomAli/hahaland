@@ -6156,102 +6156,2255 @@ The numbered fallback puzzle will still work.`,
 
 
   // ---------------------------------------------------------------------------
-  // 7. STAIRWAY TO THE SUN
+  // 7. STAIRWAY TO THE SUN — ASCENT OF RA
   // ---------------------------------------------------------------------------
   private createStairwaySun() {
     const width = this.scene.scale.width
     const top = this.getPanelTop()
     const bottom = this.getPanelBottom()
 
-    this.addTitle(TRIAL_TITLES['stairway-sun'])
-    this.addInstruction('Climb the final stairway. Choose the safe step through falling stone, wind, and scarabs.', top + 88)
-
-    type StepRound = {
-      prompt: string
-      options: [string, string, string]
-      correctIndex: number
-    }
-
-    const rounds: StepRound[] = [
-      { prompt: 'A cracked stair waits ahead.', options: ['Left step', 'Center step', 'Right step'], correctIndex: 0 },
-      { prompt: 'Wind blows sand across the stairs.', options: ['Walk fast', 'Lower your body', 'Jump blindly'], correctIndex: 1 },
-      { prompt: 'Scarab swarm crosses the middle.', options: ['Middle lane', 'Right lane', 'Stop forever'], correctIndex: 1 },
-      { prompt: 'A falling stone shadow appears.', options: ['Stand still', 'Move to glowing tile', 'Run backward'], correctIndex: 1 },
-      { prompt: 'The Sun Altar asks for the final step.', options: ['Rush proudly', 'Climb with steady breath', 'Throw gold at altar'], correctIndex: 1 },
+    const smoothTextureKeys = [
+      'stairway-bg-stone',
+      'stairway-bg-sky',
+      'stairway-bg-sun',
+      'stairway-platform-stone',
+      'stairway-platform-gold',
+      'stairway-light-fragment',
+      'stairway-checkpoint',
+      'stairway-spike',
+      'stairway-flame',
+      'stairway-falling-rock',
+      'stairway-guardian',
+      'stairway-sun-altar',
+      'stairway-cloud',
     ]
 
-    let round = 0
-    let hearts = 3
-    let score = 0
-    let buttons: ButtonHandle[] = []
+    smoothTextureKeys.forEach((key) => {
+      if (!this.scene.textures.exists(key)) return
+      this.scene.textures
+        .get(key)
+        .setFilter(Phaser.Textures.FilterMode.LINEAR)
+    })
 
-    const stairs = this.scene.add.rectangle(width / 2, top + 250, this.panelWidth - 130, 238, 0x5b3a18, 1)
-    stairs.setStrokeStyle(4, 0xd4af37, 1)
-    this.addObject(stairs)
+    this.addTitle(TRIAL_TITLES['stairway-sun'])
+    this.addInstruction(
+      'Use A/D or arrows to move. Hold a direction and press Space to jump onto the glowing platforms. Shift air-dashes.',
+      top + 83,
+    )
 
-    const sun = this.scene.add.circle(width / 2, top + 148, 34, 0xffd966, 1)
-    sun.setStrokeStyle(5, 0xfff1ad, 1)
-    this.addObject(sun)
+    type PlatformKind =
+      | 'stone'
+      | 'gold'
+      | 'moving-x'
+      | 'moving-y'
+      | 'crumble'
+      | 'cloud'
 
-    const climber = this.scene.add.circle(width / 2, top + 334, 14, 0x7de0d3, 1)
-    climber.setStrokeStyle(3, 0xffffff, 1)
-    this.addObject(climber)
-
-    const prompt = this.addStatusText('', top + 386)
-    const hud = this.addStatusText('', top + 128)
-
-    const render = () => {
-      buttons.forEach((button) => button.destroy())
-      buttons = []
-      const current = rounds[round]
-      hud.setText(`STEP ${round + 1} / ${rounds.length}     HEARTS ${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}     SCORE ${score}`)
-      prompt.setText(current.prompt)
-      climber.setPosition(width / 2, top + 334 - round * 42)
-      const gap = 14
-      const buttonWidth = Math.min(210, (this.panelWidth - 94 - gap * 2) / 3)
-      const y = bottom - 82
-      const xs = [width / 2 - buttonWidth - gap, width / 2, width / 2 + buttonWidth + gap]
-      buttons = current.options.map((label, index) =>
-        this.createButton({ x: xs[index], y, width: buttonWidth, height: 58, label, fontSize: 13, onClick: () => choose(index) }),
-      )
+    type Platform = {
+      id: string
+      x: number
+      y: number
+      width: number
+      height: number
+      kind: PlatformKind
+      baseX: number
+      baseY: number
+      amplitude: number
+      speed: number
+      phase: number
+      visual: Phaser.GameObjects.Container
+      collidable: boolean
+      crumbleStarted: boolean
+      deltaX: number
+      deltaY: number
     }
 
-    const finish = (success: boolean) => {
-      const reward = this.baseReward('stairway-sun', success, score)
-      this.complete({
-        trialId: 'stairway-sun',
-        success,
-        response: success
-          ? 'You reached the Sun Altar. A king is not crowned in one step, but you climbed every one with purpose.'
-          : 'The stairway refuses a rushed climb. Endurance is learned one careful step at a time.',
-        ...reward,
+    type HazardKind =
+      | 'spikes'
+      | 'flame'
+      | 'rock'
+      | 'guardian'
+      | 'beam'
+      | 'blade'
+
+    type Hazard = {
+      kind: HazardKind
+      x: number
+      y: number
+      width: number
+      height: number
+      baseX: number
+      baseY: number
+      amplitude: number
+      speed: number
+      phase: number
+      active: boolean
+      visual: Phaser.GameObjects.Container
+    }
+
+    type LightFragment = {
+      name: string
+      x: number
+      y: number
+      baseY: number
+      collected: boolean
+      phase: number
+      visual: Phaser.GameObjects.Container
+    }
+
+    type Checkpoint = {
+      index: number
+      x: number
+      y: number
+      spawnX: number
+      spawnY: number
+      activated: boolean
+      visual: Phaser.GameObjects.Container
+    }
+
+    const hudWidth = this.panelWidth - 84
+    const hudGap = 7
+    const hudCardWidth = (hudWidth - hudGap * 3) / 4
+    const hudStartX = width / 2 - hudWidth / 2 + hudCardWidth / 2
+    const hudY = top + 121
+
+    const heartsHud = this.createCompactHudCard({
+      x: hudStartX,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'HEARTS',
+      bandColor: 0x8f2d2d,
+      valueColor: '#8f2d2d',
+    })
+
+    const heightHud = this.createCompactHudCard({
+      x: hudStartX + hudCardWidth + hudGap,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'HEIGHT',
+      bandColor: 0x245d78,
+      showProgress: true,
+    })
+
+    const lightHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 2,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'LIGHT',
+      bandColor: 0x8b6b1f,
+      valueColor: '#7b5510',
+    })
+
+    const checkpointHud = this.createCompactHudCard({
+      x: hudStartX + (hudCardWidth + hudGap) * 3,
+      y: hudY,
+      width: hudCardWidth,
+      label: 'CHECKPOINT',
+      bandColor: 0x27633a,
+      valueColor: '#27633a',
+    })
+
+    const statusY = bottom - 18
+    const viewportTop = top + 158
+    const viewportBottom = statusY - 28
+    const viewportHeight = Math.max(310, viewportBottom - viewportTop)
+    const viewportWidth = this.panelWidth - 84
+    const viewportLeft = width / 2 - viewportWidth / 2
+    const viewportRight = viewportLeft + viewportWidth
+
+    const viewportShadow = this.scene.add.rectangle(
+      width / 2 + 6,
+      viewportTop + viewportHeight / 2 + 7,
+      viewportWidth + 14,
+      viewportHeight + 14,
+      0x000000,
+      0.46,
+    )
+
+    const viewportFrame = this.scene.add.rectangle(
+      width / 2,
+      viewportTop + viewportHeight / 2,
+      viewportWidth + 14,
+      viewportHeight + 14,
+      0x211107,
+      1,
+    )
+    viewportFrame.setStrokeStyle(4, 0xd4af37, 1)
+
+    const viewportInner = this.scene.add.rectangle(
+      width / 2,
+      viewportTop + viewportHeight / 2,
+      viewportWidth,
+      viewportHeight,
+      0x0e0804,
+      1,
+    )
+    viewportInner.setStrokeStyle(2, 0x2aa7a1, 0.72)
+
+    this.addObject(viewportShadow)
+    this.addObject(viewportFrame)
+    this.addObject(viewportInner)
+
+    const maskGraphics = this.scene.add.graphics()
+    maskGraphics.fillStyle(0xffffff, 1)
+    maskGraphics.fillRect(
+      viewportLeft,
+      viewportTop,
+      viewportWidth,
+      viewportHeight,
+    )
+    maskGraphics.setVisible(false)
+    this.addObject(maskGraphics)
+
+    const worldContainer = this.scene.add.container(
+      viewportLeft,
+      viewportTop,
+    )
+    const worldMask = maskGraphics.createGeometryMask()
+    worldContainer.setMask(worldMask)
+    this.addObject(worldContainer)
+
+    this.runtimeCleanups.push(() => {
+      worldContainer.clearMask(true)
+      worldMask.destroy()
+    })
+
+    const backgroundLayer = this.scene.add.container(0, 0)
+    const gameplayLayer = this.scene.add.container(0, 0)
+    const fxLayer = this.scene.add.container(0, 0)
+    worldContainer.add([backgroundLayer, gameplayLayer, fxLayer])
+
+    const worldWidth = viewportWidth
+    const worldHeight = 2580
+    const playerWidth = 24
+    const playerHeight = 36
+    const playerHalfWidth = playerWidth / 2
+    const playerHalfHeight = playerHeight / 2
+
+    const statusPanel = this.scene.add.rectangle(
+      width / 2,
+      statusY,
+      this.panelWidth - 102,
+      30,
+      0x211107,
+      0.97,
+    )
+    statusPanel.setStrokeStyle(2, 0xd4af37, 0.85)
+    this.addObject(statusPanel)
+
+    const status = this.addStatusText(
+      'Move left with A, then press Space to reach the first platform.',
+      statusY,
+      '#ffd966',
+    )
+    status.setFontSize(12)
+
+    const zoneBadge = this.scene.add.text(
+      viewportLeft + 10,
+      viewportTop + 9,
+      'CHAMBER OF STONE',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '12px',
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold',
+      },
+    )
+    zoneBadge.setOrigin(0, 0)
+    zoneBadge.setDepth(120000)
+    this.addObject(zoneBadge)
+
+    const dashBadge = this.scene.add.text(
+      viewportRight - 10,
+      viewportTop + 9,
+      'SHIFT: AIR DASH',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '10px',
+        color: '#7de0d3',
+        stroke: '#000000',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+      },
+    )
+    dashBadge.setOrigin(1, 0)
+    dashBadge.setDepth(120000)
+    this.addObject(dashBadge)
+
+    const progressTrack = this.scene.add.rectangle(
+      viewportRight - 11,
+      viewportTop + viewportHeight / 2,
+      6,
+      viewportHeight - 54,
+      0x211107,
+      0.82,
+    )
+    progressTrack.setStrokeStyle(1, 0xffd966, 0.48)
+    this.addObject(progressTrack)
+
+    const progressFillHeight = viewportHeight - 58
+    const progressFill = this.scene.add.rectangle(
+      viewportRight - 11,
+      viewportTop + viewportHeight - 29,
+      4,
+      1,
+      0xffd966,
+      0.95,
+    )
+    progressFill.setOrigin(0.5, 1)
+    this.addObject(progressFill)
+
+    const progressMarker = this.scene.add.circle(
+      viewportRight - 11,
+      viewportTop + viewportHeight - 29,
+      5,
+      0x7de0d3,
+      1,
+    )
+    progressMarker.setStrokeStyle(1, 0xffffff, 1)
+    this.addObject(progressMarker)
+
+    const addWorld = <T extends Phaser.GameObjects.GameObject>(
+      object: T,
+      layer: Phaser.GameObjects.Container = gameplayLayer,
+    ) => {
+      layer.add(object)
+      return object
+    }
+
+    const createProceduralBackground = () => {
+      const graphics = this.scene.add.graphics()
+
+      graphics.fillGradientStyle(
+        0x241208,
+        0x241208,
+        0x5b3214,
+        0x5b3214,
+        1,
+      )
+      graphics.fillRect(0, 1700, worldWidth, 880)
+
+      graphics.fillGradientStyle(
+        0x163b52,
+        0x163b52,
+        0xb87a32,
+        0xb87a32,
+        1,
+      )
+      graphics.fillRect(0, 760, worldWidth, 940)
+
+      graphics.fillGradientStyle(
+        0xffd66a,
+        0xffd66a,
+        0x5a9eb5,
+        0x5a9eb5,
+        1,
+      )
+      graphics.fillRect(0, 0, worldWidth, 760)
+
+      for (let y = 1730; y < worldHeight; y += 58) {
+        const offset = Math.floor((y / 58) % 2) * 28
+        for (let x = -offset; x < worldWidth; x += 72) {
+          graphics.lineStyle(1, 0xb57b37, 0.18)
+          graphics.strokeRect(x, y, 68, 52)
+        }
+      }
+
+      for (let i = 0; i < 10; i += 1) {
+        const rayX = (i / 9) * worldWidth
+        graphics.lineStyle(5, 0xfff0a1, 0.1)
+        graphics.lineBetween(
+          worldWidth / 2,
+          40,
+          rayX,
+          700,
+        )
+      }
+
+      addWorld(graphics, backgroundLayer)
+
+      for (let i = 0; i < 14; i += 1) {
+        const cloudX = 35 + (i * 97) % Math.max(120, worldWidth - 70)
+        const cloudY = 820 + (i * 131) % 760
+        const cloud = this.scene.add.container(cloudX, cloudY)
+
+        const c1 = this.scene.add.ellipse(0, 0, 88, 26, 0xe8e2c8, 0.12)
+        const c2 = this.scene.add.ellipse(-28, -7, 55, 24, 0xf3ead2, 0.12)
+        const c3 = this.scene.add.ellipse(30, -5, 62, 25, 0xf3ead2, 0.12)
+        cloud.add([c1, c2, c3])
+        addWorld(cloud, backgroundLayer)
+      }
+
+      for (let y = 1780; y < 2520; y += 240) {
+        const leftPillar = this.scene.add.rectangle(
+          24,
+          y,
+          34,
+          190,
+          0x7f4b21,
+          0.5,
+        )
+        leftPillar.setStrokeStyle(2, 0xd4af37, 0.25)
+
+        const rightPillar = this.scene.add.rectangle(
+          worldWidth - 24,
+          y - 80,
+          34,
+          190,
+          0x7f4b21,
+          0.5,
+        )
+        rightPillar.setStrokeStyle(2, 0xd4af37, 0.25)
+
+        addWorld(leftPillar, backgroundLayer)
+        addWorld(rightPillar, backgroundLayer)
+      }
+
+      const sunGlow = this.scene.add.circle(
+        worldWidth / 2,
+        88,
+        150,
+        0xffef9a,
+        0.1,
+      )
+      const sunCore = this.scene.add.circle(
+        worldWidth / 2,
+        88,
+        72,
+        0xffd34f,
+        0.18,
+      )
+      sunCore.setStrokeStyle(5, 0xfff4c7, 0.28)
+      addWorld(sunGlow, backgroundLayer)
+      addWorld(sunCore, backgroundLayer)
+    }
+
+    const createBackgroundSegment = (
+      key: string,
+      centerY: number,
+      heightValue: number,
+    ) => {
+      if (!this.scene.textures.exists(key)) return false
+
+      const image = this.scene.add.image(
+        worldWidth / 2,
+        centerY,
+        key,
+      )
+      image.setDisplaySize(worldWidth, heightValue)
+      addWorld(image, backgroundLayer)
+      return true
+    }
+
+    const hasAllBackgrounds =
+      createBackgroundSegment('stairway-bg-sun', 380, 760) &&
+      createBackgroundSegment('stairway-bg-sky', 1230, 940) &&
+      createBackgroundSegment('stairway-bg-stone', 2140, 880)
+
+    if (!hasAllBackgrounds) {
+      backgroundLayer.removeAll(true)
+      createProceduralBackground()
+    }
+
+    const platforms: Platform[] = []
+    const hazards: Hazard[] = []
+    const fragments: LightFragment[] = []
+    const checkpoints: Checkpoint[] = []
+
+    const createPlatform = (
+      id: string,
+      x: number,
+      y: number,
+      platformWidth: number,
+      kind: PlatformKind = 'stone',
+      options?: {
+        amplitude?: number
+        speed?: number
+        phase?: number
+      },
+    ) => {
+      const platformHeight = kind === 'cloud' ? 16 : 18
+      const visual = this.scene.add.container(x, y)
+
+      const shadow = this.scene.add.rectangle(
+        4,
+        platformHeight / 2 + 5,
+        platformWidth,
+        platformHeight + 2,
+        0x000000,
+        kind === 'cloud' ? 0.1 : 0.18,
+      )
+
+      const textureKey =
+        kind === 'gold'
+          ? 'stairway-platform-gold'
+          : kind === 'cloud'
+            ? 'stairway-cloud'
+            : 'stairway-platform-stone'
+
+      if (this.scene.textures.exists(textureKey)) {
+        if (kind === 'cloud') {
+          const cloudBase = this.scene.add.ellipse(
+            0,
+            platformHeight / 2 + 2,
+            platformWidth * 0.94,
+            22,
+            0xf4e7c4,
+            0.28,
+          )
+
+          const image = this.scene.add.image(
+            0,
+            platformHeight / 2,
+            textureKey,
+          )
+          image.setDisplaySize(platformWidth, 40)
+          visual.add([shadow, cloudBase, image])
+        } else {
+          // A solid gameplay base guarantees that the landing surface remains
+          // readable even against a detailed background.
+          const baseColor =
+            kind === 'gold' ? 0xc8942f : 0x8f5e2c
+
+          const platformBase = this.scene.add.rectangle(
+            0,
+            platformHeight / 2,
+            platformWidth,
+            platformHeight,
+            baseColor,
+            0.96,
+          )
+          platformBase.setStrokeStyle(
+            2,
+            kind === 'gold' ? 0xffe994 : 0xd4af37,
+            0.92,
+          )
+
+          const image = this.scene.add.image(
+            0,
+            platformHeight / 2 - 3,
+            textureKey,
+          )
+          image.setDisplaySize(platformWidth, 44)
+
+          visual.add([shadow, platformBase, image])
+        }
+      } else if (kind === 'cloud') {
+        const cloud = this.scene.add.ellipse(
+          0,
+          platformHeight / 2,
+          platformWidth,
+          27,
+          0xf4e7c4,
+          0.88,
+        )
+        cloud.setStrokeStyle(2, 0xffd966, 0.5)
+        visual.add([shadow, cloud])
+      } else {
+        const bodyColor =
+          kind === 'gold' ? 0xd3a13b : 0x9c6932
+
+        const body = this.scene.add.rectangle(
+          0,
+          platformHeight / 2,
+          platformWidth,
+          platformHeight,
+          bodyColor,
+          1,
+        )
+        body.setStrokeStyle(
+          2,
+          kind === 'gold' ? 0xffef9a : 0x4f2d12,
+          1,
+        )
+
+        const trim = this.scene.add.rectangle(
+          0,
+          2,
+          platformWidth - 8,
+          4,
+          kind === 'gold' ? 0x2d8985 : 0xd4af37,
+          0.9,
+        )
+
+        const lowerTrim = this.scene.add.rectangle(
+          0,
+          platformHeight - 2,
+          platformWidth - 12,
+          3,
+          0x5b3513,
+          0.55,
+        )
+
+        visual.add([shadow, body, trim, lowerTrim])
+      }
+
+      addWorld(visual)
+
+      const platform: Platform = {
+        id,
+        x,
+        y,
+        width: platformWidth,
+        height: platformHeight,
+        kind,
+        baseX: x,
+        baseY: y,
+        amplitude: options?.amplitude ?? 0,
+        speed: options?.speed ?? 1,
+        phase: options?.phase ?? 0,
+        visual,
+        collidable: true,
+        crumbleStarted: false,
+        deltaX: 0,
+        deltaY: 0,
+      }
+
+      platforms.push(platform)
+      return platform
+    }
+
+    const X = (ratio: number) =>
+      Phaser.Math.Clamp(
+        worldWidth * ratio,
+        48,
+        worldWidth - 48,
+      )
+
+    createPlatform('ground', X(0.5), 2500, worldWidth - 54, 'stone')
+    createPlatform('stone-1', X(0.22), 2374, 150, 'stone')
+    createPlatform('moving-1', X(0.59), 2252, 142, 'moving-x', {
+      amplitude: Math.min(92, worldWidth * 0.15),
+      speed: 1.45,
+    })
+    createPlatform('crumble-1', X(0.25), 2130, 132, 'crumble')
+    createPlatform('checkpoint-1', X(0.56), 2020, 205, 'gold')
+
+    createPlatform('sky-1', X(0.15), 1900, 122, 'stone')
+    createPlatform('sky-2', X(0.48), 1785, 138, 'moving-y', {
+      amplitude: 34,
+      speed: 1.3,
+    })
+    createPlatform('sky-3', X(0.82), 1660, 118, 'cloud')
+    createPlatform('sky-4', X(0.48), 1540, 154, 'stone')
+    createPlatform('checkpoint-2', X(0.67), 1430, 198, 'gold')
+
+    createPlatform('heaven-1', X(0.23), 1310, 126, 'cloud')
+    createPlatform('heaven-2', X(0.61), 1190, 130, 'moving-x', {
+      amplitude: Math.min(110, worldWidth * 0.18),
+      speed: 1.72,
+      phase: 1.5,
+    })
+    createPlatform('heaven-3', X(0.82), 1068, 110, 'gold')
+    createPlatform('crumble-2', X(0.44), 950, 132, 'crumble')
+    createPlatform('checkpoint-3', X(0.58), 840, 204, 'gold')
+
+    createPlatform('sun-1', X(0.20), 720, 116, 'cloud')
+    createPlatform('sun-2', X(0.58), 605, 120, 'moving-y', {
+      amplitude: 38,
+      speed: 1.55,
+      phase: 0.7,
+    })
+    createPlatform('sun-3', X(0.80), 485, 112, 'gold')
+    createPlatform('sun-4', X(0.44), 370, 130, 'moving-x', {
+      amplitude: Math.min(94, worldWidth * 0.15),
+      speed: 1.9,
+      phase: 2.1,
+    })
+    createPlatform('sun-5', X(0.27), 270, 118, 'cloud')
+    createPlatform('altar-platform', X(0.5), 170, 250, 'gold')
+
+    const createSpikes = (
+      x: number,
+      y: number,
+      spikeWidth: number,
+    ) => {
+      const heightValue = 16
+      const visual = this.scene.add.container(x, y)
+
+      if (this.scene.textures.exists('stairway-spike')) {
+        const image = this.scene.add.image(0, 0, 'stairway-spike')
+        image.setDisplaySize(spikeWidth, heightValue + 6)
+        visual.add(image)
+      } else {
+        const graphics = this.scene.add.graphics()
+        graphics.fillStyle(0x66534c, 1)
+        graphics.lineStyle(1, 0xffd966, 0.55)
+
+        const count = Math.max(2, Math.floor(spikeWidth / 14))
+        const itemWidth = spikeWidth / count
+
+        for (let i = 0; i < count; i += 1) {
+          const left = -spikeWidth / 2 + i * itemWidth
+          graphics.fillTriangle(
+            left,
+            heightValue,
+            left + itemWidth / 2,
+            0,
+            left + itemWidth,
+            heightValue,
+          )
+          graphics.strokeTriangle(
+            left,
+            heightValue,
+            left + itemWidth / 2,
+            0,
+            left + itemWidth,
+            heightValue,
+          )
+        }
+
+        visual.add(graphics)
+      }
+
+      addWorld(visual)
+      hazards.push({
+        kind: 'spikes',
+        x,
+        y,
+        width: spikeWidth,
+        height: heightValue,
+        baseX: x,
+        baseY: y,
+        amplitude: 0,
+        speed: 0,
+        phase: 0,
+        active: true,
+        visual,
       })
     }
 
-    const choose = (index: number) => {
-      const current = rounds[round]
-      buttons.forEach((button) => button.setEnabled(false))
-      if (index === current.correctIndex) {
-        score += 90
-        this.addTween({ targets: climber, y: climber.y - 42, duration: 420, ease: 'Sine.easeInOut' })
-        round += 1
-        if (round >= rounds.length) {
-          this.schedule(650, () => finish(true))
-          return
-        }
-        this.schedule(650, render)
-        return
+    const createFlame = (
+      x: number,
+      y: number,
+      flameHeight: number,
+      phase: number,
+    ) => {
+      const visual = this.scene.add.container(x, y)
+
+      const base = this.scene.add.rectangle(
+        0,
+        4,
+        28,
+        14,
+        0x4f2d12,
+        1,
+      )
+      base.setStrokeStyle(2, 0xd4af37, 0.9)
+
+      if (this.scene.textures.exists('stairway-flame')) {
+        const image = this.scene.add.image(
+          0,
+          -flameHeight / 2,
+          'stairway-flame',
+        )
+        image.setDisplaySize(34, flameHeight + 18)
+        image.setData('flameImage', true)
+        visual.add([base, image])
+      } else {
+        const outer = this.scene.add.ellipse(
+          0,
+          -flameHeight / 2,
+          30,
+          flameHeight,
+          0xff7a24,
+          0.88,
+        )
+        outer.setData('flameImage', true)
+
+        const inner = this.scene.add.ellipse(
+          0,
+          -flameHeight / 2 + 5,
+          14,
+          Math.max(20, flameHeight - 18),
+          0xffee70,
+          0.96,
+        )
+        inner.setData('flameImage', true)
+        visual.add([base, outer, inner])
       }
 
-      hearts -= 1
-      this.scene.cameras.main.shake(140, 0.004)
-      if (hearts <= 0) {
-        finish(false)
-        return
-      }
-      this.schedule(500, render)
+      addWorld(visual)
+      hazards.push({
+        kind: 'flame',
+        x,
+        y: y - flameHeight,
+        width: 30,
+        height: flameHeight,
+        baseX: x,
+        baseY: y,
+        amplitude: 0,
+        speed: 2.15,
+        phase,
+        active: true,
+        visual,
+      })
     }
 
-    render()
+    const createRock = (
+      x: number,
+      startY: number,
+      travelDistance: number,
+      speed: number,
+      phase: number,
+    ) => {
+      const visual = this.scene.add.container(x, startY)
+
+      if (this.scene.textures.exists('stairway-falling-rock')) {
+        const image = this.scene.add.image(
+          0,
+          0,
+          'stairway-falling-rock',
+        )
+        image.setDisplaySize(38, 38)
+        visual.add(image)
+      } else {
+        const rock = this.scene.add.circle(
+          0,
+          0,
+          18,
+          0x6f4a2d,
+          1,
+        )
+        rock.setStrokeStyle(3, 0x2d1b11, 1)
+        const crack = this.scene.add.text(0, 0, '✦', {
+          fontFamily: 'Georgia',
+          fontSize: '14px',
+          color: '#b98a50',
+        })
+        crack.setOrigin(0.5)
+        visual.add([rock, crack])
+      }
+
+      addWorld(visual)
+      hazards.push({
+        kind: 'rock',
+        x,
+        y: startY,
+        width: 34,
+        height: 34,
+        baseX: x,
+        baseY: startY,
+        amplitude: travelDistance,
+        speed,
+        phase,
+        active: true,
+        visual,
+      })
+    }
+
+    const createGuardian = (
+      x: number,
+      y: number,
+      guardianWidth: number,
+      amplitude: number,
+      speed: number,
+      phase: number,
+    ) => {
+      const visual = this.scene.add.container(x, y)
+
+      if (this.scene.textures.exists('stairway-guardian')) {
+        const image = this.scene.add.image(
+          0,
+          0,
+          'stairway-guardian',
+        )
+        image.setDisplaySize(
+          guardianWidth,
+          guardianWidth * 0.9,
+        )
+        visual.add(image)
+      } else {
+        const disk = this.scene.add.circle(
+          0,
+          0,
+          guardianWidth / 2,
+          0x1c2528,
+          1,
+        )
+        disk.setStrokeStyle(3, 0xd4af37, 0.95)
+
+        const symbol = this.scene.add.text(
+          0,
+          -1,
+          '𓃢',
+          {
+            fontFamily: 'Georgia',
+            fontSize: `${Math.round(guardianWidth * 0.62)}px`,
+            color: '#56bdb5',
+            stroke: '#000000',
+            strokeThickness: 4,
+          },
+        )
+        symbol.setOrigin(0.5)
+        visual.add([disk, symbol])
+      }
+
+      addWorld(visual)
+      hazards.push({
+        kind: 'guardian',
+        x,
+        y,
+        width: guardianWidth,
+        height: guardianWidth * 0.8,
+        baseX: x,
+        baseY: y,
+        amplitude,
+        speed,
+        phase,
+        active: true,
+        visual,
+      })
+    }
+
+    const createBeam = (
+      x: number,
+      y: number,
+      beamHeight: number,
+      phase: number,
+    ) => {
+      const visual = this.scene.add.container(x, y)
+
+      const beam = this.scene.add.rectangle(
+        0,
+        beamHeight / 2,
+        18,
+        beamHeight,
+        0xfff09a,
+        0.72,
+      )
+      beam.setStrokeStyle(2, 0xffffff, 0.72)
+
+      const core = this.scene.add.rectangle(
+        0,
+        beamHeight / 2,
+        5,
+        beamHeight,
+        0xffffff,
+        0.88,
+      )
+
+      visual.add([beam, core])
+      addWorld(visual)
+
+      hazards.push({
+        kind: 'beam',
+        x,
+        y,
+        width: 18,
+        height: beamHeight,
+        baseX: x,
+        baseY: y,
+        amplitude: 0,
+        speed: 1.8,
+        phase,
+        active: false,
+        visual,
+      })
+    }
+
+    const createBlade = (
+      x: number,
+      y: number,
+      amplitude: number,
+      speed: number,
+      phase: number,
+    ) => {
+      const visual = this.scene.add.container(x, y)
+      const chain = this.scene.add.rectangle(
+        0,
+        -35,
+        4,
+        70,
+        0xd4af37,
+        0.7,
+      )
+      const blade = this.scene.add.circle(
+        0,
+        0,
+        19,
+        0x777c80,
+        1,
+      )
+      blade.setStrokeStyle(3, 0xffd966, 0.9)
+      const cross = this.scene.add.text(0, 0, '✦', {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#362719',
+        fontStyle: 'bold',
+      })
+      cross.setOrigin(0.5)
+      visual.add([chain, blade, cross])
+      addWorld(visual)
+
+      hazards.push({
+        kind: 'blade',
+        x,
+        y,
+        width: 38,
+        height: 38,
+        baseX: x,
+        baseY: y,
+        amplitude,
+        speed,
+        phase,
+        active: true,
+        visual,
+      })
+    }
+
+    createSpikes(X(0.50), 2485, Math.min(96, worldWidth * 0.15))
+    createSpikes(X(0.78), 1645, Math.min(68, worldWidth * 0.11))
+    createSpikes(X(0.27), 935, Math.min(70, worldWidth * 0.11))
+    createSpikes(X(0.70), 470, Math.min(62, worldWidth * 0.10))
+
+    createFlame(X(0.77), 2252, 78, 0)
+    createFlame(X(0.27), 1540, 82, 1.8)
+    createFlame(X(0.62), 840, 76, 0.9)
+    createFlame(X(0.36), 270, 70, 2.4)
+
+    createRock(X(0.32), 1840, 300, 170, 0)
+    createRock(X(0.70), 1270, 300, 195, 0.6)
+    createRock(X(0.18), 610, 250, 205, 1.4)
+
+    createGuardian(
+      X(0.5),
+      1730,
+      48,
+      Math.min(155, worldWidth * 0.25),
+      1.5,
+      0,
+    )
+    createGuardian(
+      X(0.5),
+      690,
+      50,
+      Math.min(170, worldWidth * 0.27),
+      1.72,
+      2.1,
+    )
+
+    createBeam(X(0.39), 1185, 170, 0.4)
+    createBeam(X(0.70), 360, 155, 2.3)
+
+    createBlade(
+      X(0.52),
+      2075,
+      Math.min(135, worldWidth * 0.22),
+      1.55,
+      0.8,
+    )
+    createBlade(
+      X(0.55),
+      1010,
+      Math.min(125, worldWidth * 0.20),
+      1.8,
+      2.4,
+    )
+
+    const createFragment = (
+      name: string,
+      x: number,
+      y: number,
+      phase: number,
+    ) => {
+      const visual = this.scene.add.container(x, y)
+
+      const glow = this.scene.add.circle(
+        0,
+        0,
+        23,
+        0xffd966,
+        0.17,
+      )
+
+      if (this.scene.textures.exists('stairway-light-fragment')) {
+        const image = this.scene.add.image(
+          0,
+          0,
+          'stairway-light-fragment',
+        )
+        image.setDisplaySize(40, 40)
+        visual.add([glow, image])
+      } else {
+        const diamond = this.scene.add.polygon(
+          0,
+          0,
+          [
+            0, -18,
+            13, 0,
+            0, 18,
+            -13, 0,
+          ],
+          0xffec85,
+          1,
+        )
+        diamond.setStrokeStyle(3, 0x2aa7a1, 1)
+        visual.add([glow, diamond])
+      }
+
+      addWorld(visual, fxLayer)
+
+      fragments.push({
+        name,
+        x,
+        y,
+        baseY: y,
+        collected: false,
+        phase,
+        visual,
+      })
+    }
+
+    createFragment('Courage', X(0.15), 1858, 0)
+    createFragment('Wisdom', X(0.82), 1028, 1.7)
+    createFragment('Balance', X(0.27), 228, 3.1)
+
+    const createCheckpoint = (
+      index: number,
+      x: number,
+      y: number,
+    ) => {
+      const visual = this.scene.add.container(x, y)
+
+      const glow = this.scene.add.circle(
+        0,
+        0,
+        29,
+        0x4de0d2,
+        0.1,
+      )
+
+      if (this.scene.textures.exists('stairway-checkpoint')) {
+        const image = this.scene.add.image(
+          0,
+          0,
+          'stairway-checkpoint',
+        )
+        image.setDisplaySize(52, 52)
+        visual.add([glow, image])
+      } else {
+        const ring = this.scene.add.circle(
+          0,
+          0,
+          21,
+          0x000000,
+          0,
+        )
+        ring.setStrokeStyle(4, 0x4de0d2, 0.9)
+
+        const symbol = this.scene.add.text(
+          0,
+          -1,
+          '𓋹',
+          {
+            fontFamily: 'Georgia',
+            fontSize: '25px',
+            color: '#ffd966',
+            stroke: '#000000',
+            strokeThickness: 4,
+          },
+        )
+        symbol.setOrigin(0.5)
+        visual.add([glow, ring, symbol])
+      }
+
+      addWorld(visual, fxLayer)
+
+      checkpoints.push({
+        index,
+        x,
+        y,
+        spawnX: x,
+        spawnY: y - 46,
+        activated: false,
+        visual,
+      })
+    }
+
+    createCheckpoint(1, X(0.56), 1977)
+    createCheckpoint(2, X(0.67), 1387)
+    createCheckpoint(3, X(0.58), 797)
+
+    const altarX = X(0.5)
+    const altarY = 112
+    const altar = this.scene.add.container(altarX, altarY)
+
+    const altarGlow = this.scene.add.circle(
+      0,
+      0,
+      78,
+      0xffef9a,
+      0.16,
+    )
+
+    if (this.scene.textures.exists('stairway-sun-altar')) {
+      const image = this.scene.add.image(
+        0,
+        0,
+        'stairway-sun-altar',
+      )
+      image.setDisplaySize(150, 120)
+      altar.add([altarGlow, image])
+    } else {
+      const disk = this.scene.add.circle(
+        0,
+        0,
+        52,
+        0xffc94f,
+        1,
+      )
+      disk.setStrokeStyle(5, 0xfff3b2, 1)
+
+      const symbol = this.scene.add.text(
+        0,
+        -2,
+        '☀',
+        {
+          fontFamily: 'Georgia',
+          fontSize: '58px',
+          color: '#fff0a0',
+          stroke: '#8b4e16',
+          strokeThickness: 5,
+          fontStyle: 'bold',
+        },
+      )
+      symbol.setOrigin(0.5)
+      altar.add([altarGlow, disk, symbol])
+    }
+
+    addWorld(altar, fxLayer)
+
+    this.addTween({
+      targets: altarGlow,
+      scaleX: 1.24,
+      scaleY: 1.24,
+      alpha: 0.04,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    let playerX = X(0.5)
+    let playerY = 2500 - playerHalfHeight - 3
+    let previousPlayerY = playerY
+    let velocityX = 0
+    let velocityY = 0
+    let onGround = true
+    let standingPlatform: Platform | undefined
+    let canAirDash = true
+    let facing = 1
+    let hearts = 3
+    let collectedLights = 0
+    let checkpointIndex = 0
+    let respawnX = playerX
+    let respawnY = playerY
+    let cameraY = Phaser.Math.Clamp(
+      playerY - viewportHeight * 0.67,
+      0,
+      worldHeight - viewportHeight,
+    )
+    let elapsedSeconds = 0
+    let invulnerableUntil = 0
+    let coyoteTime = 0
+    let jumpBuffer = 0
+    let state:
+      | 'playing'
+      | 'respawning'
+      | 'enlightened'
+      | 'failed' = 'playing'
+
+    const playerVisual = this.scene.add.container(playerX, playerY)
+    let playerSprite: Phaser.GameObjects.Sprite | undefined
+
+    const shadow = this.scene.add.ellipse(
+      0,
+      playerHalfHeight - 1,
+      27,
+      9,
+      0x000000,
+      0.32,
+    )
+
+    if (this.scene.textures.exists('player')) {
+      playerSprite = this.scene.add.sprite(
+        0,
+        0,
+        'player',
+        0,
+      )
+      playerSprite.setDisplaySize(42, 42)
+      playerVisual.add([shadow, playerSprite])
+    } else {
+      const body = this.scene.add.rectangle(
+        0,
+        3,
+        18,
+        25,
+        0x2d8985,
+        1,
+      )
+      body.setStrokeStyle(2, 0xffd966, 1)
+
+      const head = this.scene.add.circle(
+        0,
+        -13,
+        8,
+        0xc89055,
+        1,
+      )
+      head.setStrokeStyle(2, 0x5b3513, 1)
+
+      const crown = this.scene.add.triangle(
+        0,
+        -24,
+        -8,
+        6,
+        0,
+        -7,
+        8,
+        6,
+        0xffd966,
+        1,
+      )
+      playerVisual.add([shadow, body, head, crown])
+    }
+
+    addWorld(playerVisual, gameplayLayer)
+
+    const keyboard = this.scene.input.keyboard
+    const keys = keyboard?.addKeys({
+      leftA: Phaser.Input.Keyboard.KeyCodes.A,
+      rightD: Phaser.Input.Keyboard.KeyCodes.D,
+      leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
+      rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      jumpSpace: Phaser.Input.Keyboard.KeyCodes.SPACE,
+      jumpW: Phaser.Input.Keyboard.KeyCodes.W,
+      jumpUp: Phaser.Input.Keyboard.KeyCodes.UP,
+      dashShift: Phaser.Input.Keyboard.KeyCodes.SHIFT,
+    }) as
+      | Record<string, Phaser.Input.Keyboard.Key>
+      | undefined
+
+    keyboard?.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+      Phaser.Input.Keyboard.KeyCodes.UP,
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      Phaser.Input.Keyboard.KeyCodes.SHIFT,
+    ])
+
+    const overlapsRect = (
+      ax: number,
+      ay: number,
+      aw: number,
+      ah: number,
+      bx: number,
+      by: number,
+      bw: number,
+      bh: number,
+    ) =>
+      Math.abs(ax - bx) * 2 < aw + bw &&
+      Math.abs(ay - by) * 2 < ah + bh
+
+    const setStatus = (
+      message: string,
+      color = '#ffd966',
+    ) => {
+      status.setText(message)
+      status.setColor(color)
+    }
+
+    const getZoneName = () => {
+      if (playerY > 1700) return 'CHAMBER OF STONE'
+      if (playerY > 760) return 'HEAVENS OF HORUS'
+      return 'CROWN OF RA'
+    }
+
+    const updateHud = () => {
+      const progress = Phaser.Math.Clamp(
+        (worldHeight - playerY) /
+          Math.max(1, worldHeight - altarY),
+        0,
+        1,
+      )
+
+      heartsHud.setValue(
+        `${'♥'.repeat(hearts)}${'♡'.repeat(3 - hearts)}`,
+      )
+      heightHud.setValue(`${Math.round(progress * 100)}%`)
+      heightHud.setProgress(progress)
+      lightHud.setValue(`${collectedLights} / 3`)
+      checkpointHud.setValue(`${checkpointIndex} / 3`)
+
+      progressFill.setDisplaySize(
+        4,
+        Math.max(1, progressFillHeight * progress),
+      )
+
+      const markerY =
+        viewportTop +
+        viewportHeight -
+        29 -
+        progressFillHeight * progress
+      progressMarker.setY(markerY)
+
+      zoneBadge.setText(getZoneName())
+    }
+
+    const setPlayerPosition = (x: number, y: number) => {
+      playerX = x
+      playerY = y
+      playerVisual.setPosition(x, y)
+    }
+
+    const respawnPlayer = () => {
+      velocityX = 0
+      velocityY = 0
+      onGround = false
+      standingPlatform = undefined
+      canAirDash = true
+      coyoteTime = 0
+      jumpBuffer = 0
+      invulnerableUntil = elapsedSeconds + 1.35
+      setPlayerPosition(respawnX, respawnY)
+      playerVisual.setAlpha(1)
+      playerVisual.setScale(1)
+      playerVisual.setAngle(0)
+      state = 'playing'
+      setStatus(
+        'Rise again. Your latest checkpoint still shines.',
+        '#7de0d3',
+      )
+      updateHud()
+    }
+
+    const finishTrial = (success: boolean) => {
+      if (state === 'enlightened' || state === 'failed') return
+
+      state = success ? 'enlightened' : 'failed'
+      velocityX = 0
+      velocityY = 0
+
+      const heightBonus = Math.round(
+        Phaser.Math.Clamp(
+          (worldHeight - playerY) /
+            Math.max(1, worldHeight - altarY),
+          0,
+          1,
+        ) * 450,
+      )
+      const score =
+        collectedLights * 350 +
+        checkpointIndex * 180 +
+        hearts * 140 +
+        heightBonus
+
+      const reward = this.baseReward(
+        'stairway-sun',
+        success,
+        score,
+      )
+
+      this.complete(
+        {
+          trialId: 'stairway-sun',
+          success,
+          response: success
+            ? 'You reached the light by rising after every fall. Courage, wisdom, and balance now burn together within you. The Temple recognizes your enlightenment.'
+            : 'The ascent has ended for now. Enlightenment is not denied—it waits for the courage to rise again.',
+          ...reward,
+        },
+        success ? 1500 : 950,
+      )
+    }
+
+    const damagePlayer = (reason: string) => {
+      if (
+        state !== 'playing' ||
+        elapsedSeconds < invulnerableUntil
+      ) {
+        return
+      }
+
+      state = 'respawning'
+      hearts -= 1
+      velocityX = 0
+      velocityY = 0
+      updateHud()
+
+      setStatus(reason, '#ff7770')
+      this.scene.cameras.main.shake(160, 0.004)
+
+      this.addTween({
+        targets: playerVisual,
+        alpha: 0.1,
+        scaleX: 0.55,
+        scaleY: 0.55,
+        angle: 95 * facing,
+        duration: 360,
+        ease: 'Sine.easeIn',
+      })
+
+      if (hearts <= 0) {
+        this.schedule(650, () => finishTrial(false))
+        return
+      }
+
+      this.schedule(680, respawnPlayer)
+    }
+
+    const activateCheckpoint = (checkpoint: Checkpoint) => {
+      if (
+        checkpoint.activated ||
+        checkpoint.index <= checkpointIndex
+      ) {
+        return
+      }
+
+      checkpoint.activated = true
+      checkpointIndex = checkpoint.index
+      respawnX = checkpoint.spawnX
+      respawnY = checkpoint.spawnY
+
+      const glow = this.scene.add.circle(
+        checkpoint.x,
+        checkpoint.y,
+        48,
+        0x72ffb0,
+        0.24,
+      )
+      glow.setStrokeStyle(4, 0xffd966, 0.92)
+      addWorld(glow, fxLayer)
+
+      this.addTween({
+        targets: glow,
+        scaleX: 1.55,
+        scaleY: 1.55,
+        alpha: 0,
+        duration: 850,
+        ease: 'Sine.easeOut',
+        onComplete: () => glow.destroy(),
+      })
+
+      this.addTween({
+        targets: checkpoint.visual,
+        scaleX: 1.26,
+        scaleY: 1.26,
+        duration: 220,
+        yoyo: true,
+        ease: 'Back.easeOut',
+      })
+
+      setStatus(
+        `Checkpoint ${checkpoint.index} awakened.`,
+        '#72ffb0',
+      )
+      updateHud()
+    }
+
+    const collectFragment = (fragment: LightFragment) => {
+      if (fragment.collected) return
+
+      fragment.collected = true
+      collectedLights += 1
+
+      this.addTween({
+        targets: fragment.visual,
+        y: fragment.visual.y - 32,
+        scaleX: 1.8,
+        scaleY: 1.8,
+        alpha: 0,
+        duration: 620,
+        ease: 'Sine.easeOut',
+        onComplete: () => fragment.visual.setVisible(false),
+      })
+
+      const burst = this.scene.add.circle(
+        fragment.x,
+        fragment.y,
+        36,
+        0xffed8a,
+        0.2,
+      )
+      burst.setStrokeStyle(4, 0x4de0d2, 0.92)
+      addWorld(burst, fxLayer)
+
+      this.addTween({
+        targets: burst,
+        scaleX: 1.7,
+        scaleY: 1.7,
+        alpha: 0,
+        duration: 700,
+        ease: 'Sine.easeOut',
+        onComplete: () => burst.destroy(),
+      })
+
+      setStatus(
+        `${fragment.name} awakened — Light ${collectedLights} of 3.`,
+        '#fff09a',
+      )
+      updateHud()
+    }
+
+    const beginCrumble = (platform: Platform) => {
+      if (
+        platform.kind !== 'crumble' ||
+        platform.crumbleStarted
+      ) {
+        return
+      }
+
+      platform.crumbleStarted = true
+
+      this.addTween({
+        targets: platform.visual,
+        x: platform.visual.x + 3,
+        duration: 55,
+        yoyo: true,
+        repeat: 7,
+      })
+
+      this.schedule(650, () => {
+        platform.collidable = false
+
+        this.addTween({
+          targets: platform.visual,
+          alpha: 0,
+          y: platform.visual.y + 24,
+          duration: 280,
+          ease: 'Sine.easeIn',
+        })
+
+        this.schedule(2450, () => {
+          platform.collidable = true
+          platform.crumbleStarted = false
+          platform.visual.setPosition(platform.x, platform.y)
+          platform.visual.setAlpha(1)
+        })
+      })
+    }
+
+    const resolvePlatformCollision = (
+      platform: Platform,
+      previousY: number,
+    ) => {
+      if (!platform.collidable) return false
+
+      const platformLeft =
+        platform.x - platform.width / 2
+      const platformRight =
+        platform.x + platform.width / 2
+      const playerLeft = playerX - playerHalfWidth
+      const playerRight = playerX + playerHalfWidth
+
+      if (
+        playerRight <= platformLeft + 3 ||
+        playerLeft >= platformRight - 3
+      ) {
+        return false
+      }
+
+      const previousBottom = previousY + playerHalfHeight
+      const currentBottom = playerY + playerHalfHeight
+      const platformTop = platform.y
+
+      if (
+        velocityY >= 0 &&
+        previousBottom <= platformTop + 5 &&
+        currentBottom >= platformTop &&
+        currentBottom <= platformTop + platform.height + 12
+      ) {
+        playerY = platformTop - playerHalfHeight
+        velocityY = 0
+        onGround = true
+        canAirDash = true
+        standingPlatform = platform
+        beginCrumble(platform)
+        return true
+      }
+
+      return false
+    }
+
+    const updatePlatformMovement = () => {
+      platforms.forEach((platform) => {
+        const previousX = platform.x
+        const previousY = platform.y
+
+        if (platform.kind === 'moving-x') {
+          platform.x =
+            platform.baseX +
+            Math.sin(
+              elapsedSeconds * platform.speed + platform.phase,
+            ) *
+              platform.amplitude
+        } else if (platform.kind === 'moving-y') {
+          platform.y =
+            platform.baseY +
+            Math.sin(
+              elapsedSeconds * platform.speed + platform.phase,
+            ) *
+              platform.amplitude
+        }
+
+        platform.deltaX = platform.x - previousX
+        platform.deltaY = platform.y - previousY
+
+        if (
+          platform.kind === 'moving-x' ||
+          platform.kind === 'moving-y'
+        ) {
+          platform.visual.setPosition(platform.x, platform.y)
+        }
+
+        if (
+          onGround &&
+          standingPlatform === platform &&
+          platform.collidable
+        ) {
+          playerX += platform.deltaX
+          playerY += platform.deltaY
+        }
+      })
+    }
+
+    const updateHazards = () => {
+      hazards.forEach((hazard) => {
+        if (hazard.kind === 'flame') {
+          hazard.active =
+            Math.sin(
+              elapsedSeconds * hazard.speed + hazard.phase,
+            ) > -0.18
+
+          hazard.visual.setAlpha(
+            hazard.active ? 1 : 0.22,
+          )
+          hazard.visual.setScale(
+            1,
+            hazard.active ? 1 : 0.24,
+          )
+          return
+        }
+
+        if (hazard.kind === 'beam') {
+          hazard.active =
+            Math.sin(
+              elapsedSeconds * hazard.speed + hazard.phase,
+            ) > 0.28
+
+          hazard.visual.setAlpha(
+            hazard.active ? 0.86 : 0.06,
+          )
+          return
+        }
+
+        if (hazard.kind === 'rock') {
+          const travelTime =
+            ((elapsedSeconds * hazard.speed * 0.01 +
+              hazard.phase) %
+              1 +
+              1) %
+            1
+
+          hazard.y =
+            hazard.baseY + travelTime * hazard.amplitude
+          hazard.visual.setPosition(hazard.x, hazard.y)
+          hazard.visual.setAngle(
+            hazard.visual.angle + hazard.speed * 0.04,
+          )
+          return
+        }
+
+        if (
+          hazard.kind === 'guardian' ||
+          hazard.kind === 'blade'
+        ) {
+          hazard.x =
+            hazard.baseX +
+            Math.sin(
+              elapsedSeconds * hazard.speed + hazard.phase,
+            ) *
+              hazard.amplitude
+
+          hazard.visual.setPosition(hazard.x, hazard.y)
+
+          if (hazard.kind === 'blade') {
+            hazard.visual.setAngle(
+              Math.sin(
+                elapsedSeconds * hazard.speed + hazard.phase,
+              ) * 18,
+            )
+          }
+        }
+      })
+    }
+
+    const checkHazardCollisions = () => {
+      if (
+        state !== 'playing' ||
+        elapsedSeconds < invulnerableUntil
+      ) {
+        return
+      }
+
+      for (const hazard of hazards) {
+        if (!hazard.active) continue
+
+        if (
+          overlapsRect(
+            playerX,
+            playerY,
+            playerWidth,
+            playerHeight,
+            hazard.x,
+            hazard.y + hazard.height / 2,
+            hazard.width,
+            hazard.height,
+          )
+        ) {
+          const reason =
+            hazard.kind === 'spikes'
+              ? 'The sacred spikes struck you.'
+              : hazard.kind === 'flame'
+                ? 'Ra’s flame forced you back.'
+                : hazard.kind === 'rock'
+                  ? 'A falling temple stone found its mark.'
+                  : hazard.kind === 'guardian'
+                    ? 'The guardian rejected your approach.'
+                    : hazard.kind === 'beam'
+                      ? 'The Sun Beam burned too brightly.'
+                      : 'The swinging blade ended the climb.'
+
+          damagePlayer(reason)
+          return
+        }
+      }
+    }
+
+    const updatePlayerAnimation = (
+      movingLeft: boolean,
+      movingRight: boolean,
+    ) => {
+      if (!playerSprite) return
+
+      if (movingLeft) {
+        facing = -1
+        playerSprite.setFlipX(false)
+      } else if (movingRight) {
+        facing = 1
+        playerSprite.setFlipX(false)
+      }
+
+      if (!onGround) {
+        playerSprite.stop()
+        playerSprite.setFrame(
+          facing < 0 ? 5 : 9,
+        )
+        return
+      }
+
+      const animationKey =
+        facing < 0
+          ? 'player-walk-left'
+          : 'player-walk-right'
+
+      if (
+        Math.abs(velocityX) > 20 &&
+        this.scene.anims.exists(animationKey)
+      ) {
+        playerSprite.play(animationKey, true)
+      } else {
+        playerSprite.stop()
+        playerSprite.setFrame(
+          facing < 0 ? 4 : 8,
+        )
+      }
+    }
+
+    const enlightenPlayer = () => {
+      if (
+        state !== 'playing' ||
+        collectedLights < 3
+      ) {
+        return
+      }
+
+      state = 'enlightened'
+      velocityX = 0
+      velocityY = 0
+      setStatus(
+        'Courage, Wisdom, and Balance unite. The Sun recognizes you.',
+        '#fff3a4',
+      )
+
+      const lightColumn = this.scene.add.rectangle(
+        altarX,
+        110,
+        112,
+        360,
+        0xfff1a0,
+        0.18,
+      )
+      lightColumn.setOrigin(0.5, 0)
+      addWorld(lightColumn, fxLayer)
+
+      const enlightenmentRing = this.scene.add.circle(
+        playerX,
+        playerY,
+        32,
+        0x7de0d3,
+        0.24,
+      )
+      enlightenmentRing.setStrokeStyle(5, 0xffd966, 1)
+      addWorld(enlightenmentRing, fxLayer)
+
+      fragments.forEach((fragment, index) => {
+        const orb = this.scene.add.circle(
+          playerX,
+          playerY,
+          8,
+          index === 0
+            ? 0xff876b
+            : index === 1
+              ? 0x7de0d3
+              : 0xffed8a,
+          1,
+        )
+        orb.setStrokeStyle(2, 0xffffff, 0.9)
+        addWorld(orb, fxLayer)
+
+        const angle =
+          (Math.PI * 2 * index) / 3
+
+        this.addTween({
+          targets: orb,
+          x: playerX + Math.cos(angle) * 52,
+          y: playerY + Math.sin(angle) * 30,
+          duration: 430,
+          ease: 'Back.easeOut',
+        })
+
+        this.addTween({
+          targets: orb,
+          angle: 360,
+          duration: 880,
+          repeat: 1,
+        })
+      })
+
+      this.addTween({
+        targets: enlightenmentRing,
+        scaleX: 3.4,
+        scaleY: 3.4,
+        alpha: 0,
+        duration: 1150,
+        ease: 'Sine.easeOut',
+      })
+
+      this.addTween({
+        targets: [playerVisual, altar],
+        scaleX: 1.18,
+        scaleY: 1.18,
+        duration: 640,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+      })
+
+      this.schedule(1450, () => finishTrial(true))
+    }
+
+    const gameStep = () => {
+      if (
+        state === 'failed' ||
+        state === 'enlightened'
+      ) {
+        return
+      }
+
+      const deltaSeconds = 1 / 60
+      elapsedSeconds += deltaSeconds
+
+      updatePlatformMovement()
+      updateHazards()
+
+      fragments.forEach((fragment) => {
+        if (fragment.collected) return
+
+        fragment.visual.setY(
+          fragment.baseY +
+            Math.sin(
+              elapsedSeconds * 2.1 + fragment.phase,
+            ) * 7,
+        )
+        fragment.visual.setAngle(
+          Math.sin(
+            elapsedSeconds * 1.35 + fragment.phase,
+          ) * 7,
+        )
+      })
+
+      checkpoints.forEach((checkpoint) => {
+        if (checkpoint.activated) return
+
+        const glowScale =
+          1 +
+          Math.sin(
+            elapsedSeconds * 2 + checkpoint.index,
+          ) * 0.08
+        checkpoint.visual.setScale(glowScale)
+      })
+
+      if (state === 'respawning') {
+        worldContainer.setY(viewportTop - cameraY)
+        return
+      }
+
+      const movingLeft =
+        Boolean(keys?.leftA?.isDown) ||
+        Boolean(keys?.leftArrow?.isDown)
+      const movingRight =
+        Boolean(keys?.rightD?.isDown) ||
+        Boolean(keys?.rightArrow?.isDown)
+
+      const jumpPressed =
+        Boolean(
+          keys?.jumpSpace &&
+            Phaser.Input.Keyboard.JustDown(
+              keys.jumpSpace,
+            ),
+        ) ||
+        Boolean(
+          keys?.jumpW &&
+            Phaser.Input.Keyboard.JustDown(keys.jumpW),
+        ) ||
+        Boolean(
+          keys?.jumpUp &&
+            Phaser.Input.Keyboard.JustDown(keys.jumpUp),
+        )
+
+      const dashPressed = Boolean(
+        keys?.dashShift &&
+          Phaser.Input.Keyboard.JustDown(
+            keys.dashShift,
+          ),
+      )
+
+      if (jumpPressed) {
+        jumpBuffer = 0.13
+      } else {
+        jumpBuffer = Math.max(
+          0,
+          jumpBuffer - deltaSeconds,
+        )
+      }
+
+      if (onGround) {
+        coyoteTime = 0.11
+      } else {
+        coyoteTime = Math.max(
+          0,
+          coyoteTime - deltaSeconds,
+        )
+      }
+
+      const targetSpeed =
+        (movingRight ? 1 : 0) -
+        (movingLeft ? 1 : 0)
+
+      const desiredVelocityX = targetSpeed * 210
+      const acceleration = onGround ? 1450 : 920
+      const difference =
+        desiredVelocityX - velocityX
+      const maximumChange =
+        acceleration * deltaSeconds
+
+      velocityX += Phaser.Math.Clamp(
+        difference,
+        -maximumChange,
+        maximumChange,
+      )
+
+      if (
+        targetSpeed === 0 &&
+        onGround
+      ) {
+        velocityX *= 0.78
+      }
+
+      if (
+        jumpBuffer > 0 &&
+        coyoteTime > 0
+      ) {
+        velocityY = -610
+        onGround = false
+        standingPlatform = undefined
+        coyoteTime = 0
+        jumpBuffer = 0
+        canAirDash = true
+        setStatus(
+          'Keep climbing. Each landing is another choice.',
+          '#ffd966',
+        )
+      }
+
+      if (
+        dashPressed &&
+        !onGround &&
+        canAirDash
+      ) {
+        const dashDirection =
+          targetSpeed !== 0 ? targetSpeed : facing
+
+        velocityX = dashDirection * 390
+        velocityY = Math.min(velocityY, -115)
+        canAirDash = false
+
+        const dashFlash = this.scene.add.ellipse(
+          playerX - dashDirection * 18,
+          playerY,
+          44,
+          18,
+          0x7de0d3,
+          0.32,
+        )
+        addWorld(dashFlash, fxLayer)
+
+        this.addTween({
+          targets: dashFlash,
+          alpha: 0,
+          scaleX: 1.8,
+          duration: 260,
+          onComplete: () => dashFlash.destroy(),
+        })
+
+        setStatus(
+          'Air Dash used. Land to restore it.',
+          '#7de0d3',
+        )
+      }
+
+      previousPlayerY = playerY
+      velocityY += 1240 * deltaSeconds
+      velocityY = Math.min(velocityY, 720)
+
+      playerX += velocityX * deltaSeconds
+      playerY += velocityY * deltaSeconds
+
+      playerX = Phaser.Math.Clamp(
+        playerX,
+        playerHalfWidth + 7,
+        worldWidth - playerHalfWidth - 7,
+      )
+
+      onGround = false
+      standingPlatform = undefined
+
+      const sortedPlatforms = [...platforms].sort(
+        (a, b) => a.y - b.y,
+      )
+
+      for (const platform of sortedPlatforms) {
+        if (
+          resolvePlatformCollision(
+            platform,
+            previousPlayerY,
+          )
+        ) {
+          break
+        }
+      }
+
+      setPlayerPosition(playerX, playerY)
+      updatePlayerAnimation(movingLeft, movingRight)
+
+      fragments.forEach((fragment) => {
+        if (fragment.collected) return
+
+        if (
+          Phaser.Math.Distance.Between(
+            playerX,
+            playerY,
+            fragment.x,
+            fragment.y,
+          ) <= 30
+        ) {
+          collectFragment(fragment)
+        }
+      })
+
+      checkpoints.forEach((checkpoint) => {
+        if (
+          Phaser.Math.Distance.Between(
+            playerX,
+            playerY,
+            checkpoint.x,
+            checkpoint.y,
+          ) <= 34
+        ) {
+          activateCheckpoint(checkpoint)
+        }
+      })
+
+      checkHazardCollisions()
+
+      if (
+        state === 'playing' &&
+        playerY > worldHeight + 70
+      ) {
+        damagePlayer(
+          'You fell into the darkness below.',
+        )
+      }
+
+      const reachedAltar =
+        playerY <= 175 &&
+        Math.abs(playerX - altarX) <= 94
+
+      if (reachedAltar) {
+        if (collectedLights >= 3) {
+          enlightenPlayer()
+        } else {
+          setStatus(
+            `The altar needs all three Light Fragments. ${3 - collectedLights} remain.`,
+            '#ffbd63',
+          )
+        }
+      }
+
+      const desiredCameraY = Phaser.Math.Clamp(
+        playerY - viewportHeight * 0.67,
+        0,
+        worldHeight - viewportHeight,
+      )
+
+      cameraY = Phaser.Math.Linear(
+        cameraY,
+        desiredCameraY,
+        0.105,
+      )
+
+      worldContainer.setY(viewportTop - cameraY)
+      updateHud()
+    }
+
+    const gameTimer = this.addLoop(16, gameStep)
+
+    this.runtimeCleanups.push(() => {
+      gameTimer.remove(false)
+      keyboard?.removeCapture([
+        Phaser.Input.Keyboard.KeyCodes.SPACE,
+        Phaser.Input.Keyboard.KeyCodes.UP,
+        Phaser.Input.Keyboard.KeyCodes.LEFT,
+        Phaser.Input.Keyboard.KeyCodes.RIGHT,
+        Phaser.Input.Keyboard.KeyCodes.SHIFT,
+      ])
+    })
+
+    worldContainer.setY(viewportTop - cameraY)
+    updateHud()
   }
 }

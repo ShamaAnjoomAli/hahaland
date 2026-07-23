@@ -520,6 +520,58 @@ const IMAGES: ImageAsset[] = [
     path: 'assets/minigames/temple_scarab_board/scarab-success-glow.png',
   },
   {
+    key: 'stairway-bg-stone',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-bg-stone.png',
+  },
+  {
+    key: 'stairway-bg-sky',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-bg-sky.png',
+  },
+  {
+    key: 'stairway-bg-sun',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-bg-sun.png',
+  },
+  {
+    key: 'stairway-platform-stone',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-platform-stone.png',
+  },
+  {
+    key: 'stairway-platform-gold',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-platform-gold.png',
+  },
+  {
+    key: 'stairway-light-fragment',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-light-fragment.png',
+  },
+  {
+    key: 'stairway-checkpoint',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-checkpoint.png',
+  },
+  {
+    key: 'stairway-spike',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-spike.png',
+  },
+  {
+    key: 'stairway-flame',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-flame.png',
+  },
+  {
+    key: 'stairway-falling-rock',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-falling-rock.png',
+  },
+  {
+    key: 'stairway-guardian',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-guardian.png',
+  },
+  {
+    key: 'stairway-sun-altar',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-sun-altar.png',
+  },
+  {
+    key: 'stairway-cloud',
+    path: 'assets/minigames/stairway_to_the_sun/stairway-cloud.png',
+  },
+  {
     key: 'badge-fake-hotel',
     path: 'assets/ui/badges/badge_fake_hotel.png',
   },
