@@ -6164,7 +6164,6 @@ The numbered fallback puzzle will still work.`,
     const bottom = this.getPanelBottom()
 
     const smoothTextureKeys = [
-      'stairway-bg-world',
       'stairway-bg-stone',
       'stairway-bg-sky',
       'stairway-bg-sun',
@@ -6601,23 +6600,10 @@ The numbered fallback puzzle will still work.`,
       return true
     }
 
-    let hasAllBackgrounds = false
-
-    if (this.scene.textures.exists('stairway-bg-world')) {
-      const worldBackground = this.scene.add.image(
-        worldWidth / 2,
-        worldHeight / 2,
-        'stairway-bg-world',
-      )
-      worldBackground.setDisplaySize(worldWidth, worldHeight)
-      addWorld(worldBackground, backgroundLayer)
-      hasAllBackgrounds = true
-    } else {
-      hasAllBackgrounds =
-        createBackgroundSegment('stairway-bg-sun', 380, 760) &&
-        createBackgroundSegment('stairway-bg-sky', 1230, 940) &&
-        createBackgroundSegment('stairway-bg-stone', 2140, 880)
-    }
+    const hasAllBackgrounds =
+      createBackgroundSegment('stairway-bg-sun', 380, 760) &&
+      createBackgroundSegment('stairway-bg-sky', 1230, 940) &&
+      createBackgroundSegment('stairway-bg-stone', 2140, 880)
 
     if (!hasAllBackgrounds) {
       backgroundLayer.removeAll(true)
@@ -7141,56 +7127,45 @@ The numbered fallback puzzle will still work.`,
     ) => {
       const visual = this.scene.add.container(x, y)
 
-      // Keep the trap compact so the decorative emitter and light shaft do
-      // not dominate the viewport.
-      const renderedHeight = Math.min(
-        88,
-        beamHeight * 0.54,
-      )
-      const renderedWidth = 29
-
       const warningBase = this.scene.add.ellipse(
         0,
-        renderedHeight - 2,
-        24,
-        6,
+        beamHeight - 2,
+        38,
+        9,
         0xffd966,
-        0.1,
+        0.12,
       )
-      warningBase.setStrokeStyle(1, 0xfff3b2, 0.22)
+      warningBase.setStrokeStyle(1, 0xfff3b2, 0.28)
 
       if (this.scene.textures.exists('stairway-sun-beam')) {
         const image = this.scene.add.image(
           0,
-          renderedHeight / 2,
+          beamHeight / 2,
           'stairway-sun-beam',
         )
         image.setName('sunBeamSprite')
-        image.setDisplaySize(
-          renderedWidth,
-          renderedHeight,
-        )
-        image.setAlpha(0.75)
+        image.setDisplaySize(76, beamHeight + 18)
+        image.setAlpha(0.78)
         image.clearTint()
         visual.add([warningBase, image])
       } else {
         const beam = this.scene.add.rectangle(
           0,
-          renderedHeight / 2,
-          12,
-          renderedHeight,
+          beamHeight / 2,
+          18,
+          beamHeight,
           0xfff09a,
-          0.68,
+          0.72,
         )
-        beam.setStrokeStyle(1, 0xffffff, 0.62)
+        beam.setStrokeStyle(2, 0xffffff, 0.72)
 
         const core = this.scene.add.rectangle(
           0,
-          renderedHeight / 2,
-          3,
-          renderedHeight,
+          beamHeight / 2,
+          5,
+          beamHeight,
           0xffffff,
-          0.82,
+          0.88,
         )
         visual.add([warningBase, beam, core])
       }
@@ -7201,8 +7176,8 @@ The numbered fallback puzzle will still work.`,
         kind: 'beam',
         x,
         y,
-        width: 13,
-        height: renderedHeight,
+        width: 18,
+        height: beamHeight,
         baseX: x,
         baseY: y,
         amplitude: 0,
@@ -8247,7 +8222,7 @@ The numbered fallback puzzle will still work.`,
         } else if (hazard.kind === 'beam') {
           hazardCenterY = hazard.y + hazard.height / 2
           hitboxWidth *= 0.72
-          hitboxHeight *= 0.8
+          hitboxHeight *= 0.86
         } else if (hazard.kind === 'blade') {
           hazardCenterY = hazard.y
           hitboxWidth *= 0.62
