@@ -6164,7 +6164,6 @@ The numbered fallback puzzle will still work.`,
     const bottom = this.getPanelBottom()
 
     const smoothTextureKeys = [
-      'stairway-bg-world',
       'stairway-bg-stone',
       'stairway-bg-sky',
       'stairway-bg-sun',
@@ -6601,23 +6600,10 @@ The numbered fallback puzzle will still work.`,
       return true
     }
 
-    let hasAllBackgrounds = false
-
-    if (this.scene.textures.exists('stairway-bg-world')) {
-      const worldBackground = this.scene.add.image(
-        worldWidth / 2,
-        worldHeight / 2,
-        'stairway-bg-world',
-      )
-      worldBackground.setDisplaySize(worldWidth, worldHeight)
-      addWorld(worldBackground, backgroundLayer)
-      hasAllBackgrounds = true
-    } else {
-      hasAllBackgrounds =
-        createBackgroundSegment('stairway-bg-sun', 380, 760) &&
-        createBackgroundSegment('stairway-bg-sky', 1230, 940) &&
-        createBackgroundSegment('stairway-bg-stone', 2140, 880)
-    }
+    const hasAllBackgrounds =
+      createBackgroundSegment('stairway-bg-sun', 380, 760) &&
+      createBackgroundSegment('stairway-bg-sky', 1230, 940) &&
+      createBackgroundSegment('stairway-bg-stone', 2140, 880)
 
     if (!hasAllBackgrounds) {
       backgroundLayer.removeAll(true)
@@ -6762,13 +6748,7 @@ The numbered fallback puzzle will still work.`,
         worldWidth - 48,
       )
 
-    const groundPlatform = createPlatform(
-      'ground',
-      X(0.5),
-      2500,
-      worldWidth - 54,
-      'stone',
-    )
+    createPlatform('ground', X(0.5), 2500, worldWidth - 54, 'stone')
     createPlatform('stone-1', X(0.22), 2374, 150, 'stone')
     createPlatform('moving-1', X(0.59), 2252, 142, 'moving-x', {
       amplitude: Math.min(92, worldWidth * 0.15),
@@ -7141,56 +7121,44 @@ The numbered fallback puzzle will still work.`,
     ) => {
       const visual = this.scene.add.container(x, y)
 
-      // Keep the trap compact so the decorative emitter and light shaft do
-      // not dominate the viewport.
-      const renderedHeight = Math.min(
-        88,
-        beamHeight * 0.54,
-      )
-      const renderedWidth = 29
-
       const warningBase = this.scene.add.ellipse(
         0,
-        renderedHeight - 2,
-        24,
-        6,
+        beamHeight - 2,
+        38,
+        9,
         0xffd966,
-        0.1,
+        0.12,
       )
-      warningBase.setStrokeStyle(1, 0xfff3b2, 0.22)
+      warningBase.setStrokeStyle(1, 0xfff3b2, 0.28)
 
       if (this.scene.textures.exists('stairway-sun-beam')) {
         const image = this.scene.add.image(
           0,
-          renderedHeight / 2,
+          beamHeight / 2,
           'stairway-sun-beam',
         )
-        image.setName('sunBeamSprite')
-        image.setDisplaySize(
-          renderedWidth,
-          renderedHeight,
-        )
-        image.setAlpha(0.75)
-        image.clearTint()
+        image.setDisplaySize(38, beamHeight + 10)
+        image.setAlpha(0.92)
+        image.setTint(0xf0d8a8)
         visual.add([warningBase, image])
       } else {
         const beam = this.scene.add.rectangle(
           0,
-          renderedHeight / 2,
-          12,
-          renderedHeight,
+          beamHeight / 2,
+          18,
+          beamHeight,
           0xfff09a,
-          0.68,
+          0.72,
         )
-        beam.setStrokeStyle(1, 0xffffff, 0.62)
+        beam.setStrokeStyle(2, 0xffffff, 0.72)
 
         const core = this.scene.add.rectangle(
           0,
-          renderedHeight / 2,
-          3,
-          renderedHeight,
+          beamHeight / 2,
+          5,
+          beamHeight,
           0xffffff,
-          0.82,
+          0.88,
         )
         visual.add([warningBase, beam, core])
       }
@@ -7201,8 +7169,8 @@ The numbered fallback puzzle will still work.`,
         kind: 'beam',
         x,
         y,
-        width: 13,
-        height: renderedHeight,
+        width: 18,
+        height: beamHeight,
         baseX: x,
         baseY: y,
         amplitude: 0,
@@ -7285,7 +7253,7 @@ The numbered fallback puzzle will still work.`,
 
     // Leave a safe starting lane and keep hazards off checkpoint centers.
     createSpikes(X(0.76), 2485, Math.min(76, worldWidth * 0.12))
-    createSpikes(X(0.91), 1645, Math.min(58, worldWidth * 0.095))
+    createSpikes(X(0.75), 1645, Math.min(58, worldWidth * 0.095))
     createSpikes(X(0.73), 470, Math.min(54, worldWidth * 0.085))
 
     createFlame(worldWidth - 10, 2218, 112, 0)
@@ -7294,6 +7262,7 @@ The numbered fallback puzzle will still work.`,
     createFlame(worldWidth - 10, 238, 88, 2.4)
 
     createRock(X(0.32), 1840, 300, 78, 0)
+    createRock(X(0.70), 1270, 300, 88, 0.6)
     createRock(X(0.18), 610, 250, 96, 1.4)
 
     createGuardian(
@@ -7575,19 +7544,12 @@ The numbered fallback puzzle will still work.`,
     })
 
     let playerX = X(0.5)
-
-    // The visible top of a normal platform sits about 18 px above its
-    // collision Y. Spawn directly on that top edge instead of inside it.
-    const startingPlatformTop = groundPlatform.y - 18
-    let playerY =
-      startingPlatformTop - playerHalfHeight - 1
-
+    let playerY = 2500 - playerHalfHeight - 3
     let previousPlayerY = playerY
     let velocityX = 0
     let velocityY = 0
     let onGround = true
-    let standingPlatform: Platform | undefined =
-      groundPlatform
+    let standingPlatform: Platform | undefined
     let canAirDash = true
     let facing = 1
     let hearts = 3
@@ -7609,7 +7571,6 @@ The numbered fallback puzzle will still work.`,
       | 'respawning'
       | 'enlightened'
       | 'failed' = 'playing'
-    let completionDelivered = false
 
     const playerVisual = this.scene.add.container(playerX, playerY)
     let playerSprite: Phaser.GameObjects.Sprite | undefined
@@ -7777,8 +7738,7 @@ The numbered fallback puzzle will still work.`,
     }
 
     const finishTrial = (success: boolean) => {
-      if (completionDelivered) return
-      completionDelivered = true
+      if (state === 'enlightened' || state === 'failed') return
 
       state = success ? 'enlightened' : 'failed'
       velocityX = 0
@@ -8019,8 +7979,8 @@ The numbered fallback puzzle will still work.`,
 
       if (
         velocityY >= 0 &&
-        previousBottom <= platformTop + 10 &&
-        currentBottom >= platformTop - 2 &&
+        previousBottom <= platformTop + 7 &&
+        currentBottom >= platformTop &&
         currentBottom <= platformTop + platform.height + 15
       ) {
         playerY = platformTop - playerHalfHeight
@@ -8143,32 +8103,13 @@ The numbered fallback puzzle will still work.`,
           const cycle = Math.sin(
             elapsedSeconds * hazard.speed + hazard.phase,
           )
-          const shimmer = Math.sin(
-            elapsedSeconds * 7.5 + hazard.phase * 3,
-          )
 
           hazard.active = cycle > 0.55
           const warning = cycle > 0.08
 
-          const beamSprite =
-            hazard.visual.getByName(
-              'sunBeamSprite',
-            ) as Phaser.GameObjects.Image | null
-
-          beamSprite
-            ?.setAlpha(
-              hazard.active
-                ? 0.8 + shimmer * 0.06
-                : warning
-                  ? 0.38 + shimmer * 0.03
-                  : 0.1,
-            )
-            .setScale(
-              1 + shimmer * 0.025,
-              1,
-            )
-
-          hazard.visual.setAlpha(1)
+          hazard.visual.setAlpha(
+            hazard.active ? 0.94 : warning ? 0.32 : 0.07,
+          )
           return
         }
 
@@ -8246,8 +8187,8 @@ The numbered fallback puzzle will still work.`,
           hitboxHeight *= 0.62
         } else if (hazard.kind === 'beam') {
           hazardCenterY = hazard.y + hazard.height / 2
-          hitboxWidth *= 0.72
-          hitboxHeight *= 0.8
+          hitboxWidth *= 0.55
+          hitboxHeight *= 0.88
         } else if (hazard.kind === 'blade') {
           hazardCenterY = hazard.y
           hitboxWidth *= 0.62
@@ -8361,6 +8302,40 @@ The numbered fallback puzzle will still work.`,
       )
       enlightenmentRing.setStrokeStyle(5, 0xffd966, 1)
       addWorld(enlightenmentRing, fxLayer)
+
+      fragments.forEach((fragment, index) => {
+        const orb = this.scene.add.circle(
+          playerX,
+          playerY,
+          8,
+          index === 0
+            ? 0xff876b
+            : index === 1
+              ? 0x7de0d3
+              : 0xffed8a,
+          1,
+        )
+        orb.setStrokeStyle(2, 0xffffff, 0.9)
+        addWorld(orb, fxLayer)
+
+        const angle =
+          (Math.PI * 2 * index) / 3
+
+        this.addTween({
+          targets: orb,
+          x: playerX + Math.cos(angle) * 52,
+          y: playerY + Math.sin(angle) * 30,
+          duration: 430,
+          ease: 'Back.easeOut',
+        })
+
+        this.addTween({
+          targets: orb,
+          angle: 360,
+          duration: 880,
+          repeat: 1,
+        })
+      })
 
       this.addTween({
         targets: enlightenmentRing,
