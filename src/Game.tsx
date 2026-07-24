@@ -5,6 +5,7 @@ import BootScene from './game/scenes/BootScene'
 import VillageScene from './game/scenes/VillageScene'
 import BazaarScene from './game/scenes/BazaarScene'
 import TempleScene from './game/scenes/TempleScene'
+import PyramidScene from './game/scenes/PyramidScene'
 
 import {
   clearGameProgress,
@@ -135,6 +136,7 @@ export default function Game() {
         VillageScene,
         BazaarScene,
         TempleScene,
+        PyramidScene
       ],
       scale: {
         mode: Phaser.Scale.FIT,

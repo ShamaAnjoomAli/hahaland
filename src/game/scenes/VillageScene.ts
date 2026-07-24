@@ -299,6 +299,17 @@ export default class VillageScene extends Phaser.Scene {
   private templeGuideLight?: Phaser.GameObjects.Container
   private templeGuideSparkleTimer?: Phaser.Time.TimerEvent
   private templeGuidePathPoints: Phaser.Math.Vector2[] = []
+  private pyramidGuidePathPoints: Phaser.Math.Vector2[] = []
+  private pyramidEntrancePoint?: { x: number; y: number }
+  private pyramidEntranceGlow?: Phaser.GameObjects.Ellipse
+  private pyramidEntranceRing?: Phaser.GameObjects.Ellipse
+  private pyramidEntranceArrow?: Phaser.GameObjects.Text
+  private pyramidEntranceLabel?: Phaser.GameObjects.Container
+  private pyramidEntranceLabelText?: Phaser.GameObjects.Text
+  private pyramidEntranceZone?: Phaser.GameObjects.Zone
+  private pyramidEntranceDecor: EntranceDisplayObject[] = []
+  private pyramidEntranceRadius = 105
+  private activeGuidePathPoints: Phaser.Math.Vector2[] = []
   private templeGuidePathIndex = 0
   private templeGuideSpeed = 70
   private templeGuideWaitDistance = 260
@@ -307,6 +318,7 @@ export default class VillageScene extends Phaser.Scene {
   
   private returnFromBazaar = false
   private returnFromTemple = false
+  private returnFromCompletedTemple = false
   private bazaarReturnMode: 'city' | 'north' = 'city'
 private villageSpawnName = 'PlayerSpawn'
 
@@ -321,6 +333,7 @@ private stopGameTimer?: () => void
   init(data?: {
     fromBazaar?: boolean
     fromTemple?: boolean
+    fromTempleComplete?: boolean
     bazaarExit?: 'city' | 'north'
     spawnName?: string
     coins?: number
@@ -333,28 +346,49 @@ private stopGameTimer?: () => void
       : null
   
     this.returnFromTemple = Boolean(data?.fromTemple)
-    this.returnFromBazaar = Boolean(data?.fromBazaar || data?.fromTemple)
+    this.returnFromCompletedTemple = Boolean(
+      data?.fromTempleComplete || data?.spawnName === 'PyramidRoadSpawn',
+    )
+    this.returnFromBazaar = Boolean(
+      data?.fromBazaar || data?.fromTemple || data?.fromTempleComplete,
+    )
     this.bazaarReturnMode =
       data?.fromTemple ||
+      data?.fromTempleComplete ||
       data?.bazaarExit === 'north' ||
-      data?.spawnName === 'BazaarNorthReturnSpawn'
+      data?.spawnName === 'BazaarNorthReturnSpawn' ||
+      data?.spawnName === 'PyramidRoadSpawn'
         ? 'north'
         : 'city'
     this.villageSpawnName =
       data?.spawnName ??
-      (data?.fromTemple ? 'TempleEntrance' : 'PlayerSpawn')
+      (data?.fromTempleComplete
+        ? 'PyramidRoadSpawn'
+        : data?.fromTemple
+          ? 'TempleEntrance'
+          : 'PlayerSpawn')
   
     if (savedProgress) {
       this.coins = savedProgress.coins
       this.reputation = savedProgress.reputation
       this.remainingSeconds = savedProgress.remainingSeconds
 
+      const shouldResumePyramidRoad =
+        savedProgress.currentScene === 'VillageScene' &&
+        savedProgress.completedTempleTrials.length >= 7
+
       const shouldResumeTempleRoad =
         savedProgress.currentScene === 'VillageScene' &&
         savedProgress.completedMarkets.length >= 7 &&
         savedProgress.completedTempleTrials.length === 0
 
-      if (shouldResumeTempleRoad) {
+      if (shouldResumePyramidRoad) {
+        this.returnFromTemple = true
+        this.returnFromCompletedTemple = true
+        this.returnFromBazaar = true
+        this.bazaarReturnMode = 'north'
+        this.villageSpawnName = 'PyramidRoadSpawn'
+      } else if (shouldResumeTempleRoad) {
         this.returnFromBazaar = true
         this.bazaarReturnMode = 'north'
         this.villageSpawnName = 'BazaarNorthReturnSpawn'
@@ -383,6 +417,7 @@ private stopGameTimer?: () => void
   create() {
     this.bazaarEntranceDecor = []
     this.templeEntranceDecor = []
+    this.pyramidEntranceDecor = []
 
     // --- Tilemap setup ---
     // Load the village tilemap exported from Tiled and bind it to the loaded tileset image.
@@ -511,6 +546,8 @@ const gameplaySpawn = this.getSpawnPoint(
     this.createBazaarEntranceMarker(map)
     this.createTempleEntranceMarker(map)
     this.readTempleGuidePath(map)
+    this.readPyramidGuidePath(map)
+    this.createPyramidEntranceMarker(map)
     // --- Collision objects ---
     // Read invisible collision rectangles from the Tiled object layer and turn them into static physics bodies.
     const collisionObjects = map.getObjectLayer('CollisionObjects')
@@ -583,7 +620,19 @@ this.saveProgress()
 
       this.setStoryUIVisible(true)
 
-      if (this.bazaarReturnMode === 'north') {
+      if (this.returnFromCompletedTemple) {
+        this.storyStage = 'pyramidQuest'
+        this.badgeUI.setCategory('pyramid')
+        this.hideBazaarEntranceMarker()
+        this.hideTempleGuideLight()
+        this.objectiveBox.setText(
+          'Objective: Follow the golden light toward the Pyramid.',
+        )
+        this.showTempleGuideLight(false, 'pyramid')
+        this.showPyramidEntranceMarker()
+        this.questMarker?.setVisible(false)
+        this.minimapQuestDot?.setVisible(false)
+      } else if (this.bazaarReturnMode === 'north') {
         this.storyStage = 'templeQuest'
         this.badgeUI.setCategory('temple')
         this.hideBazaarEntranceMarker()
@@ -982,6 +1031,10 @@ this.saveProgress()
     }
 
     if (this.handleTempleEntranceInput()) {
+      return
+    }
+
+    if (this.handlePyramidEntranceInput()) {
       return
     }
     
@@ -3331,8 +3384,440 @@ const y = padding
     this.templeGuidePathIndex = 0
   }
 
-  private showTempleGuideLight(startAtTempleEntrance = false) {
-    if (!this.templeEntrancePoint) return
+  private createPyramidEntranceMarker(map: Phaser.Tilemaps.Tilemap) {
+    const point = this.getOptionalSpawnPoint(map, 'PyramidEntrance')
+
+    if (!point) {
+      console.warn('PyramidEntrance point not found in the Spawns layer.')
+      return
+    }
+
+    this.pyramidEntrancePoint = point
+
+    const gold = 0xd5a84b
+    const sun = 0xffd166
+    const teal = 0x2bbfae
+
+    this.pyramidEntranceGlow = this.add.ellipse(
+      point.x,
+      point.y,
+      122,
+      60,
+      sun,
+      0.18,
+    )
+
+    this.pyramidEntranceRing = this.add.ellipse(
+      point.x,
+      point.y,
+      98,
+      42,
+      0x000000,
+      0,
+    )
+    this.pyramidEntranceRing.setStrokeStyle(3, gold, 0.95)
+
+    this.pyramidEntranceArrow = this.add.text(point.x, point.y - 5, '▲', {
+      fontFamily: 'Georgia',
+      fontSize: '25px',
+      color: '#ffe7a3',
+      stroke: '#241408',
+      strokeThickness: 5,
+      fontStyle: 'bold',
+    })
+    this.pyramidEntranceArrow.setOrigin(0.5)
+
+    const labelBg = this.add.rectangle(0, 0, 216, 38, 0x241408, 0.94)
+    labelBg.setStrokeStyle(2, gold, 1)
+
+    this.pyramidEntranceLabelText = this.add.text(0, -1, 'Pyramid Entrance', {
+      fontFamily: 'Georgia',
+      fontSize: '15px',
+      color: '#ffe7a3',
+      stroke: '#120a04',
+      strokeThickness: 3,
+      fontStyle: 'bold',
+    })
+    this.pyramidEntranceLabelText.setOrigin(0.5)
+
+    this.pyramidEntranceLabel = this.add.container(point.x, point.y - 62, [
+      labelBg,
+      this.pyramidEntranceLabelText,
+    ])
+
+    this.pyramidEntranceZone = this.add.zone(point.x, point.y, 140, 120)
+    this.pyramidEntranceZone.setInteractive({ useHandCursor: true })
+    this.pyramidEntranceZone.on('pointerdown', () => {
+      if (this.storyStage !== 'pyramidQuest') return
+      this.enterPyramidScene()
+    })
+
+    const motes = Array.from({ length: 8 }, (_value, index) => {
+      const angle = (Math.PI * 2 * index) / 8
+      const mote = this.add.circle(
+        point.x + Math.cos(angle) * 46,
+        point.y + Math.sin(angle) * 20,
+        index % 2 === 0 ? 2.2 : 1.6,
+        index % 2 === 0 ? sun : teal,
+        0.75,
+      )
+
+      this.tweens.add({
+        targets: mote,
+        y: mote.y - 16,
+        alpha: 0,
+        scale: 0.45,
+        duration: 1150 + index * 70,
+        delay: index * 105,
+        repeat: -1,
+        ease: 'Sine.easeOut',
+      })
+
+      return mote
+    })
+
+    this.pyramidEntranceDecor = motes
+
+    const objects: EntranceDisplayObject[] = [
+      this.pyramidEntranceGlow,
+      this.pyramidEntranceRing,
+      this.pyramidEntranceArrow,
+      this.pyramidEntranceLabel,
+      this.pyramidEntranceZone,
+      ...this.pyramidEntranceDecor,
+    ]
+
+    objects.forEach((object) => {
+      object.setDepth(9500)
+      object.setVisible(false)
+      object.setActive(false)
+    })
+
+    this.worldObjects.push(...objects)
+
+    this.tweens.add({
+      targets: this.pyramidEntranceGlow,
+      scaleX: 1.18,
+      scaleY: 1.18,
+      alpha: 0.07,
+      duration: 1050,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: this.pyramidEntranceArrow,
+      y: point.y - 13,
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.minimap?.ignore(objects)
+    this.uiCamera?.ignore(objects)
+  }
+
+  private showPyramidEntranceMarker() {
+    const objects = [
+      this.pyramidEntranceGlow,
+      this.pyramidEntranceRing,
+      this.pyramidEntranceArrow,
+      this.pyramidEntranceLabel,
+      this.pyramidEntranceZone,
+      ...this.pyramidEntranceDecor,
+    ]
+
+    objects.forEach((object) => {
+      object?.setVisible(true)
+      object?.setActive(true)
+    })
+  }
+
+  private hidePyramidEntranceMarker() {
+    const objects = [
+      this.pyramidEntranceGlow,
+      this.pyramidEntranceRing,
+      this.pyramidEntranceArrow,
+      this.pyramidEntranceLabel,
+      this.pyramidEntranceZone,
+      ...this.pyramidEntranceDecor,
+    ]
+
+    objects.forEach((object) => {
+      object?.setVisible(false)
+      object?.setActive(false)
+    })
+  }
+
+  private handlePyramidEntranceInput() {
+    if (this.storyStage !== 'pyramidQuest') return false
+    if (!this.pyramidEntrancePoint) return false
+    if (!this.pyramidEntranceGlow?.visible) return false
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.pyramidEntrancePoint.x,
+      this.pyramidEntrancePoint.y,
+    )
+
+    const playerIsNear = distance <= this.pyramidEntranceRadius
+
+    this.pyramidEntranceLabelText?.setText(
+      playerIsNear ? 'E Enter Pyramid' : 'Pyramid Entrance',
+    )
+
+    this.pyramidEntranceGlow?.setFillStyle(
+      playerIsNear ? 0x2bbfae : 0xffd166,
+      playerIsNear ? 0.34 : 0.18,
+    )
+
+    this.pyramidEntranceRing?.setStrokeStyle(
+      playerIsNear ? 4 : 3,
+      playerIsNear ? 0xfff1ad : 0xd5a84b,
+      1,
+    )
+
+    this.pyramidEntranceLabel?.setScale(playerIsNear ? 1.04 : 1)
+    this.pyramidEntranceArrow?.setColor(
+      playerIsNear ? '#fff7cf' : '#ffe7a3',
+    )
+
+    if (playerIsNear && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      this.enterPyramidScene()
+      return true
+    }
+
+    return false
+  }
+
+  private enterPyramidScene() {
+    if (this.isCutscenePlaying) return
+
+    this.isCutscenePlaying = true
+    this.hideTempleGuideLight()
+    this.hidePyramidEntranceMarker()
+    this.setStoryUIVisible(false)
+    this.player.setVelocity(0)
+    this.player.stop()
+
+    const width = this.scale.width
+    const height = this.scale.height
+    const panelColor = 0x241408
+    const gold = 0xd5a84b
+
+    // Match the Bazaar and Temple quest-opening presentation:
+    // dark dimmer, sandstone panels closing from above and below,
+    // gold edges, and centered chapter text.
+    const dimmer = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x100904,
+      0,
+    )
+    dimmer.setScrollFactor(0)
+
+    const topPanelBody = this.add.rectangle(
+      0,
+      0,
+      width,
+      height / 2 + 4,
+      panelColor,
+      1,
+    )
+    topPanelBody.setOrigin(0.5, 0)
+
+    const topGoldEdge = this.add.rectangle(
+      0,
+      height / 2,
+      width,
+      6,
+      gold,
+      1,
+    )
+    topGoldEdge.setOrigin(0.5, 1)
+
+    const topPanel = this.add.container(
+      width / 2,
+      0,
+      [topPanelBody, topGoldEdge],
+    )
+    topPanel.setScale(1, 0)
+    topPanel.setScrollFactor(0)
+
+    const bottomPanelBody = this.add.rectangle(
+      0,
+      0,
+      width,
+      height / 2 + 4,
+      panelColor,
+      1,
+    )
+    bottomPanelBody.setOrigin(0.5, 1)
+
+    const bottomGoldEdge = this.add.rectangle(
+      0,
+      -height / 2,
+      width,
+      6,
+      gold,
+      1,
+    )
+    bottomGoldEdge.setOrigin(0.5, 0)
+
+    const bottomPanel = this.add.container(
+      width / 2,
+      height,
+      [bottomPanelBody, bottomGoldEdge],
+    )
+    bottomPanel.setScale(1, 0)
+    bottomPanel.setScrollFactor(0)
+
+    const title = this.add.text(
+      width / 2,
+      height / 2 - 22,
+      'THE GREAT PYRAMID',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '38px',
+        color: '#ffe7a3',
+        stroke: '#120a04',
+        strokeThickness: 6,
+        fontStyle: 'bold',
+        align: 'center',
+      },
+    )
+    title.setOrigin(0.5)
+    title.setScrollFactor(0)
+    title.setAlpha(0)
+    title.setScale(0.9)
+
+    const divider = this.add.text(
+      width / 2,
+      height / 2 + 12,
+      '◆  ✦  ◆',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#d5a84b',
+        stroke: '#120a04',
+        strokeThickness: 3,
+      },
+    )
+    divider.setOrigin(0.5)
+    divider.setScrollFactor(0)
+    divider.setAlpha(0)
+
+    const subtitle = this.add.text(
+      width / 2,
+      height / 2 + 46,
+      'The final royal quest begins.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#f4ead5',
+        stroke: '#120a04',
+        strokeThickness: 4,
+        align: 'center',
+      },
+    )
+    subtitle.setOrigin(0.5)
+    subtitle.setScrollFactor(0)
+    subtitle.setAlpha(0)
+
+    const transitionObjects: EntranceDisplayObject[] = [
+      dimmer,
+      topPanel,
+      bottomPanel,
+      title,
+      divider,
+      subtitle,
+    ]
+
+    transitionObjects.forEach((object) => object.setDepth(200000))
+
+    // These are fixed-screen transition objects. The main world camera must
+    // not draw them because the UI camera renders them at normal screen scale.
+    this.cameras.main.ignore(transitionObjects)
+
+    this.tweens.add({
+      targets: dimmer,
+      alpha: 0.74,
+      duration: 300,
+      ease: 'Sine.easeOut',
+    })
+
+    this.tweens.add({
+      targets: [topPanel, bottomPanel],
+      scaleY: 1,
+      duration: 470,
+      ease: 'Cubic.easeInOut',
+    })
+
+    this.tweens.add({
+      targets: [title, divider, subtitle],
+      alpha: 1,
+      scale: 1,
+      duration: 320,
+      delay: 300,
+      ease: 'Back.easeOut',
+    })
+
+    this.time.delayedCall(930, () => {
+      this.scene.start('PyramidScene', {
+        coins: this.coins,
+        reputation: this.reputation,
+        remainingSeconds: this.remainingSeconds,
+      })
+    })
+  }
+
+  private readPyramidGuidePath(map: Phaser.Tilemaps.Tilemap) {
+    const spawnsLayer = map.getObjectLayer('Spawns')
+
+    const pathPoints =
+      spawnsLayer?.objects
+        .filter(
+          (object) =>
+            typeof object.name === 'string' &&
+            object.name.startsWith('PyramidGuidePath_'),
+        )
+        .sort((a, b) => {
+          const aNumber = Number(a.name.replace('PyramidGuidePath_', ''))
+          const bNumber = Number(b.name.replace('PyramidGuidePath_', ''))
+
+          return aNumber - bNumber
+        })
+        .map(
+          (object) =>
+            new Phaser.Math.Vector2(object.x ?? 0, object.y ?? 0),
+        ) ?? []
+
+    const pyramidEntrance = this.getOptionalSpawnPoint(map, 'PyramidEntrance')
+
+    if (pyramidEntrance) {
+      pathPoints.push(
+        new Phaser.Math.Vector2(
+          pyramidEntrance.x,
+          pyramidEntrance.y,
+        ),
+      )
+    }
+
+    this.pyramidGuidePathPoints = pathPoints
+  }
+
+  private showTempleGuideLight(
+    startAtTempleEntrance = false,
+    route: 'temple' | 'pyramid' = 'temple',
+  ) {
+    const usePyramidRoute = route === 'pyramid'
+
+    if (!usePyramidRoute && !this.templeEntrancePoint) return
 
     const templeObjects = [
       this.templeEntranceGlow,
@@ -3342,31 +3827,39 @@ const y = padding
       ...this.templeEntranceDecor,
     ]
 
-    templeObjects.forEach((obj) => {
-      obj?.setVisible(true)
-      obj?.setActive(true)
-    })
+    if (!usePyramidRoute) {
+      templeObjects.forEach((obj) => {
+        obj?.setVisible(true)
+        obj?.setActive(true)
+      })
+    }
+
+    this.activeGuidePathPoints = usePyramidRoute
+      ? [...this.pyramidGuidePathPoints]
+      : [...this.templeGuidePathPoints]
+
+    if (this.activeGuidePathPoints.length === 0) {
+      console.warn(
+        usePyramidRoute
+          ? 'No PyramidGuidePath points or PyramidEntrance found in Tiled.'
+          : 'No TempleGuidePath points found in Tiled.',
+      )
+      return
+    }
 
     this.templeGuidePathIndex = startAtTempleEntrance
-      ? Math.max(0, this.templeGuidePathPoints.length - 1)
+      ? Math.max(0, this.activeGuidePathPoints.length - 1)
       : 0
     this.templeGuideIsWaiting = false
 
-    if (this.templeGuidePathPoints.length === 0) {
-      this.templeGuidePathPoints.push(
-        new Phaser.Math.Vector2(
-          this.templeEntrancePoint.x,
-          this.templeEntrancePoint.y,
-        ),
-      )
-    }
-
-    const startX = startAtTempleEntrance
-      ? this.templeEntrancePoint.x
-      : this.player.x
-    const startY = startAtTempleEntrance
-      ? this.templeEntrancePoint.y - 42
-      : this.player.y - 42
+    const startX =
+      !usePyramidRoute && startAtTempleEntrance && this.templeEntrancePoint
+        ? this.templeEntrancePoint.x
+        : this.player.x
+    const startY =
+      !usePyramidRoute && startAtTempleEntrance && this.templeEntrancePoint
+        ? this.templeEntrancePoint.y - 42
+        : this.player.y - 42
 
     if (!this.templeGuideLight) {
       const outerGlow = this.add.circle(0, 0, 34, 0xffc95c, 0.14)
@@ -3477,7 +3970,13 @@ const y = padding
       delay: 150,
       loop: true,
       callback: () => {
-        if (this.storyStage !== 'templeQuest' || !this.templeGuideLight?.visible) return
+        if (
+          (this.storyStage !== 'templeQuest' &&
+            this.storyStage !== 'pyramidQuest') ||
+          !this.templeGuideLight?.visible
+        ) {
+          return
+        }
 
         const particle = this.add.circle(
           this.templeGuideLight.x + Phaser.Math.Between(-10, 10),
@@ -3506,12 +4005,17 @@ const y = padding
   }
 
   private updateTempleGuideLight(delta = this.game.loop.delta) {
-    if (this.storyStage !== 'templeQuest') return
+    if (
+      this.storyStage !== 'templeQuest' &&
+      this.storyStage !== 'pyramidQuest'
+    ) {
+      return
+    }
     if (!this.templeGuideLight) return
-    if (this.templeGuidePathPoints.length === 0) return
+    if (this.activeGuidePathPoints.length === 0) return
 
     const light = this.templeGuideLight
-    const targetPoint = this.templeGuidePathPoints[this.templeGuidePathIndex]
+    const targetPoint = this.activeGuidePathPoints[this.templeGuidePathIndex]
     if (!targetPoint) return
 
     const targetX = targetPoint.x
@@ -3557,7 +4061,7 @@ const y = padding
     }
 
     if (lightDistanceToTarget < 10) {
-      if (this.templeGuidePathIndex < this.templeGuidePathPoints.length - 1) {
+      if (this.templeGuidePathIndex < this.activeGuidePathPoints.length - 1) {
         this.templeGuidePathIndex += 1
       }
       light.setDepth(light.y + 50)

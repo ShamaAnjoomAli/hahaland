@@ -125,12 +125,9 @@ export default class TempleScene extends Phaser.Scene {
   private highPriest?: Phaser.GameObjects.Sprite
   private highPriestPoint?: Phaser.Math.Vector2
   private trialPoints = new Map<TempleTrialId, Phaser.Math.Vector2>()
-  private pyramidExitPoint?: Phaser.Math.Vector2
   private templeExitPoint?: Phaser.Math.Vector2
   private trialMarkers = new Map<TempleTrialId, TempleDisplayObject[]>()
-  private pyramidExitMarker?: Phaser.GameObjects.Container
   private templeExitMarker?: Phaser.GameObjects.Container
-  private guideLight?: Phaser.GameObjects.Container
   private templeQuestMarker?: Phaser.GameObjects.Container
 
   private minimap!: Phaser.Cameras.Scene2D.Camera
@@ -206,7 +203,6 @@ export default class TempleScene extends Phaser.Scene {
     this.createCollisionObjects(map)
     this.createHighPriest()
     this.createTrialMarkers()
-    this.createPyramidExitMarker()
     this.createTempleExitMarker()
     this.createQuestTargetMarker()
 
@@ -342,7 +338,6 @@ export default class TempleScene extends Phaser.Scene {
 
   private readTemplePoints(map: Phaser.Tilemaps.Tilemap) {
     this.highPriestPoint = this.getPoint(map, 'HighPriest')
-    this.pyramidExitPoint = this.getPoint(map, 'PyramidExit')
     this.templeExitPoint =
       this.getPoint(map, 'TempleEntrance') ??
       this.getPoint(map, 'TemplePlayerSpawn')
@@ -449,69 +444,6 @@ export default class TempleScene extends Phaser.Scene {
     })
   }
 
-  private createPyramidExitMarker() {
-    if (!this.pyramidExitPoint) return
-
-    const point = this.pyramidExitPoint
-    const glow = this.add.circle(point.x, point.y, 56, 0xffd966, 0.18)
-    const ring = this.add.circle(point.x, point.y, 46, 0x000000, 0)
-    ring.setStrokeStyle(3, 0xffd966, 0.9)
-    const arrow = this.add.text(point.x, point.y, '▲', {
-      fontFamily: 'Georgia',
-      fontSize: '26px',
-      color: '#ffe7a3',
-      stroke: '#000000',
-      strokeThickness: 4,
-      fontStyle: 'bold',
-    })
-    arrow.setOrigin(0.5)
-    const labelBg = this.add.rectangle(point.x, point.y + 56, 230, 30, 0x241408, 0.92)
-    labelBg.setStrokeStyle(2, 0xffd966, 1)
-    const label = this.add.text(point.x, point.y + 55, 'Pyramid Road', {
-      fontFamily: 'Georgia',
-      fontSize: '14px',
-      color: '#ffe7a3',
-      stroke: '#000000',
-      strokeThickness: 3,
-      fontStyle: 'bold',
-    })
-    label.setOrigin(0.5)
-
-    this.pyramidExitMarker = this.add.container(0, 0, [glow, ring, arrow, labelBg, label])
-    this.pyramidExitMarker.setDepth(9300)
-    this.worldObjects.push(this.pyramidExitMarker)
-
-    this.tweens.add({
-      targets: glow,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      alpha: 0.08,
-      duration: 900,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-  }
-
-  private createGuideLight() {
-    const glow = this.add.circle(0, 0, 28, 0xffd966, 0.2)
-    const core = this.add.circle(0, 0, 8, 0xfff1ad, 0.95)
-    const ring = this.add.circle(0, 0, 16, 0x000000, 0)
-    ring.setStrokeStyle(2, 0xffd966, 0.8)
-
-    this.guideLight = this.add.container(this.player.x, this.player.y - 42, [glow, ring, core])
-    this.guideLight.setDepth(9400)
-    this.worldObjects.push(this.guideLight)
-
-    this.tweens.add({
-      targets: this.guideLight,
-      y: this.guideLight.y - 9,
-      duration: 720,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
-  }
 
   private createTempleExitMarker() {
     if (!this.templeExitPoint) return
@@ -611,7 +543,9 @@ export default class TempleScene extends Phaser.Scene {
       return this.trialPoints.get(nextTrial.id)
     }
 
-    return this.pyramidExitPoint
+    // Once all seven trials are complete, the High Priest dialogue
+    // automatically begins the chapter transition. No extra map marker is needed.
+    return undefined
   }
 
   private updateQuestTargetMarker() {
@@ -1011,14 +945,6 @@ export default class TempleScene extends Phaser.Scene {
       return undefined
     }
 
-    if (this.pyramidExitPoint && this.distanceTo(this.pyramidExitPoint) <= 112) {
-      return {
-        label: 'E Pyramid Road',
-        action: () => this.startPyramidRoadEnding(),
-        point: this.pyramidExitPoint,
-        promptOffsetY: 44,
-      }
-    }
 
     return undefined
   }
@@ -1131,7 +1057,7 @@ export default class TempleScene extends Phaser.Scene {
     }
 
     this.badgeUI.award('temple-ascendant')
-    this.objectiveBox.setText('Objective: Exit toward the Pyramid.')
+    this.objectiveBox.setText('Objective: Listen to the High Priest.')
     this.dialogue.show(
       [
         {
@@ -1151,7 +1077,7 @@ export default class TempleScene extends Phaser.Scene {
           portraitKey: 'npc16',
         },
       ],
-      undefined,
+      () => this.startPyramidRoadEnding(),
       'npc16',
     )
   }
@@ -1162,58 +1088,110 @@ export default class TempleScene extends Phaser.Scene {
 
     this.isTransitioning = true
     this.stopPlayer()
-    this.objectiveBox.setText('Objective: Travel to the Pyramid.')
+    this.interactPrompt?.setVisible(false)
+    this.templeQuestMarker?.setVisible(false)
+    this.objectiveBox.setText('Objective: The Pyramid Quest begins.')
 
     const width = this.scale.width
     const height = this.scale.height
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x120a04, 0)
+
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x000000,
+      1,
+    )
+    // Keep the shape's fill fully opaque and animate the Game Object alpha.
+    // A rectangle created with fillAlpha 0 stays transparent even when its
+    // object alpha is later tweened to 1.
+    overlay.setAlpha(0)
     overlay.setScrollFactor(0)
-    const title = this.add.text(width / 2, height / 2 - 32, 'TEMPLE QUEST COMPLETE', {
-      fontFamily: 'Georgia',
-      fontSize: '30px',
-      color: '#ffe7a3',
-      stroke: '#000000',
-      strokeThickness: 6,
-      fontStyle: 'bold',
-      align: 'center',
-    })
+
+    const title = this.add.text(
+      width / 2,
+      height / 2 - 30,
+      'TEMPLE QUEST COMPLETE',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '30px',
+        color: '#ffe7a3',
+        stroke: '#000000',
+        strokeThickness: 6,
+        fontStyle: 'bold',
+        align: 'center',
+      },
+    )
     title.setOrigin(0.5)
     title.setScrollFactor(0)
     title.setAlpha(0)
 
-    const subtitle = this.add.text(width / 2, height / 2 + 24, 'The Pyramid Quest opens next.', {
-      fontFamily: 'Georgia',
-      fontSize: '18px',
-      color: '#f5ead7',
-      stroke: '#000000',
-      strokeThickness: 4,
-      align: 'center',
-    })
+    const subtitle = this.add.text(
+      width / 2,
+      height / 2 + 25,
+      'Beyond the temple, the Great Pyramid awaits.',
+      {
+        fontFamily: 'Georgia',
+        fontSize: '18px',
+        color: '#f5ead7',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+      },
+    )
     subtitle.setOrigin(0.5)
     subtitle.setScrollFactor(0)
     subtitle.setAlpha(0)
 
-    const objects = [overlay, title, subtitle]
-    objects.forEach((obj) => obj.setDepth(200000))
-    this.cameras.main.ignore(objects)
+    const transitionObjects = [overlay, title, subtitle]
+    transitionObjects.forEach((object) => object.setDepth(200000))
 
-    this.tweens.add({ targets: overlay, alpha: 0.78, duration: 520 })
-    this.tweens.add({ targets: [title, subtitle], alpha: 1, y: '-=10', duration: 540, delay: 300, ease: 'Sine.easeOut' })
+    // These belong to the UI camera so the blackout also covers the HUD.
+    this.cameras.main.ignore(transitionObjects)
 
-    this.saveProgress()
+    // First complete the slow blackout. Only reveal the completion text
+    // after the overlay is fully opaque, so the Temple map cannot show behind it.
+    this.tweens.add({
+      targets: overlay,
+      alpha: 1,
+      duration: 1350,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        overlay.setAlpha(1)
 
-    this.time.delayedCall(2400, () => {
-      objects.forEach((obj) => obj.destroy())
-      this.dialogue.show(
-        [
-          'The golden gate opens to the desert road.',
-          'The pyramid rises in the distance.',
-          'For now, your Temple Quest is complete. Pyramid Quest comes next.',
-        ],
-        () => {
-          this.isTransitioning = false
-        },
-      )
+        this.tweens.add({
+          targets: [title, subtitle],
+          alpha: 1,
+          y: '-=8',
+          duration: 720,
+          ease: 'Sine.easeOut',
+        })
+      },
+    })
+
+    const existingSave = loadGameProgress()
+
+    saveGameProgress({
+      currentScene: 'VillageScene',
+      coins: this.coins,
+      reputation: this.reputation,
+      remainingSeconds: this.remainingSeconds,
+      completedMarkets: existingSave?.completedMarkets ?? [],
+      completedTempleTrials: [...this.completedTempleTrials],
+      earnedBadges: existingSave?.earnedBadges ?? [],
+      unseenBadges: existingSave?.unseenBadges ?? [],
+    })
+
+    this.time.delayedCall(4050, () => {
+      this.scene.start('VillageScene', {
+        fromTemple: true,
+        fromTempleComplete: true,
+        spawnName: 'PyramidRoadSpawn',
+        coins: this.coins,
+        reputation: this.reputation,
+        remainingSeconds: this.remainingSeconds,
+      })
     })
   }
 
@@ -1322,44 +1300,8 @@ export default class TempleScene extends Phaser.Scene {
       }
     })
   
-    const templeCompleted =
-      this.completedTempleTrials.size >= TEMPLE_TRIALS.length
-  
-    this.pyramidExitMarker?.setVisible(templeCompleted)
-    this.pyramidExitMarker?.setActive(templeCompleted)
-  
     this.updateQuestTargetMarker()
     this.updateMinimap()
-  }
-
-  private updateGuideLight() {
-    if (!this.guideLight) return
-
-    let target: Phaser.Math.Vector2 | undefined
-
-    if (!this.templeIntroComplete) {
-      target = this.highPriestPoint
-    } else {
-      const nextTrial = this.getNextTrial()
-      target = nextTrial ? this.trialPoints.get(nextTrial.id) : this.pyramidExitPoint
-    }
-
-    if (!target) {
-      this.guideLight.setVisible(false)
-      return
-    }
-
-    this.guideLight.setVisible(true)
-
-    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, target.x, target.y)
-    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y)
-    const leadDistance = Phaser.Math.Clamp(distance * 0.35, 46, 128)
-    const desiredX = this.player.x + Math.cos(angle) * leadDistance
-    const desiredY = this.player.y + Math.sin(angle) * leadDistance - 24
-
-    this.guideLight.x = Phaser.Math.Linear(this.guideLight.x, desiredX, 0.045)
-    this.guideLight.y = Phaser.Math.Linear(this.guideLight.y, desiredY, 0.045)
-    this.guideLight.setDepth(this.player.y + 10)
   }
 
   private getNextTrial() {
@@ -1368,7 +1310,7 @@ export default class TempleScene extends Phaser.Scene {
 
   private getCurrentObjectiveText() {
     const nextTrial = this.getNextTrial()
-    return nextTrial ? nextTrial.objective : 'Objective: Exit toward the Pyramid.'
+    return nextTrial ? nextTrial.objective : 'Objective: Temple Quest complete.'
   }
 
   private saveProgress() {
